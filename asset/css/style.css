@@ -1,0 +1,260 @@
+/* style.css - Luxury Glassmorphism & Animations */
+:root {
+    --bg-deep-navy: #050A14;         
+    --card-glass: rgba(16, 26, 48, 0.6); 
+    --border-light: rgba(255, 255, 255, 0.08); 
+    
+    --gold-accent: #E6C27A;          
+    --gold-glow: rgba(230, 194, 122, 0.4); 
+    --gold-glow-strong: rgba(230, 194, 122, 0.7);
+
+    --text-primary: #FFFFFF;
+    --text-secondary: #8B9BB4;
+    --modal-overlay: rgba(5, 10, 20, 0.85);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Prompt', sans-serif;
+    background-color: var(--bg-deep-navy);
+    background-image: radial-gradient(circle at 50% 0%, #162645 0%, var(--bg-deep-navy) 60%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* --- Custom Scrollbar --- */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-deep-navy); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); box-shadow: 0 0 10px var(--gold-glow); }
+
+/* --- Header --- */
+header {
+    text-align: center;
+    padding: 50px 20px 20px;
+}
+
+header h1 {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+}
+
+header p {
+    color: var(--text-secondary);
+    font-size: 1.15rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* --- Container & Sections --- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 80px;
+}
+
+.section-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gold-accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin: 60px 0 25px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(to right, var(--gold-accent), transparent) 1;
+    text-shadow: 0 0 15px var(--gold-glow);
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+}
+
+/* --- Cards (Glassmorphism) --- */
+.card {
+    background: var(--card-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-light);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 50px 25px 35px; /* เพิ่มพื้นที่ด้านบนเว้นที่ให้ป้าย */
+    display: flex;
+    flex-direction: column;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+    transform-style: preserve-3d; 
+}
+
+.card:hover {
+    border-color: var(--gold-accent);
+    background: rgba(20, 32, 58, 0.8);
+    box-shadow: 
+        0 15px 40px rgba(0, 0, 0, 0.6),
+        0 0 30px var(--gold-glow),
+        inset 0 0 15px rgba(230, 194, 122, 0.1);
+}
+
+.card h3 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    transition: color 0.3s;
+    transform: translateZ(20px); 
+}
+
+.card:hover h3 {
+    color: var(--gold-accent);
+    text-shadow: 0 0 10px var(--gold-glow);
+}
+
+.card p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 30px;
+    flex-grow: 1;
+    line-height: 1.7;
+    transform: translateZ(10px);
+}
+
+/* --- Card Badges (ป้ายคาดหรูหรา - อัปเดตตำแหน่ง) --- */
+.card-badge {
+    position: absolute;
+    top: 15px;      /* ดึงเข้ามาด้านในขอบบน */
+    right: 15px;    /* ดึงเข้ามาด้านในขอบขวา */
+    padding: 4px 12px;
+    border-radius: 6px; 
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 1px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 10;
+    transform: translateZ(20px); 
+    transition: all 0.3s ease;
+}
+
+.card:hover .card-badge {
+    transform: translateZ(30px) scale(1.05); 
+}
+
+/* Badge 1: แนะนำ (Gold) */
+.badge-recommended {
+    background: rgba(230, 194, 122, 0.1);
+    border: 1px solid rgba(230, 194, 122, 0.4);
+    color: var(--gold-accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Badge 2: ยอดฮิต (Ruby Red) */
+.badge-hot {
+    background: rgba(255, 77, 77, 0.1);
+    border: 1px solid rgba(255, 77, 77, 0.4);
+    color: #FF4D4D;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Badge 3: มาใหม่ (Sapphire Cyan) */
+.badge-new {
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    color: #00F0FF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Buttons --- */
+.btn {
+    background-color: transparent;
+    color: var(--gold-accent);
+    border: 1px solid var(--gold-accent);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-family: 'Prompt', sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-align: center;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(230, 194, 122, 0.1);
+    transform: translateZ(20px);
+}
+
+.btn:hover {
+    background-color: var(--gold-accent);
+    color: var(--bg-deep-navy);
+    box-shadow: 0 0 20px var(--gold-glow-strong), 0 0 40px var(--gold-glow);
+}
+
+/* --- Reveal Animation (โผล่ขึ้นตอนเลื่อนจอ) --- */
+.reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+}
+.reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* --- Modal --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: var(--modal-overlay);
+    backdrop-filter: blur(8px);
+}
+
+.modal-content {
+    background: var(--card-glass);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--gold-accent);
+    margin: 5% auto;
+    padding: 50px;
+    border-radius: 12px;
+    width: 95%; 
+    max-width: 1440px; 
+    position: relative;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 50px var(--gold-glow);
+}
+
+.close-btn {
+    position: absolute;
+    top: 20px; right: 30px;
+    font-size: 35px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.3s ease;
+}
+
+.close-btn:hover { 
+    color: var(--gold-accent); 
+    text-shadow: 0 0 15px var(--gold-glow);
+    transform: rotate(90deg);
+}
+
+@media (max-width: 992px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .card-grid { grid-template-columns: 1fr; } }

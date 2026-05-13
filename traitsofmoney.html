@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traits of Money</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', // Text Primary
+                            400: '#8B9BB4', // Text Secondary
+                            500: '#64748B', 
+                            700: '#1c2e4a', // Light Border
+                            800: '#162645',
+                            900: '#101a30', // Deep Navy Card Base
+                        },
+                        indigo: {
+                            300: '#E6C27A', // Gold text for active state
+                            500: '#E6C27A', // Gold border for active state
+                            900: '#E6C27A', // Gold bg base for active state
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; /* เปลี่ยนเป็น transparent เพื่อให้กลืนกับ Modal */
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { 
+            width: 8px; 
+        }
+        ::-webkit-scrollbar-track { 
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb { 
+            background: rgba(255, 255, 255, 0.15); 
+            border-radius: 10px; 
+        }
+        ::-webkit-scrollbar-thumb:hover { 
+            background: var(--gold-accent); 
+        }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .tab-btn { 
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; 
+            backdrop-filter: blur(8px);
+        }
+        .tab-btn:hover {
+            box-shadow: 0 0 15px rgba(255,255,255,0.05);
+        }
+        .tab-btn.active { 
+            box-shadow: 0 0 20px var(--gold-glow); 
+            text-shadow: 0 0 10px var(--gold-glow);
+        }
+        .tab-btn.active .tab-icon { transform: scale(1.2); }
+        
+        .tab-content { display: none; animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Gold Button matching index.html */
+        .btn-gold-outline {
+            background-color: transparent;
+            color: var(--gold-accent);
+            border: 1px solid var(--gold-accent);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(230, 194, 122, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-gold-outline:hover {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            box-shadow: 0 0 20px var(--gold-glow-strong), 0 0 40px var(--gold-glow);
+        }
+        
+        .money-brrr { position: absolute; font-size: 24px; pointer-events: none; animation: flyUp 1s ease-out forwards; }
+        @keyframes flyUp { 0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5) rotate(45deg); opacity: 0; } }
+
+        .shake-err { animation: shake 0.4s ease-in-out; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6">
+
+    <div class="max-w-5xl w-full">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-4 mb-3">6 คุณสมบัติของเงิน (Traits of Money)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">อะไรคือสิ่งที่ทำให้ "เงิน" มีมูลค่า? ลองทดสอบเปรียบเทียบคุณสมบัติทั้ง 6 ข้อ</p>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">ระหว่าง ทองคำ, เงินกระดาษ (Fiat) และ บิตคอยน์ ดูสิ!</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+            <button onclick="switchTab('tab-scarcity')" id="btn-scarcity" class="tab-btn active bg-indigo-900/20 border border-indigo-500 text-indigo-300 font-bold py-3 px-2 rounded-xl">
+                <span class="tab-icon text-xl transition-transform">💎</span>
+                <span class="text-xs sm:text-sm">1. ความขาดแคลน (Scarcity)</span>
+            </button>
+            <button onclick="switchTab('tab-durability')" id="btn-durability" class="tab-btn bg-slate-900 border border-slate-700 text-slate-400 font-bold py-3 px-2 rounded-xl hover:bg-slate-800">
+                <span class="tab-icon text-xl transition-transform">🛡️</span>
+                <span class="text-xs sm:text-sm">2. ความทนทาน (Durability)</span>
+            </button>
+            <button onclick="switchTab('tab-portability')" id="btn-portability" class="tab-btn bg-slate-900 border border-slate-700 text-slate-400 font-bold py-3 px-2 rounded-xl hover:bg-slate-800">
+                <span class="tab-icon text-xl transition-transform">✈️</span>
+                <span class="text-xs sm:text-sm">3. การพกพา (Portability)</span>
+            </button>
+            <button onclick="switchTab('tab-divisibility')" id="btn-divisibility" class="tab-btn bg-slate-900 border border-slate-700 text-slate-400 font-bold py-3 px-2 rounded-xl hover:bg-slate-800">
+                <span class="tab-icon text-xl transition-transform">✂️</span>
+                <span class="text-xs sm:text-sm">4. การแบ่งย่อย (Divisibility)</span>
+            </button>
+            <button onclick="switchTab('tab-fungibility')" id="btn-fungibility" class="tab-btn bg-slate-900 border border-slate-700 text-slate-400 font-bold py-3 px-2 rounded-xl hover:bg-slate-800">
+                <span class="tab-icon text-xl transition-transform">🔄</span>
+                <span class="text-xs sm:text-sm">5. เหมือนกันทุกหน่วย (Fungibility)</span>
+            </button>
+            <button onclick="switchTab('tab-acceptability')" id="btn-acceptability" class="tab-btn bg-slate-900 border border-slate-700 text-slate-400 font-bold py-3 px-2 rounded-xl hover:bg-slate-800">
+                <span class="tab-icon text-xl transition-transform">🌍</span>
+                <span class="text-xs sm:text-sm">6. การยอมรับ (Acceptability)</span>
+            </button>
+        </div>
+
+        <div id="tab-scarcity" class="tab-content active glass-panel rounded-xl p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">💎 การมีจำกัดและความหายาก (Scarcity)</h2>
+                <p class="text-sm text-slate-400">เงินที่ดีต้องไม่ถูกเสกขึ้นมาง่ายๆ ลองกดปุ่มสร้างเงินของทั้ง 3 ระบบ แล้วดูผลลัพธ์ที่เกิดขึ้นกับ "มูลค่า"</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-slate-900/80 border border-amber-500/50 rounded-xl p-5 text-center flex flex-col relative overflow-hidden shadow-lg transition-transform hover:-translate-y-1">
+                    <div class="text-4xl mb-3">🟡</div>
+                    <h3 class="font-bold text-amber-400 mb-1">ทองคำ (Gold)</h3>
+                    <p class="text-xs text-slate-400 mb-4 h-10">การสร้างเพิ่มต้องใช้แรงงานคนและเครื่องจักรเจาะภูเขา (ใช้เวลาและต้นทุนสูง)</p>
+                    
+                    <div class="bg-[#050A14] rounded-lg p-3 mb-4 border border-slate-700 flex-grow shadow-inner">
+                        <div class="text-[10px] text-slate-500 uppercase">ปริมาณในระบบ</div>
+                        <div class="text-xl font-mono font-bold text-white" id="gold-supply">200,000 ตัน</div>
+                        <div class="w-full bg-slate-800 h-1.5 mt-2 rounded overflow-hidden">
+                            <div class="bg-amber-500 h-full" style="width: 20%"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="mineGold()" id="btn-gold" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg transition-colors shadow-md shadow-amber-500/20">
+                        ⛏️ ขุดเหมืองทอง
+                    </button>
+                </div>
+
+                <div class="bg-slate-900/80 border border-rose-500/50 rounded-xl p-5 text-center flex flex-col relative overflow-hidden shadow-lg transition-transform hover:-translate-y-1" id="fiat-box">
+                    <div class="text-4xl mb-3">💵</div>
+                    <h3 class="font-bold text-rose-400 mb-1">เงินกระดาษ (Fiat)</h3>
+                    <p class="text-xs text-slate-400 mb-4 h-10">รัฐบาลและธนาคารกลางสามารถเสกตัวเลขเพิ่มในระบบได้ไม่จำกัดด้วยการกดปุ่ม</p>
+                    
+                    <div class="bg-[#050A14] rounded-lg p-3 mb-4 border border-slate-700 flex-grow shadow-inner">
+                        <div class="text-[10px] text-slate-500 uppercase">ปริมาณในระบบ</div>
+                        <div class="text-xl font-mono font-bold text-white" id="fiat-supply">1,000,000</div>
+                        <div class="text-[10px] text-rose-500 mt-1 font-bold" id="fiat-value">มูลค่าเงิน: ปกติ</div>
+                    </div>
+
+                    <button onclick="printFiat()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 rounded-lg transition-colors active:scale-95 shadow-md shadow-rose-500/20">
+                        🖨️ เครื่องพิมพ์เงิน (Brrr)
+                    </button>
+                </div>
+
+                <div class="bg-slate-900/80 border border-emerald-500/50 rounded-xl p-5 text-center flex flex-col relative overflow-hidden shadow-lg transition-transform hover:-translate-y-1" id="btc-box">
+                    <div class="text-4xl mb-3">₿</div>
+                    <h3 class="font-bold text-emerald-400 mb-1">บิตคอยน์ (Bitcoin)</h3>
+                    <p class="text-xs text-slate-400 mb-4 h-10">โค้ดถูกล็อกสเปกไว้ตายตัวที่ 21 ล้านเหรียญ ไม่มีหน้าไหนมาแก้กฎนี้ได้</p>
+                    
+                    <div class="bg-[#050A14] rounded-lg p-3 mb-4 border border-slate-700 flex-grow shadow-inner">
+                        <div class="text-[10px] text-slate-500 uppercase">ปริมาณในระบบ (Max 21M)</div>
+                        <div class="text-xl font-mono font-bold text-white" id="btc-supply">20,999,997</div>
+                        <div class="w-full bg-slate-800 h-1.5 mt-2 rounded overflow-hidden relative">
+                            <div id="btc-bar" class="bg-emerald-500 h-full" style="width: 98%"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="mineBtc()" id="btn-btc" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg transition-colors shadow-md shadow-emerald-500/20">
+                        ⚙️ รันโหนด (PoW)
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-6 bg-slate-900/50 border border-slate-700 p-4 rounded-lg text-sm text-slate-400 leading-relaxed shadow-inner">
+                <b class="text-white">💡 บทสรุป:</b> ทองคำหายากก็จริงแต่เราไม่รู้แน่ชัดว่าใต้โลกมีอีกเท่าไหร่ เงินกระดาษมีมูลค่าลดลงเรื่อยๆ (เงินเฟ้อ) เพราะถูกพิมพ์เพิ่มตามใจชอบ แต่ <b class="text-emerald-400">บิตคอยน์คือสิ่งเดียวในประวัติศาสตร์มนุษย์ที่เราสามารถตรวจสอบซัพพลายทั้งหมดได้แบบโปร่งใส และรู้แน่นอนว่ามันมีจำกัด!</b>
+            </div>
+        </div>
+
+        <div id="tab-durability" class="tab-content glass-panel rounded-xl p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">🛡️ ความทนทาน (Durability)</h2>
+                <p class="text-sm text-slate-400">โจทย์: เกิดอุบัติเหตุไฟไหม้บ้าน หรือคอมพิวเตอร์ของคุณพังพินาศ สินทรัพย์ของคุณจะอยู่รอดหรือไม่?</p>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-amber-500/50 transition-all">
+                    <div class="text-5xl shrink-0">🟡</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-amber-400">ทองคำซ่อนในตู้เซฟ</h3>
+                        <p class="text-xs text-slate-400">เก็บทองคำแท่งไว้ในตู้เซฟที่บ้าน</p>
+                    </div>
+                    <button onclick="checkResult('durability', 'gold', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">🔥 ทดสอบทำลาย</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-rose-500/50 transition-all">
+                    <div class="text-5xl shrink-0">💵</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-rose-400">เงินสดซ่อนใต้เตียง</h3>
+                        <p class="text-xs text-slate-400">เก็บแบงก์พันเป็นปึกๆ ซ่อนไว้ใต้เตียงนอน</p>
+                    </div>
+                    <button onclick="checkResult('durability', 'fiat', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">🔥 ทดสอบทำลาย</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-emerald-500/50 transition-all">
+                    <div class="text-5xl shrink-0">💻</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-emerald-400">บิตคอยน์ใน Hardware Wallet</h3>
+                        <p class="text-xs text-slate-400">เก็บอุปกรณ์ Hardware Wallet ไว้ในห้องที่ไฟไหม้</p>
+                    </div>
+                    <button onclick="checkResult('durability', 'btc', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">🔥 ทดสอบทำลาย</button>
+                </div>
+            </div>
+
+            <div id="durability-result" class="mt-6 bg-[#050A14] border border-slate-700 p-6 rounded-lg text-center hidden shadow-inner">
+                <div id="durability-icon" class="text-6xl mb-2"></div>
+                <h3 id="durability-title" class="text-lg font-bold text-white mb-2"></h3>
+                <p id="durability-desc" class="text-sm text-slate-400 leading-relaxed"></p>
+            </div>
+        </div>
+
+        <div id="tab-portability" class="tab-content glass-panel rounded-xl p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">✈️ การพกพา (Portability)</h2>
+                <p class="text-sm text-slate-400">โจทย์: คุณจำเป็นต้องลี้ภัยข้ามประเทศด่วน พร้อมกับนำความมั่งคั่งมูลค่า <b class="text-white">100 ล้านบาท</b> ติดตัวไปด้วย!</p>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-amber-500/50 transition-all">
+                    <div class="text-5xl shrink-0">🧱</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-amber-400">ขนทองคำแท่ง (น้ำหนัก ~40 กิโลกรัม)</h3>
+                        <p class="text-xs text-slate-400">ต้องยัดใส่กระเป๋าลากเหล็ก หนักจนยกแทบไม่ขึ้น</p>
+                    </div>
+                    <button onclick="checkResult('portability', 'gold', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">ออกเดินทาง ➔</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-rose-500/50 transition-all">
+                    <div class="text-5xl shrink-0">💼</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-rose-400">ขนเงินสดแบงก์พัน (100,000 ใบ)</h3>
+                        <p class="text-xs text-slate-400">ต้องใช้กระเป๋าเดินทางใบใหญ่ 3 ใบเดินลากไปสนามบิน</p>
+                    </div>
+                    <button onclick="checkResult('portability', 'fiat', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">ออกเดินทาง ➔</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-emerald-500/50 transition-all">
+                    <div class="text-5xl shrink-0">🧠</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-emerald-400">พกบิตคอยน์ (น้ำหนัก 0 กรัม)</h3>
+                        <p class="text-xs text-slate-400">แค่จำรหัส Seed Phrase 12 คำ ไว้ในสมอง หรือจดใส่กระดาษแผ่นเล็กๆ</p>
+                    </div>
+                    <button onclick="checkResult('portability', 'btc', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">ออกเดินทาง ➔</button>
+                </div>
+            </div>
+
+            <div id="portability-result" class="mt-6 bg-[#050A14] border border-slate-700 p-6 rounded-lg text-center hidden shadow-inner">
+                <div id="portability-icon" class="text-6xl mb-2"></div>
+                <h3 id="portability-title" class="text-lg font-bold text-white mb-2"></h3>
+                <p id="portability-desc" class="text-sm text-slate-400 leading-relaxed"></p>
+            </div>
+        </div>
+
+        <div id="tab-divisibility" class="tab-content glass-panel rounded-xl p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">✂️ การแบ่งย่อย (Divisibility & Networks)</h2>
+                <p class="text-sm text-slate-400">โจทย์: นำสินทรัพย์ที่มีมูลค่าสูง ไปซื้อของชิ้นเล็กๆ อย่าง <b class="text-white">"กาแฟ 1 แก้ว (50 บาท)"</b></p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 text-center flex flex-col hover:bg-slate-800 transition-colors">
+                    <h3 class="font-bold text-amber-400 mb-2">จ่ายด้วยทองคำแท่ง</h3>
+                    <div class="text-4xl mb-4 py-4 bg-[#050A14] rounded-lg shadow-inner">🧱</div>
+                    <p class="text-xs text-slate-400 mb-4 flex-grow">คุณต้องเอาค้อนมาทุบและเลื่อยเศษทองขนาดเท่า "ฝุ่น" เพื่อจ่ายค่ากาแฟ! ตรวจสอบก็ยากว่าทองแท้ไหม</p>
+                    <div class="text-xs font-bold text-rose-500 bg-rose-950/30 p-2 rounded">❌ ใช้งานจริงไม่ได้</div>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 text-center flex flex-col hover:bg-slate-800 transition-colors">
+                    <h3 class="font-bold text-rose-400 mb-2">จ่ายด้วยเงินสด</h3>
+                    <div class="text-4xl mb-4 py-4 bg-[#050A14] rounded-lg shadow-inner">💵</div>
+                    <p class="text-xs text-slate-400 mb-4 flex-grow">คุณจ่ายแบงก์ 100 บาท แม่ค้าทอนเงินกลับมา สะดวกและคุ้นเคยดี (แบ่งได้ถึงหลักสตางค์)</p>
+                    <div class="text-xs font-bold text-emerald-500 bg-emerald-950/30 p-2 rounded">✅ สะดวกสบาย</div>
+                </div>
+
+                <div class="bg-slate-900/60 border border-emerald-500/50 rounded-xl p-5 text-center flex flex-col relative hover:bg-slate-800 transition-colors">
+                    <h3 class="font-bold text-emerald-400 mb-1">จ่ายด้วยบิตคอยน์</h3>
+                    <p class="text-[10px] text-slate-500 mb-3">1 BTC แบ่งย่อยได้ถึง 100 ล้าน Satoshi</p>
+                    
+                    <div class="flex gap-2 mb-3 bg-[#050A14] p-1 rounded-lg shadow-inner">
+                        <button onclick="toggleBtcNetwork('onchain')" id="btn-onchain" class="w-1/2 text-xs py-1.5 rounded bg-emerald-900/40 text-emerald-400 font-bold transition-all border border-emerald-500/50">On-Chain</button>
+                        <button onclick="toggleBtcNetwork('lightning')" id="btn-lightning" class="w-1/2 text-xs py-1.5 rounded text-slate-500 hover:text-slate-300 transition-all border border-transparent">Lightning</button>
+                    </div>
+
+                    <div id="desc-onchain" class="text-xs text-slate-300 text-left flex-grow space-y-2">
+                        <p>⛓️ <b>Layer 1 (On-Chain)</b></p>
+                        <ul class="list-disc pl-4 text-[11px] text-slate-400 space-y-1">
+                            <li><b class="text-rose-400">ช้า:</b> รอประมวลผล ~10 นาที</li>
+                            <li><b class="text-amber-400">เสียค่า Fee:</b> แข่งประมูลพื้นที่ในบล็อก</li>
+                            <li><b class="text-emerald-400">Trustless:</b> เก็บรักษาเองเต็มรูปแบบ ไม่ต้องเชื่อใจใคร</li>
+                        </ul>
+                        <div class="mt-2 text-center text-[10px] bg-slate-800/80 p-1.5 rounded border border-slate-700">💡 <b>เหมาะกับ:</b> โอนเงินจำนวนมากๆ หรือเก็บออมระยะยาว</div>
+                    </div>
+
+                    <div id="desc-lightning" class="text-xs text-slate-300 text-left flex-grow space-y-2 hidden">
+                        <p>⚡ <b>Layer 2 (Lightning)</b></p>
+                        <ul class="list-disc pl-4 text-[11px] text-slate-400 space-y-1">
+                            <li><b class="text-emerald-400">เร็วปานสายฟ้า:</b> โอนเสร็จใน 0.001 วินาที</li>
+                            <li><b class="text-emerald-400">เกือบฟรี:</b> ค่าธรรมเนียมถูกจนแทบมองไม่เห็น</li>
+                            <li><b class="text-amber-400">Trade-off:</b> อาจจะต้องเชื่อใจผู้ให้บริการ หรือดูแล Node เอง</li>
+                        </ul>
+                        <div class="mt-2 text-center text-[10px] bg-slate-800/80 p-1.5 rounded border border-slate-700">💡 <b>เหมาะกับ:</b> ซื้อกาแฟ ทำธุรกรรมย่อยๆ ในชีวิตประจำวัน</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-fungibility" class="tab-content glass-panel rounded-xl p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">🔄 เหมือนกันทุกหน่วย (Fungibility)</h2>
+                <p class="text-sm text-slate-400">โจทย์: เงินที่ดี "ทุกหน่วยต้องมีมูลค่าเท่ากันและใช้แทนกันได้ 100%" ลองนำเงินไปสลับกับคนแปลกหน้าดูสิ!</p>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-amber-500/50 transition-all">
+                    <div class="text-5xl shrink-0">🟡</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-amber-400">แลกทองคำ 1 บาท กับคนแปลกหน้า</h3>
+                        <p class="text-xs text-slate-400">ยื่นทองของคุณ เพื่อขอแลกกับทองน้ำหนัก 1 บาทของอีกคน</p>
+                    </div>
+                    <button onclick="checkResult('fungibility', 'gold', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">🔄 สลับทองคำ</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-rose-500/50 transition-all">
+                    <div class="text-5xl shrink-0">💵</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-rose-400">แลกแบงก์ 100 กับคนแปลกหน้า</h3>
+                        <p class="text-xs text-slate-400">ยื่นแบงก์ร้อยใบใหม่ ขอแลกกับแบงก์ร้อยเก่าๆ ขาดๆ</p>
+                    </div>
+                    <button onclick="checkResult('fungibility', 'fiat', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">🔄 สลับธนบัตร</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-emerald-500/50 transition-all">
+                    <div class="text-5xl shrink-0">₿</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-emerald-400">แลก 1 BTC กับคนแปลกหน้า</h3>
+                        <p class="text-xs text-slate-400">โอนสลับ 1 บิตคอยน์ให้กันและกันผ่านเครือข่าย</p>
+                    </div>
+                    <button onclick="checkResult('fungibility', 'btc', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">🔄 สลับบิตคอยน์</button>
+                </div>
+            </div>
+
+            <div id="fungibility-result" class="mt-6 bg-[#050A14] border border-slate-700 p-6 rounded-lg text-center hidden shadow-inner">
+                <div id="fungibility-icon" class="text-6xl mb-2"></div>
+                <h3 id="fungibility-title" class="text-lg font-bold text-white mb-2"></h3>
+                <p id="fungibility-desc" class="text-sm text-slate-400 leading-relaxed"></p>
+            </div>
+        </div>
+
+        <div id="tab-acceptability" class="tab-content glass-panel rounded-xl p-6">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-white mb-2">🌍 การยอมรับและการตรวจสอบ (Acceptability)</h2>
+                <p class="text-sm text-slate-400">โจทย์: นำเงินไปซื้อของที่ต่างประเทศ (เช่น ประเทศญี่ปุ่น) ร้านค้าจะยอมรับและตรวจสอบความถูกต้องได้อย่างไร?</p>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-amber-500/50 transition-all">
+                    <div class="text-5xl shrink-0">🟡</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-amber-400">ยื่นทองคำแท่งให้บาริสต้า</h3>
+                        <p class="text-xs text-slate-400">ใช้เศษทองคำจ่ายค่ากาแฟที่โตเกียว</p>
+                    </div>
+                    <button onclick="checkResult('acceptability', 'gold', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">☕ จ่ายค่ากาแฟ</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-rose-500/50 transition-all">
+                    <div class="text-5xl shrink-0">🇹🇭</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-rose-400">ยื่นแบงก์ร้อย (เงินบาท)</h3>
+                        <p class="text-xs text-slate-400">ใช้ธนบัตรเงินบาทไทย จ่ายค่ากาแฟที่โตเกียว</p>
+                    </div>
+                    <button onclick="checkResult('acceptability', 'fiat', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">☕ จ่ายค่ากาแฟ</button>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex items-center gap-4 hover:bg-slate-800 hover:border-emerald-500/50 transition-all">
+                    <div class="text-5xl shrink-0">⚡</div>
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-emerald-400">สแกน QR Code (Bitcoin Lightning)</h3>
+                        <p class="text-xs text-slate-400">ใช้แอปมือถือสแกนจ่ายผ่านระบบ Global Network</p>
+                    </div>
+                    <button onclick="checkResult('acceptability', 'btc', this)" class="btn-gold-outline text-xs font-bold py-2 px-4 rounded-lg shrink-0">☕ จ่ายค่ากาแฟ</button>
+                </div>
+            </div>
+
+            <div id="acceptability-result" class="mt-6 bg-[#050A14] border border-slate-700 p-6 rounded-lg text-center hidden shadow-inner">
+                <div id="acceptability-icon" class="text-6xl mb-2"></div>
+                <h3 id="acceptability-title" class="text-lg font-bold text-white mb-2"></h3>
+                <p id="acceptability-desc" class="text-sm text-slate-400 leading-relaxed"></p>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="custom-alert" class="fixed inset-0 z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300" style="background-color: rgba(5, 10, 20, 0.85); backdrop-filter: blur(8px);">
+        <div id="custom-alert-box" class="bg-[#050A14]/90 border border-amber-500/50 p-8 rounded-2xl max-w-sm w-[90%] text-center shadow-[0_10px_40px_rgba(0,0,0,0.8),_0_0_30px_rgba(230,194,122,0.3)] transform scale-95 transition-transform duration-300 backdrop-blur-xl">
+            <div class="text-6xl mb-4" style="animation: shake 0.5s ease-in-out;">🚨</div>
+            <h3 class="text-xl font-bold text-amber-400 mb-3">เครือข่ายปฏิเสธ!</h3>
+            <p class="text-sm text-slate-300 mb-8 leading-relaxed">ซัพพลายถึงขีดจำกัด 21 ล้านเหรียญแล้ว!<br>ไม่สามารถเสกเพิ่มได้อีกต่อไป!</p>
+            <button onclick="closeCustomAlert()" class="btn-gold-outline w-full py-2.5 rounded-lg text-sm font-bold">
+                รับทราบ
+            </button>
+        </div>
+    </div>
+
+    <script src="./asset/js/traitsofmoney.js"></script>
+</body>
+</html>

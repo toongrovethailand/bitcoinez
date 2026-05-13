@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Rule of 72 Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{slate:{300:'#FFFFFF',400:'#8B9BB4',900:'#101a30'},gold:{DEFAULT:'#E6C27A'}},fontFamily:{sans:['Prompt','sans-serif'],mono:['Fira Code','monospace']}}}}</script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: transparent; color: #FFF; overflow-x: hidden; }
+        .glass-panel { background: rgba(16, 26, 48, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+        .pop-in { animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        
+        /* Slider Styling */
+        input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%; background: #E6C27A; cursor: pointer; margin-top: -10px; box-shadow: 0 0 15px rgba(230, 194, 122, 0.6); border: 2px solid #fff; transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        /* Dynamic Chart Bars */
+        .chart-bar-container { display: flex; align-items: flex-end; justify-content: space-between; height: 250px; padding-top: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); position: relative; }
+        .chart-bar-wrapper { display: flex; flex-direction: column; align-items: center; width: 8%; height: 100%; justify-content: flex-end;}
+        .chart-bar { width: 100%; background: linear-gradient(to top, rgba(230,194,122,0.2), #E6C27A); border-radius: 4px 4px 0 0; transition: height 0.8s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.5s; position: relative; box-shadow: 0 -5px 15px rgba(230,194,122,0.2); }
+        .chart-bar::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #fff; opacity: 0.5; }
+        .chart-value { opacity: 0; transform: translateY(10px); transition: all 0.5s; font-size: 10px; color: #E6C27A; margin-bottom: 5px; font-family: 'Fira Code', monospace; font-weight: bold; white-space: nowrap; }
+        .chart-bar-wrapper:hover .chart-value { opacity: 1; transform: translateY(0); }
+        .chart-label { margin-top: 8px; font-size: 10px; color: #8B9BB4; font-family: 'Fira Code', monospace; }
+
+        /* Glowing FX */
+        .glow-text { text-shadow: 0 0 15px rgba(230,194,122,0.8); }
+        .preset-btn { transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        .preset-btn:hover { background: rgba(255,255,255,0.05); border-color: #E6C27A; transform: translateY(-2px); }
+        .preset-btn.active { background: rgba(230,194,122,0.15); border-color: #E6C27A; box-shadow: inset 0 0 10px rgba(230,194,122,0.2); }
+        
+        .pulse-math { animation: mathPulse 1s; }
+        @keyframes mathPulse { 0% { transform: scale(1); color: #fff; } 50% { transform: scale(1.1); color: #E6C27A; } 100% { transform: scale(1); color: #fff; } }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center py-6">
+    <div class="max-w-5xl w-full relative z-10">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-gold mt-2 mb-3 drop-shadow-lg">เวทมนตร์แห่ง 72 (The Rule of 72)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm leading-relaxed">
+                "ดอกเบี้ยทบต้นคือสิ่งมหัศจรรย์อันดับ 8 ของโลก ผู้ที่เข้าใจมัน จะได้รับมัน ผู้ที่ไม่เข้าใจ จะต้องจ่ายมัน" <br><i class="text-slate-300">Albert Einstein</i><br>
+                สมการ 72 คือทางลัดในการคำนวณว่า <b class="text-gold">ต้องใช้เวลากี่ปี เงินลงทุนของคุณถึงจะโตเป็น 2 เท่า</b>
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            
+            <div class="lg:col-span-1 flex flex-col gap-6">
+                <div class="glass-panel border-t-4 border-t-gold rounded-xl p-6 pop-in text-center relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 text-9xl opacity-5 select-none font-black">72</div>
+                    <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-4">สมการคำนวณเงินทวีคูณ (x2)</div>
+                    
+                    <div class="flex items-center justify-center gap-4 text-3xl font-mono font-black mb-4" id="math-equation">
+                        <span class="text-white">72</span>
+                        <span class="text-slate-500">÷</span>
+                        <span class="text-emerald-400" id="math-rate">8%</span>
+                        <span class="text-slate-500">=</span>
+                        <span class="text-gold glow-text" id="math-years">9 ปี</span>
+                    </div>
+                    <p class="text-xs text-slate-400">เงินตั้งต้นจะโตเป็น 2 เท่าในทุกๆ <b id="text-years" class="text-white">9</b> ปี</p>
+                </div>
+
+                <div class="glass-panel border-t-4 border-t-cyan-500 rounded-xl p-6 pop-in" style="animation-delay: 0.1s;">
+                    <div class="flex justify-between items-end mb-4">
+                        <label class="text-xs text-slate-300 font-bold uppercase tracking-widest">ปรับอัตราผลตอบแทนต่อปี</label>
+                        <span class="text-2xl font-mono font-black text-cyan-400" id="rate-display">8.0%</span>
+                    </div>
+                    <input type="range" id="rate-slider" min="0.5" max="25" step="0.5" value="8" class="mb-6">
+                    
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-bold">เลือกสินทรัพย์อ้างอิง:</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="setPreset(1, 'bank')" id="btn-bank" class="preset-btn bg-[#050A14] text-xs py-2 rounded-lg text-slate-300 flex flex-col items-center gap-1">
+                            <span class="text-lg">🏦</span> <span>เงินฝาก (1%)</span>
+                        </button>
+                        <button onclick="setPreset(4, 'bond')" id="btn-bond" class="preset-btn bg-[#050A14] text-xs py-2 rounded-lg text-slate-300 flex flex-col items-center gap-1">
+                            <span class="text-lg">📜</span> <span>พันธบัตร (4%)</span>
+                        </button>
+                        <button onclick="setPreset(8, 'stock')" id="btn-stock" class="preset-btn active bg-[#050A14] text-xs py-2 rounded-lg text-slate-300 flex flex-col items-center gap-1">
+                            <span class="text-lg">📈</span> <span>S&P 500 (8%)</span>
+                        </button>
+                        <button onclick="setPreset(15, 'btc')" id="btn-btc" class="preset-btn bg-[#050A14] text-xs py-2 rounded-lg text-slate-300 flex flex-col items-center gap-1">
+                            <span class="text-lg">₿</span> <span>Bitcoin (15%+)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 glass-panel border-t-4 border-t-rose-500 rounded-xl p-6 pop-in flex flex-col" style="animation-delay: 0.2s;">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-700 pb-4 mb-6">
+                    <div>
+                        <h3 class="text-rose-400 font-bold uppercase tracking-widest text-sm mb-1 flex items-center gap-2">🚀 พลังแห่งเวลา (Time Horizon)</h3>
+                        <p class="text-xs text-slate-400">จำลองการถือครองสินทรัพย์ตลอดช่วงวัยทำงาน <b class="text-white">36 ปี</b> (เงินต้น 100,000 บาท)</p>
+                    </div>
+                    <div class="mt-4 sm:mt-0 text-right bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-700 shadow-inner">
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">มูลค่าสุทธิในปีที่ 36</div>
+                        <div class="text-3xl font-mono font-black text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" id="final-wealth">฿0</div>
+                    </div>
+                </div>
+
+                <div class="flex-grow flex flex-col justify-end relative">
+                    <div id="doubling-tags" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+                        </div>
+                    
+                    <div class="chart-bar-container z-10" id="chart-container">
+                        </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="bg-[#050A14]/80 border-l-4 border-gold p-6 rounded-r-xl shadow-2xl pop-in flex items-start gap-5" style="animation-delay: 0.3s;">
+            <div class="text-3xl mt-1">💡</div>
+            <div>
+                <span class="text-gold font-bold text-xs uppercase tracking-widest block mb-2" id="takeaway-title">บทวิเคราะห์ (Analysis)</span>
+                <p class="text-sm text-slate-300 leading-relaxed" id="takeaway-desc">
+                    กำลังประมวลผล...
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const slider = document.getElementById('rate-slider');
+        const rateDisplay = document.getElementById('rate-display');
+        const mathRate = document.getElementById('math-rate');
+        const mathYears = document.getElementById('math-years');
+        const textYears = document.getElementById('text-years');
+        const mathEquation = document.getElementById('math-equation');
+        const finalWealthDisplay = document.getElementById('final-wealth');
+        const chartContainer = document.getElementById('chart-container');
+        const doublingTags = document.getElementById('doubling-tags');
+        
+        const baseMoney = 100000;
+        const maxYears = 36;
+        const intervals = 10; // Year 0, 4, 8, 12, 16, 20, 24, 28, 32, 36
+
+        // Initialize Chart DOM
+        function initChart() {
+            chartContainer.innerHTML = '';
+            for (let i = 0; i < intervals; i++) {
+                let year = (maxYears / (intervals - 1)) * i;
+                
+                let wrapper = document.createElement('div');
+                wrapper.className = 'chart-bar-wrapper';
+                
+                let valDiv = document.createElement('div');
+                valDiv.className = 'chart-value';
+                valDiv.id = `val-${i}`;
+                valDiv.innerText = '100k';
+                
+                let bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.id = `bar-${i}`;
+                
+                let label = document.createElement('div');
+                label.className = 'chart-label';
+                label.innerText = `Yr ${year}`;
+                
+                wrapper.appendChild(valDiv);
+                wrapper.appendChild(bar);
+                wrapper.appendChild(label);
+                
+                chartContainer.appendChild(wrapper);
+            }
+        }
+
+        // Animate counting numbers
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                // Ease out cubic
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(progress * (end - start) + start);
+                obj.innerHTML = '฿' + current.toLocaleString();
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    obj.innerHTML = '฿' + end.toLocaleString();
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function getGradientColors(rate) {
+            if(rate < 3) return 'linear-gradient(to top, rgba(148, 163, 184, 0.2), #94a3b8)'; // Slate
+            if(rate < 7) return 'linear-gradient(to top, rgba(6, 182, 212, 0.2), #06b6d4)';   // Cyan
+            if(rate < 12) return 'linear-gradient(to top, rgba(16, 185, 129, 0.2), #10b981)'; // Emerald
+            return 'linear-gradient(to top, rgba(230, 194, 122, 0.2), #E6C27A)';             // Gold
+        }
+
+        function updateSim() {
+            let rate = parseFloat(slider.value);
+            let doubleYears = 72 / rate;
+            
+            // Trigger pulse animation on math
+            mathEquation.classList.remove('pulse-math');
+            void mathEquation.offsetWidth; 
+            mathEquation.classList.add('pulse-math');
+
+            // Update Math Panel
+            rateDisplay.innerText = rate.toFixed(1) + '%';
+            mathRate.innerText = rate.toFixed(1) + '%';
+            
+            let displayYears = doubleYears > 100 ? doubleYears.toFixed(0) : doubleYears.toFixed(1);
+            mathYears.innerText = displayYears + ' ปี';
+            textYears.innerText = displayYears;
+
+            // Calculate Exact Final Value
+            let finalValue = baseMoney * Math.pow((1 + (rate/100)), maxYears);
+            
+            // Get current displayed value to animate from
+            let currentText = finalWealthDisplay.innerText.replace(/[^0-9]/g, '');
+            let startVal = parseInt(currentText) || baseMoney;
+            animateValue(finalWealthDisplay, startVal, Math.round(finalValue), 800);
+
+            // Update Chart
+            let maxChartValue = finalValue; 
+            const gradient = getGradientColors(rate);
+
+            for (let i = 0; i < intervals; i++) {
+                let year = (maxYears / (intervals - 1)) * i;
+                let valueAtYear = baseMoney * Math.pow((1 + (rate/100)), year);
+                
+                let heightPercent = Math.max((valueAtYear / maxChartValue) * 100, 2); // min 2% height
+                
+                let bar = document.getElementById(`bar-${i}`);
+                bar.style.height = `${heightPercent}%`;
+                bar.style.background = gradient;
+                
+                let valDiv = document.getElementById(`val-${i}`);
+                if (valueAtYear >= 1000000) {
+                    valDiv.innerText = (valueAtYear/1000000).toFixed(2) + 'M';
+                } else {
+                    valDiv.innerText = Math.round(valueAtYear/1000) + 'k';
+                }
+            }
+
+            // Update Narrative
+            const titleEl = document.getElementById('takeaway-title');
+            const descEl = document.getElementById('takeaway-desc');
+            
+            if (rate <= 2) {
+                titleEl.className = "text-rose-500 font-bold text-xs uppercase tracking-widest block mb-2";
+                titleEl.innerText = "หายนะของการฝากเงินไว้เฉยๆ";
+                descEl.innerHTML = `ด้วยผลตอบแทนเพียง ${rate}% คุณต้องใช้เวลานานถึง <b>${displayYears} ปี</b> กว่าเงินจะโตเป็น 2 เท่า! ในโลกความจริง อัตราเงินเฟ้อ (เฉลี่ย 3-5%) จะกัดกินอำนาจซื้อของคุณจนหมดเกลี้ยงก่อนที่เงินจะโตทัน นี่คือการ "ทำงานเพื่อเงิน" ไปตลอดชีวิต`;
+            } else if (rate <= 6) {
+                titleEl.className = "text-cyan-400 font-bold text-xs uppercase tracking-widest block mb-2";
+                titleEl.innerText = "การลงทุนขั้นพื้นฐาน (ชนะเงินเฟ้อ)";
+                descEl.innerHTML = `ผลตอบแทนระดับนี้ (เช่น พันธบัตร หรือ หุ้นปันผล) ทำให้เงินทวีคูณใน <b>${displayYears} ปี</b> ซึ่งเพียงพอที่จะเอาชนะเงินเฟ้อทั่วไปได้ และปกป้องความมั่งคั่งของคุณ แต่คุณอาจจะยังไม่รวยเร็วพอที่จะเกษียณก่อนกำหนด`;
+            } else if (rate <= 10) {
+                titleEl.className = "text-emerald-400 font-bold text-xs uppercase tracking-widest block mb-2";
+                titleEl.innerText = "การเติบโตแบบก้าวกระโดด (S&P 500)";
+                descEl.innerHTML = `ยอดเยี่ยม! ที่ผลตอบแทนระดับ 8-10% เงินของคุณจะเบิ้ล 2 เท่าทุกๆ <b>${displayYears} ปี</b>! ภายใน 36 ปี เงิน 1 แสนของคุณทบต้นกลายเป็น <b>ร้อยล้าน</b> ได้ (หากเติมเงินต่อเนื่อง) นี่คือเวทมนตร์ของดอกเบี้ยทบต้นที่ไอน์สไตน์กล่าวถึง`;
+            } else {
+                titleEl.className = "text-gold font-bold text-xs uppercase tracking-widest block mb-2";
+                titleEl.innerText = "Hard Asset & High Growth (Bitcoin)";
+                descEl.innerHTML = `มหัศจรรย์! ด้วยผลตอบแทนที่สูงกว่า 12% เงินของคุณจะทวีคูณอย่างบ้าคลั่งในเวลาเพียง <b>${displayYears} ปี</b>กราฟของคุณจะโค้งขึ้นเป็นไม้ฮอกกี้ (Hockey Stick) ในช่วงท้ายของชีวิต สินทรัพย์ที่มีความหายาก (Scarcity) สูง มักจะสร้างผลตอบแทนระดับนี้ในระยะยาว!`;
+            }
+        }
+
+        function setPreset(rate, btnId) {
+            // Remove active from all preset buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active to clicked
+            document.getElementById(`btn-${btnId}`).classList.add('active');
+            
+            // Set slider value and update
+            slider.value = rate;
+            updateSim();
+        }
+
+        slider.addEventListener('input', () => {
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            updateSim();
+        });
+
+        // Initialize
+        initChart();
+        updateSim();
+    </script>
+</body>
+</html>

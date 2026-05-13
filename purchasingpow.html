@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sats Standard Planner - Legacy Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', // Text Primary
+                            400: '#8B9BB4', // Text Secondary
+                            500: '#64748B', 
+                            700: '#1c2e4a', // Light Border
+                            800: '#162645',
+                            900: '#101a30', // Deep Navy Card Base
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Inputs */
+        input, select { 
+            background: #050A14 !important; 
+            color: white !important; 
+            border: 1px solid #1c2e4a !important; 
+            transition: all 0.3s ease; 
+        }
+        input:focus, select:focus { 
+            border-color: var(--gold-accent) !important; 
+            outline: none; 
+            box-shadow: inset 0 0 10px rgba(230,194,122,0.1), 0 0 15px rgba(230,194,122,0.2) !important; 
+        }
+
+        /* Custom Button */
+        .btn-gold-solid {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(230, 194, 122, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-gold-solid:hover {
+            background-color: #f5d693;
+            box-shadow: 0 0 25px var(--gold-glow-strong);
+            transform: translateY(-2px);
+        }
+        
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center">
+
+<div class="max-w-6xl w-full relative z-10">
+    
+    <div class="text-center mb-10">
+        <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">Sats Standard Planner</h1>
+        <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+            มองข้ามค่าเงินเฟียต แล้ววางแผนด้วยหน่วยที่แท้จริง (Satoshis)<br>
+            ตรวจสอบดูว่า <b class="text-white">พลังในการซื้อ (Purchasing Power)</b> ของคุณจะอยู่ได้นานแค่ไหนหลังเกษียณ!
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-8">
+        
+        <div class="glass-panel rounded-xl p-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] border-t-4 border-t-gold relative overflow-hidden h-fit">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-[50px] pointer-events-none"></div>
+            
+            <h2 class="text-xl font-bold text-white mb-5 flex items-center gap-2 border-b border-slate-700/80 pb-3"><span>⚙️</span> 1. ตั้งค่าพื้นฐาน</h2>
+            
+            <div class="space-y-6">
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 shadow-inner">
+                    <label class="block text-[10px] text-gold tracking-widest uppercase font-bold mb-2">จำนวน BTC ที่คุณมี (สะสม)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-2xl drop-shadow-[0_0_8px_rgba(230,194,122,0.6)]">₿</span>
+                        <input type="number" id="btcAmount" value="0.05" step="0.001" class="calc-trigger w-full p-3 pl-10 rounded-lg text-lg font-mono font-bold">
+                    </div>
+                    <p id="satsDisplay" class="text-xs text-gold/80 mt-2 font-mono font-bold tracking-widest text-right">5,000,000 SATS</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 shadow-inner text-center">
+                        <label class="block text-[9px] text-slate-400 tracking-widest uppercase font-bold mb-1">อายุปัจจุบัน</label>
+                        <input type="number" id="currAge" value="34" class="calc-trigger w-full p-2 rounded text-center font-mono font-bold text-white">
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 shadow-inner text-center">
+                        <label class="block text-[9px] text-slate-400 tracking-widest uppercase font-bold mb-1">เกษียณตอน</label>
+                        <input type="number" id="retireAge" value="55" class="calc-trigger w-full p-2 rounded text-center font-mono font-bold text-emerald-400">
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 shadow-inner text-center">
+                        <label class="block text-[9px] text-slate-400 tracking-widest uppercase font-bold mb-1">อายุขัย</label>
+                        <input type="number" id="lifeAge" value="85" class="calc-trigger w-full p-2 rounded text-center font-mono font-bold text-rose-400">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 shadow-inner">
+                    <label class="block text-[10px] text-slate-400 tracking-widest uppercase font-bold mb-2">ค่าใช้จ่ายปัจจุบัน (บาท/เดือน)</label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3 text-lg drop-shadow-md">🇹🇭</span>
+                        <input type="number" id="monthlyExp" value="30000" class="calc-trigger w-full p-3 pl-10 rounded-lg text-white font-mono font-bold">
+                    </div>
+                </div>
+
+                <h2 class="text-lg font-bold text-white pt-2 mb-2 flex items-center gap-2 border-b border-slate-700/80 pb-3"><span>🔮</span> 2. คาดการณ์อนาคต</h2>
+
+                <div>
+                    <label class="block text-[10px] text-slate-400 tracking-widest uppercase font-bold mb-2">ระดับเงินเฟ้อ (Life Style)</label>
+                    <div class="relative">
+                        <select id="inflation" class="calc-trigger w-full p-3 pl-10 rounded-lg text-sm appearance-none font-bold">
+                            <option value="0.03">3% - สายประหยัด (พื้นฐาน)</option>
+                            <option value="0.07" selected>7% - สายมาตรฐาน (ช้อปปิ้ง)</option>
+                            <option value="0.15">15% - สาย Luxury (หรูหรา)</option>
+                        </select>
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2">💸</span>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/0000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] text-slate-400 tracking-widest uppercase font-bold mb-2">การเติบโตของ BTC (Adoption)</label>
+                    <div class="relative">
+                        <select id="btcGrowth" class="calc-trigger w-full p-3 pl-10 rounded-lg text-sm appearance-none font-bold">
+                            <option value="0.05">5% - แค่สินทรัพย์ทางเลือก</option>
+                            <option value="0.15" selected>15% - ทองคำดิจิทัล</option>
+                            <option value="0.30">30% - สกุลเงินสำรองโลก</option>
+                        </select>
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2">🌍</span>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/0000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6 flex flex-col">
+            
+            <div class="glass-panel rounded-xl p-6 shadow-[0_0_30px_rgba(0,0,0,0.4)] border border-slate-700">
+                <h2 class="text-xl font-bold text-white mb-5 flex items-center gap-2 border-b border-slate-700/80 pb-3"><span>📊</span> สรุปแผนการเงิน (Sats Standard)</h2>
+                <div id="resultText" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    </div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-6 shadow-[0_0_30px_rgba(0,0,0,0.4)] border border-slate-700 flex-grow flex flex-col">
+                <h2 class="text-lg font-bold text-white mb-4 text-center tracking-widest uppercase">วิเคราะห์การไหลเวียนของ Sats รายปี</h2>
+                <div class="flex-grow min-h-[300px] lg:min-h-[400px] w-full relative bg-[#050A14]/50 rounded-lg p-2 border border-slate-800 shadow-inner">
+                    <canvas id="retirementChart"></canvas>
+                </div>
+                <div class="flex justify-center gap-6 mt-5 text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                    <span class="flex items-center"><span class="w-3 h-3 bg-gold rounded-full mr-2 shadow-[0_0_5px_rgba(230,194,122,0.8)]"></span>Sats คงเหลือ</span>
+                    <span class="flex items-center"><span class="w-3 h-3 bg-cyan-400 rounded-full mr-2 shadow-[0_0_5px_rgba(34,211,238,0.8)]"></span>Sats ที่ใช้/ปี</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    let myChart;
+    // Default Fallback Price
+    let currentBtcPrice = 2500000; 
+
+    // Function to fetch real-time price from CoinGecko
+    async function fetchBtcPrice() {
+        try {
+            const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=thb');
+            const data = await response.json();
+            currentBtcPrice = parseFloat(data.bitcoin.thb);
+            calculate(); // Re-calculate when price is updated
+        } catch (error) {
+            console.error("Failed to fetch BTC price, using fallback.", error);
+            calculate(); // Re-calculate with fallback
+        }
+    }
+
+    // Load price on startup
+    document.addEventListener('DOMContentLoaded', fetchBtcPrice);
+
+    function calculate() {
+        const btcInput = parseFloat(document.getElementById('btcAmount').value) || 0;
+        const currAge = parseInt(document.getElementById('currAge').value) || 0;
+        const retireAge = parseInt(document.getElementById('retireAge').value) || 0;
+        const lifeAge = parseInt(document.getElementById('lifeAge').value) || 0;
+        const monthlyExp = parseFloat(document.getElementById('monthlyExp').value) || 0;
+        const inflation = parseFloat(document.getElementById('inflation').value);
+        const btcGrowth = parseFloat(document.getElementById('btcGrowth').value);
+        
+        document.getElementById('satsDisplay').innerText = `สะสมแล้ว ${(btcInput * 100000000).toLocaleString()} SATS`;
+
+        const yearsToRetire = Math.max(0, retireAge - currAge);
+        const annualExpAtRetireTHB = (monthlyExp * 12) * Math.pow(1 + inflation, yearsToRetire);
+        const btcPriceAtRetire = currentBtcPrice * Math.pow(1 + btcGrowth, yearsToRetire);
+        const firstYearSats = (annualExpAtRetireTHB / btcPriceAtRetire) * 100000000;
+
+        // Simulation
+        let currentBtcBalance = btcInput;
+        let currentAnnualExpTHB = annualExpAtRetireTHB;
+        let labels = [];
+        let satsBalanceData = [];
+        let satsSpentData = [];
+        let isBankrupt = false;
+        let ageOfBankrupt = 0;
+
+        for (let age = retireAge; age <= lifeAge; age++) {
+            labels.push("อายุ " + age);
+            let btcPriceThisYear = currentBtcPrice * Math.pow(1 + btcGrowth, age - currAge);
+            let btcNeeded = currentAnnualExpTHB / btcPriceThisYear;
+            
+            satsBalanceData.push(Math.max(0, Math.round(currentBtcBalance * 100000000)));
+            satsSpentData.push(Math.round(btcNeeded * 100000000));
+
+            currentBtcBalance -= btcNeeded;
+            
+            if (currentBtcBalance < 0 && !isBankrupt) {
+                isBankrupt = true;
+                ageOfBankrupt = age;
+            }
+            currentAnnualExpTHB *= (1 + inflation);
+        }
+
+        // สรุปผลสถานะ
+        let statusHtml = "";
+        if (!isBankrupt) {
+            const legacySats = Math.round(currentBtcBalance * 100000000);
+            statusHtml = `
+                <div class="p-5 bg-emerald-950/20 border border-emerald-500/30 rounded-xl shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] pop-in h-full flex flex-col justify-center">
+                    <p class="text-xs text-emerald-400 font-bold uppercase tracking-widest mb-1">ประเมิน: เพียงพอ ✨</p>
+                    <p class="text-sm text-slate-300">รองรับไลฟ์สไตล์ได้จนถึงอายุ ${lifeAge}</p>
+                    <div class="mt-4 pt-4 border-t border-emerald-500/20">
+                        <p class="text-[10px] text-emerald-500/80 font-bold uppercase tracking-widest mb-1">มรดกที่จะเหลือส่งต่อ (Legacy)</p>
+                        <p class="text-2xl font-mono font-bold text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.3)]">${(legacySats/100000000).toFixed(4)} <span class="text-sm text-slate-400">BTC</span></p>
+                        <p class="text-[10px] text-slate-500 font-mono tracking-widest mt-1">${legacySats.toLocaleString()} SATS</p>
+                    </div>
+                </div>`;
+        } else {
+            const deficitBtc = Math.abs(currentBtcBalance);
+            statusHtml = `
+                <div class="p-5 bg-rose-950/20 border border-rose-500/30 rounded-xl shadow-[inset_0_0_20px_rgba(225,29,72,0.05)] pop-in h-full flex flex-col justify-center">
+                    <p class="text-xs text-rose-400 font-bold uppercase tracking-widest mb-1">ประเมิน: ไม่เพียงพอ ⚠️</p>
+                    <p class="text-sm text-slate-300">พอร์ตจะหมดเมื่ออายุประมาณ <span class="text-rose-400 font-bold bg-rose-950/50 px-2 py-0.5 rounded">${ageOfBankrupt} ปี</span></p>
+                    <div class="mt-4 pt-4 border-t border-rose-500/20">
+                        <p class="text-[10px] text-rose-500/80 font-bold uppercase tracking-widest mb-1">ต้องสะสมเพิ่มอีกอย่างน้อย</p>
+                        <p class="text-2xl font-mono font-bold text-rose-400 drop-shadow-[0_0_5px_rgba(225,29,72,0.3)]">${deficitBtc.toFixed(4)} <span class="text-sm text-slate-400">BTC</span></p>
+                        <p class="text-[10px] text-slate-500 font-mono tracking-widest mt-1">หรือ ${(Math.round(deficitBtc * 100000000)).toLocaleString()} SATS</p>
+                    </div>
+                </div>`;
+        }
+
+        document.getElementById('resultText').innerHTML = `
+            <div class="p-5 bg-[#050A14]/80 border border-slate-700/80 rounded-xl text-center flex flex-col justify-center shadow-inner pop-in">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-3">ปีแรกที่เกษียณจะใช้</p>
+                <p class="text-3xl lg:text-4xl font-mono font-bold text-gold drop-shadow-md">${Math.round(firstYearSats).toLocaleString()}</p>
+                <p class="text-xs text-gold/70 font-bold tracking-widest mt-2 uppercase">Sats / ต่อปี</p>
+                <p class="text-[10px] text-slate-500 mt-3 bg-slate-900/50 py-1 px-3 rounded-full inline-block mx-auto border border-slate-800">เฉลี่ยเดือนละ <span class="text-white">${Math.round(firstYearSats/12).toLocaleString()}</span> Sats</p>
+            </div>
+            ${statusHtml}
+        `;
+
+        updateChart(labels, satsBalanceData, satsSpentData);
+    }
+
+    // Chart.js Theme configuration
+    Chart.defaults.color = '#8B9BB4';
+    Chart.defaults.font.family = "'Prompt', sans-serif";
+
+    function updateChart(labels, balanceData, spentData) {
+        if (myChart) myChart.destroy();
+        const ctx = document.getElementById('retirementChart').getContext('2d');
+        
+        // Gradient for Area Chart
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(230, 194, 122, 0.4)'); // Gold
+        gradient.addColorStop(1, 'rgba(5, 10, 20, 0.1)'); // Deep Navy
+        
+        myChart = new Chart(ctx, {
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Sats คงเหลือ',
+                        data: balanceData,
+                        borderColor: '#E6C27A',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        yAxisID: 'y',
+                        tension: 0.4, // Make the line curvy
+                        pointRadius: 0, // Hide points for cleaner look
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#FFF',
+                        pointHoverBorderColor: '#E6C27A',
+                        pointHoverBorderWidth: 2
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Sats ที่ใช้ต่อปี',
+                        data: spentData,
+                        backgroundColor: 'rgba(34, 211, 238, 0.7)', // Cyan
+                        hoverBackgroundColor: '#22D3EE',
+                        yAxisID: 'y1',
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        position: 'left',
+                        ticks: { 
+                            font: { size: 10, family: "'Fira Code', monospace" },
+                            callback: function(value) { return value.toLocaleString(); }
+                        },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                        title: { display: false }
+                    },
+                    y1: {
+                        position: 'right',
+                        ticks: { 
+                            color: '#22D3EE', 
+                            font: { size: 10, family: "'Fira Code', monospace" },
+                            callback: function(value) { return value.toLocaleString(); }
+                        },
+                        grid: { display: false },
+                        title: { display: false }
+                    },
+                    x: { 
+                        ticks: { 
+                            font: { size: 10 },
+                            maxRotation: 45,
+                            minRotation: 45
+                        }, 
+                        grid: { display: false, drawBorder: false } 
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(5, 10, 20, 0.9)',
+                        titleColor: '#E6C27A',
+                        bodyColor: '#FFF',
+                        borderColor: 'rgba(230, 194, 122, 0.3)',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: true,
+                        boxPadding: 4,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toLocaleString() + ' SATS';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    document.querySelectorAll('.calc-trigger').forEach(input => {
+        input.addEventListener('input', calculate);
+    });
+
+</script>
+
+</body>
+</html>

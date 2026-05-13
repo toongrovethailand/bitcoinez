@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchasing Power Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', 
+                            400: '#8B9BB4', 
+                            500: '#64748B', 
+                            700: '#1c2e4a', 
+                            800: '#162645',
+                            900: '#101a30', 
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none; /* เพิ่มบรรทัดนี้เข้าไปครับ */
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--gold-accent);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 10px var(--gold-glow);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6 transition-colors duration-500">
+
+    <div class="max-w-3xl w-full relative z-10">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">อำนาจซื้อและเงินเฟ้อ<br>(Purchasing Power Simulator)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+                จำลองผลกระทบของ <b>"เงินเฟ้อ"</b> ที่มีต่อมูลค่าของเงินตรา (Fiat Currency) ทำความเข้าใจว่าทำไมเงิน 100,000 บาทในวันนี้ ถึงซื้อของได้ไม่เท่าเดิมในอนาคต
+            </p>
+        </div>
+
+        <div class="glass-panel border-t-4 border-t-gold rounded-xl p-6 mb-8 shadow-[0_0_30px_rgba(230,194,122,0.1)] pop-in">
+            <h3 class="text-gold font-bold mb-5 flex items-center gap-2 uppercase tracking-widest text-xs"><span>⚙️</span> ปรับตัวแปรเพื่อจำลองอนาคต</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-[#050A14] border border-slate-800 rounded-xl p-4 shadow-inner">
+                    <label class="text-[10px] text-slate-400 block mb-3 tracking-widest uppercase flex justify-between items-end">
+                        <span>เวลาผ่านไป (ปี)</span>
+                        <span class="text-xl font-mono font-bold text-white"><span id="year-val" class="text-gold">0</span> ปี</span>
+                    </label>
+                    <input type="range" id="year-slider" min="0" max="30" value="0">
+                </div>
+
+                <div class="bg-[#050A14] border border-slate-800 rounded-xl p-4 shadow-inner">
+                    <label class="text-[10px] text-slate-400 block mb-3 tracking-widest uppercase flex justify-between items-end">
+                        <span>อัตราเงินเฟ้อเฉลี่ยต่อปี</span>
+                        <span class="text-xl font-mono font-bold text-white"><span id="inf-val" class="text-rose-400">3</span> %</span>
+                    </label>
+                    <input type="range" id="inf-slider" min="1" max="15" value="3">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 pop-in" style="animation-delay: 0.1s;">
+            <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/80 text-center shadow-inner relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-[40px] pointer-events-none"></div>
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 block font-bold">มูลค่าที่แท้จริงของเงิน 100,000 บาท</span>
+                <div id="fiat-value" class="text-2xl sm:text-3xl font-mono font-bold text-rose-400 drop-shadow-[0_0_5px_rgba(225,29,72,0.5)] transition-all">฿100,000</div>
+            </div>
+
+            <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/80 text-center shadow-inner relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-[40px] pointer-events-none"></div>
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 block font-bold">จำนวนก๋วยเตี๋ยวที่ซื้อได้ (ชามละ 50 บ.)</span>
+                <div id="item-count" class="text-2xl sm:text-3xl font-mono font-bold text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)] transition-all">2,000 ชาม</div>
+            </div>
+        </div>
+
+        <div class="glass-panel p-6 rounded-xl mb-8 border border-slate-700 pop-in" style="animation-delay: 0.2s;">
+            <div class="flex items-center gap-4">
+                <div class="text-4xl shrink-0 drop-shadow-md">🍜</div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-xs text-slate-300 font-bold uppercase tracking-widest">ความสามารถในการซื้อ (Purchasing Power)</span>
+                        <span id="percent-val" class="font-mono text-lg font-bold text-white">100%</span>
+                    </div>
+                    <div class="h-4 w-full bg-[#050A14] rounded-full overflow-hidden border border-slate-800 shadow-inner">
+                        <div id="progress-bar" class="h-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(225,29,72,0.5)]" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-[#050A14]/80 border-l-4 border-gold p-5 sm:p-6 rounded-r-xl shadow-[0_0_20px_rgba(230,194,122,0.1)] pop-in flex items-start gap-4" style="animation-delay: 0.3s;">
+            <div class="text-2xl mt-1">💡</div>
+            <div>
+                <span class="text-gold font-bold text-xs uppercase tracking-widest block mb-2">บทสรุป (Takeaway)</span>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                    เงินเฟ้อเปรียบเสมือน "ภาษีที่มองไม่เห็น" มันค่อยๆ กัดกินอำนาจซื้อของคุณอย่างช้าๆ 
+                    ผ่านไป <b id="summary-year" class="text-white">10</b> ปี เงินแสนเดิมอาจเหลือค่าเทียบเท่าแค่ <b id="summary-val" class="text-rose-400 font-mono">70,000</b> บาท 
+                    การเก็บออมในสินทรัพย์ที่มีจำนวนจำกัดอย่าง <b class="text-gold">Bitcoin</b> จึงเป็นกลยุทธ์เพื่อรักษาอำนาจซื้อในระยะยาว
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const yearSlider = document.getElementById('year-slider');
+        const infSlider = document.getElementById('inf-slider');
+        const yearVal = document.getElementById('year-val');
+        const infVal = document.getElementById('inf-val');
+        const fiatValueDisplay = document.getElementById('fiat-value');
+        const itemCountDisplay = document.getElementById('item-count');
+        const progressBar = document.getElementById('progress-bar');
+        const percentVal = document.getElementById('percent-val');
+        const summaryYear = document.getElementById('summary-year');
+        const summaryVal = document.getElementById('summary-val');
+
+        function updateSim() {
+            const years = parseInt(yearSlider.value);
+            const inflation = parseInt(infSlider.value) / 100;
+            const initialMoney = 100000;
+            const initialPrice = 50;
+
+            // คำนวณมูลค่าเงินที่ลดลงตามหลักการ Compound Interest (แบบคิดลด)
+            // Formula: PV = FV / (1 + r)^n
+            const futureValue = initialMoney / Math.pow((1 + inflation), years);
+            
+            // คำนวณจำนวนของที่ซื้อได้
+            const itemsCanBuy = Math.floor(futureValue / initialPrice);
+            const percentage = (futureValue / initialMoney) * 100;
+
+            // อัปเดต UI (ใช้ toLocaleString เพื่อใส่ลูกน้ำ)
+            yearVal.innerText = years;
+            infVal.innerText = (inflation * 100).toFixed(0);
+            
+            fiatValueDisplay.innerText = '฿' + Math.round(futureValue).toLocaleString();
+            itemCountDisplay.innerText = itemsCanBuy.toLocaleString() + ' ชาม';
+            
+            progressBar.style.width = percentage + '%';
+            percentVal.innerText = Math.round(percentage) + '%';
+
+            // อัปเดตข้อความสรุปด้านล่าง
+            summaryYear.innerText = years;
+            summaryVal.innerText = Math.round(futureValue).toLocaleString();
+
+            // เปลี่ยนสีหลอดตามค่าเปอร์เซ็นต์
+            if (percentage < 30) {
+                progressBar.className = "h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(239,68,68,0.5)]";
+                fiatValueDisplay.className = "text-2xl sm:text-3xl font-mono font-bold text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.5)] transition-all";
+            } else if (percentage < 60) {
+                progressBar.className = "h-full bg-gradient-to-r from-orange-600 to-amber-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(245,158,11,0.5)]";
+                fiatValueDisplay.className = "text-2xl sm:text-3xl font-mono font-bold text-amber-500 drop-shadow-[0_0_5px_rgba(245,158,11,0.5)] transition-all";
+            } else {
+                progressBar.className = "h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]";
+                fiatValueDisplay.className = "text-2xl sm:text-3xl font-mono font-bold text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.5)] transition-all";
+            }
+        }
+
+        yearSlider.addEventListener('input', updateSim);
+        infSlider.addEventListener('input', updateSim);
+
+        // ทำงานครั้งแรกเมื่อโหลดหน้า
+        updateSim();
+    </script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<div class="flex flex-col gap-4">
+    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2 mb-2 cursor-pointer hover:text-cyan-400 transition-colors w-max group" onclick="App.toggleModal('modal-miner', true)">
+        <span class="text-2xl">⛏️</span> 
+        <span class="underline decoration-dashed decoration-slate-500/50 group-hover:decoration-current underline-offset-4">Node Miner</span>
+    </h2>
+    
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 shadow-inner flex flex-col h-[380px] sm:h-[410px] shrink-0">
+        <div class="flex justify-between items-center mb-3 shrink-0">
+            <p class="text-sm font-bold tracking-wider text-slate-300 flex items-center cursor-pointer hover:text-cyan-400 transition-colors group" onclick="App.toggleModal('modal-tx-sort', true)">
+                <span class="underline decoration-dashed decoration-slate-500/50 group-hover:decoration-current underline-offset-4">1. จัดเรียงธุรกรรม (คลิก)</span>
+            </p>
+            <div class="flex items-center cursor-pointer hover:opacity-80 transition-opacity" onclick="App.toggleModal('modal-block-size', true)">
+                <span class="text-xs text-amber-500 bg-amber-950/30 px-2 py-1 rounded border border-amber-900/50 font-medium underline decoration-dashed decoration-amber-500/50 underline-offset-4">
+                จำกัด 4000 vB
+                </span>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3 mb-3 flex-grow overflow-hidden">
+            <div id="mempool-container" class="bg-[#0a0a0a] rounded-lg border-2 border-slate-800 p-2 overflow-y-auto flex flex-col gap-2 transition-colors">
+                <div class="text-xs text-slate-500 font-bold sticky top-0 bg-[#0a0a0a] z-10 pb-1 flex justify-between">
+                    <span>📥 Mempool</span>
+                    <span class="text-cyan-500 font-normal">รอ: <span id="mempool-count">0</span></span>
+                </div>
+                <div id="mempool-list" class="space-y-2 min-h-[50px] pb-4"></div>
+            </div>
+            <div id="block-container" class="bg-cyan-950/20 rounded-lg border-2 border-cyan-900/50 p-2 overflow-y-auto flex flex-col gap-2 relative transition-colors shadow-inner">
+                <div class="text-xs text-cyan-400 font-bold sticky top-0 bg-slate-900/90 z-10 backdrop-blur-sm pb-1">📦 Candidate Block</div>
+                <div id="block-list" class="space-y-2 min-h-[50px] pb-4"></div>
+            </div>
+        </div>
+
+        <div class="bg-slate-950 rounded-lg border border-slate-800 p-3 mt-auto flex-shrink-0">
+            <div class="flex justify-between text-xs mb-2">
+                <span class="text-slate-400 font-medium">พื้นที่: <span id="block-size-text" class="text-white font-mono text-sm">0</span> / 4000 vB</span>
+                <span class="text-amber-400 font-bold font-mono text-sm">Fee รวม: <span id="block-fee-text">0</span> sats</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="capacity-bar" class="bg-cyan-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-inner relative overflow-hidden w-full mt-2 shrink-0">
+        <div id="bot-mode-bg" class="absolute inset-0 bg-gradient-to-r from-cyan-900/20 to-blue-900/20 opacity-0 transition-opacity duration-500 pointer-events-none rounded-xl"></div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10 w-full items-end">
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] sm:text-xs text-slate-400 font-bold cursor-pointer hover:text-cyan-400 transition-colors inline-block w-max" onclick="App.toggleModal('modal-difficulty', true); ModalLogic.updateDiffStats();">
+                    <span class="truncate underline decoration-dashed decoration-slate-500/50 hover:decoration-current underline-offset-4">2. ความยาก (Target)</span>
+                </label>
+                <div class="flex items-center bg-slate-950 rounded border border-slate-700 px-3 h-[38px]">
+                    <input type="number" id="input-difficulty" value="4" min="4" max="19" class="bg-transparent w-full text-cyan-400 text-center font-bold font-mono text-sm focus:outline-none appearance-none" 
+                    oninput="
+                        let z = parseInt(this.value) || 4;
+                        if(z < 4) { z = 4; this.value = 4; }
+                        let exp = 32 - Math.floor(z / 2);
+                        let coeff = (z % 2 !== 0) ? '0fffff' : 'ffffff';
+                        document.getElementById('ui-header-bits').innerText = '0x' + exp.toString(16) + coeff + ' (' + z + ' Zeros)';
+                    ">
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] sm:text-xs text-slate-400 font-bold cursor-pointer hover:text-emerald-400 transition-colors inline-block w-max" onclick="App.toggleModal('modal-nonce', true);">
+                    <span class="truncate underline decoration-dashed decoration-slate-500/50 hover:decoration-current underline-offset-4">3. กลยุทธ์ Nonce</span>
+                </label>
+                <div class="relative w-full h-[38px]">
+                    <select id="nonce-strategy-selector" class="w-full h-full bg-slate-950 border border-slate-700 text-emerald-400 hover:border-emerald-500/60 text-[11px] sm:text-xs font-bold font-mono rounded px-2 focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer shadow-inner transition-colors" 
+                    onchange="
+                        STATE.nodeNonceStrategies['me'] = this.value;
+                        let startVal = '0';
+                        let eq = '(Nonce++)';
+                        if(this.value === 'reverse') { startVal = '4,294,967,295'; eq = '(Nonce--)'; }
+                        else if(this.value === 'random') { startVal = Math.floor(Math.random() * 4294967296).toLocaleString(); eq = '(Random)'; }
+                        else if(this.value === 'asic') { eq = '(Nonce+=7)'; }
+                        else if(this.value === 'evens') { eq = '(Nonce+=2)'; }
+                        document.getElementById('ui-header-nonce').innerText = startVal + ' ' + eq;
+                    ">
+                        <option value="linear">1. เรียงลำดับจากน้อยไปมาก</option>
+                        <option value="random">2. สุ่มตัวเลขใหม่ทุกครั้ง</option>
+                        <option value="asic">3. ข้ามทีละ 7 (ASIC Boost)</option>
+                        <option value="reverse">4. เรียงลำดับจากมากไปน้อย</option>
+                        <option value="evens">5. หาเฉพาะเลขคู่</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-emerald-500/70">▼</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] sm:text-xs text-slate-400 font-bold cursor-pointer hover:text-emerald-400 transition-colors inline-block w-max" onclick="App.toggleModal('modal-subsidy', true);">
+                    <span class="truncate underline decoration-dashed decoration-slate-500/50 hover:decoration-current underline-offset-4">4. เคลมรายได้ (Subsidy)</span>
+                </label>
+                <div class="flex items-center bg-slate-950 rounded border border-slate-700 px-3 h-[38px]">
+                    <input type="number" id="input-subsidy" value="312500000" step="1" class="bg-transparent w-full text-emerald-400 text-center font-bold font-mono text-sm focus:outline-none appearance-none"
+                    oninput="STATE.liveSubsidy = parseInt(this.value) || 0; if(window.UI && window.UI.renderMempool) window.UI.renderMempool();">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+                <label class="text-[11px] sm:text-xs text-slate-400 font-bold cursor-pointer hover:text-amber-400 transition-colors inline-block w-max" onclick="App.toggleModal('modal-fee', true);">
+                    <span class="truncate underline decoration-dashed decoration-slate-500/50 hover:decoration-current underline-offset-4">5. ค่าธรรมเนียม (Fee)</span>
+                </label>
+                <div class="flex items-center bg-slate-950 rounded border border-slate-700 px-3 h-[38px]">
+                    <input type="number" id="input-fee" value="0" step="1" class="bg-transparent w-full text-amber-400 text-center font-bold font-mono text-sm focus:outline-none appearance-none"
+                    oninput="STATE.actualFee = parseInt(this.value) || 0; STATE.manualFee = true; if(window.UI && window.UI.renderMempool) window.UI.renderMempool();">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tour-target-hacker" class="bg-rose-950/20 border border-rose-900/40 rounded-xl p-4 shadow-inner relative mt-2 shrink-0 transition-all duration-300">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="flex justify-between items-center cursor-pointer select-none relative z-10" onclick="document.getElementById('consensus-rules-body').classList.toggle('hidden'); this.querySelector('.chevron').innerText = document.getElementById('consensus-rules-body').classList.contains('hidden') ? '▼' : '▲';">
+            <p class="text-sm text-rose-400 font-bold tracking-wider flex items-center gap-2 m-0">
+                <span class="animate-pulse">⚠️</span> ทดสอบแหกกฎ Consensus 
+            </p>
+            <span class="chevron text-rose-400 text-xs font-bold transition-transform">▼</span>
+        </div>
+        
+        <div id="consensus-rules-body" class="hidden mt-4 pt-4 border-t border-rose-900/30">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm relative z-10">
+                <label class="flex items-center space-x-3 cursor-pointer group"><input type="checkbox" id="cb-oversize" class="accent-rose-500 w-4 h-4"><span class="text-slate-300 group-hover:text-white transition-colors">ล้นบล็อก (>4M WU)</span></label>
+                <label class="flex items-center space-x-3 cursor-pointer group"><input type="checkbox" id="cb-badtime" class="accent-rose-500 w-4 h-4"><span class="text-slate-300 group-hover:text-white transition-colors">ปลอมเวลาอนาคต</span></label>
+                <label class="flex items-center space-x-3 cursor-pointer group"><input type="checkbox" id="cb-doublespend" onchange="App.triggerDoubleSpendRipple()" class="accent-rose-500 w-4 h-4"><span class="text-slate-300 group-hover:text-white transition-colors">จ่ายซ้ำซ้อน (Double Spend)</span></label>
+                <label class="flex items-center space-x-3 cursor-pointer group"><input type="checkbox" id="cb-badsig" class="accent-rose-500 w-4 h-4"><span class="text-slate-300 group-hover:text-white transition-colors">ลายเซ็นปลอม (Bad Sig)</span></label>
+            </div>
+        </div>
+    </div>
+
+    <div id="tour-target-header" class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 shadow-inner flex flex-col gap-3 hover:border-fuchsia-500/30 transition-colors mt-2 relative z-10 shrink-0">
+        <p class="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider absolute -top-2 left-4 bg-[#0a0a0a] px-2">Block Header Data (80 Bytes)</p>
+        
+        <div class="flex items-center justify-between mt-1">
+            <span class="text-[11px] sm:text-xs text-slate-400 font-bold flex items-center gap-2">
+                <span class="text-slate-500">📄</span> 1. Version:
+            </span>
+            <span class="font-mono text-[11px] sm:text-xs text-slate-300 w-2/3 text-right">0x20000000</span>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/50">
+            <span class="text-[11px] sm:text-xs text-slate-400 font-bold flex items-center gap-2">
+                <span class="text-slate-500">🔗</span> 2. Prev Hash:
+            </span>
+            <span class="font-mono text-[11px] sm:text-xs text-slate-400 block w-2/3 text-right cursor-pointer hover:text-slate-300 transition-colors truncate" id="ui-prev-hash" onclick="App.toggleHash(this)">Syncing...</span>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/50">
+            <span class="text-[11px] sm:text-xs text-slate-300 font-bold flex items-center gap-2">
+                <span class="text-fuchsia-400">🌳</span> 3. Merkle Root:
+            </span>
+            <div class="flex flex-col items-end w-2/3">
+                <span class="font-mono text-[11px] sm:text-xs text-fuchsia-400 block w-full text-right cursor-pointer hover:text-fuchsia-300 transition-colors truncate" id="ui-merkle-root" onclick="App.toggleHash(this)">Empty</span>
+                <button onclick="App.openMerkleTree()" class="text-[10px] mt-1 bg-fuchsia-900/30 text-fuchsia-300 border border-fuchsia-500/30 px-2 py-0.5 rounded hover:bg-fuchsia-800/50 transition-colors flex items-center gap-1">🔍 ดูโครงสร้างรากไม้ (Tree)</button>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/50">
+            <span class="text-[11px] sm:text-xs text-slate-400 font-bold flex items-center gap-2">
+                <span class="text-slate-500">⏱️</span> 4. Timestamp:
+            </span>
+            <span class="font-mono text-[11px] sm:text-xs text-slate-300 w-2/3 text-right" id="ui-header-timestamp">Loading...</span>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/50">
+            <span class="text-[11px] sm:text-xs text-slate-400 font-bold flex items-center gap-2">
+                <span class="text-amber-400">🎯</span> 5. Bits (Target):
+            </span>
+            <span class="font-mono text-[11px] sm:text-xs text-amber-400 w-2/3 text-right" id="ui-header-bits">0x1effffff (4 Zeros)</span>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/50">
+            <span class="text-[11px] sm:text-xs text-slate-400 font-bold flex items-center gap-2">
+                <span class="text-emerald-400">🎲</span> 6. Nonce:
+            </span>
+            <span class="font-mono text-[11px] sm:text-xs text-emerald-400 w-2/3 text-right" id="ui-header-nonce">0 (Nonce++)</span>
+        </div>
+
+        <div class="mt-2 pt-2 border-t border-slate-800/50 text-[10px] text-slate-400 leading-relaxed font-sans bg-slate-950/50 p-2 rounded">
+            <span class="text-cyan-400 font-bold">💡 ข้อมูลแฝง:</span> <span class="text-amber-400 font-bold">ข้อ 4 (Subsidy)</span> และ <span class="text-amber-400 font-bold">ข้อ 5 (Fee)</span> จะไปรวมอยู่ใน <b class="text-white">Coinbase Transaction</b> ซึ่งจะถูกนำไป Hash รวมเป็นส่วนหนึ่งของ <span class="text-fuchsia-400 font-bold">3. Merkle Root</span> โดยอัตโนมัติ
+        </div>
+    </div>
+</div>

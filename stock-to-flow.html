@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock to Flow Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: { colors: { slate: { 300: '#FFFFFF', 400: '#8B9BB4', 900: '#101a30' }, gold: { DEFAULT: '#E6C27A' } },
+                fontFamily: { sans: ['Prompt', 'sans-serif'], mono: ['Fira Code', 'monospace'] } }
+            }
+        }
+    </script>
+    <style>
+        :root { --bg-deep-navy: #050A14; --gold-accent: #E6C27A; --gold-glow: rgba(230, 194, 122, 0.4); }
+        body { font-family: 'Prompt', sans-serif; background: transparent; color: #FFF; overflow-x: hidden; }
+        .glass-panel { background: rgba(16, 26, 48, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+        .asset-btn.active { border-color: #E6C27A; background: rgba(230, 194, 122, 0.15); box-shadow: inset 0 0 15px rgba(230,194,122,0.2); }
+        .live-pulse { animation: pulseLive 2s infinite; }
+        @keyframes pulseLive { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center py-6">
+    <div class="max-w-3xl w-full relative z-10">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-gold mt-5 mb-3">Stock-to-Flow (S2F)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">
+                โมเดลวัดค่า <b>"ความแข็งแกร่ง (Hardness)"</b> ของสินทรัพย์ ยิ่งมีค่า S2F สูง หมายความว่าสินทรัพย์นั้นผลิตเพิ่มได้ยากมาก
+            </p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mb-8 pop-in">
+            <button onclick="selectAsset('fiat')" id="btn-fiat" class="asset-btn p-3 rounded-xl border border-slate-700 bg-slate-900/50 hover:bg-slate-800 transition-all">
+                <div class="text-2xl mb-1">💵</div><div class="text-xs font-bold uppercase">เงินเฟียต (USD)</div>
+            </button>
+            <button onclick="selectAsset('gold')" id="btn-gold" class="asset-btn p-3 rounded-xl border border-slate-700 bg-slate-900/50 hover:bg-slate-800 transition-all">
+                <div class="text-2xl mb-1">🥇</div><div class="text-xs font-bold uppercase">ทองคำ</div>
+            </button>
+            <button onclick="selectAsset('btc')" id="btn-btc" class="asset-btn p-3 rounded-xl border border-slate-700 bg-slate-900/50 hover:bg-slate-800 transition-all active">
+                <div class="text-2xl mb-1">₿</div><div class="text-xs font-bold uppercase">Bitcoin</div>
+            </button>
+        </div>
+
+        <div class="glass-panel border-t-4 border-t-gold rounded-xl p-6 mb-8 pop-in" style="animation-delay: 0.1s;">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-700 pb-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 id="asset-name" class="text-2xl font-bold text-white">Bitcoin (Live Sync)</h3>
+                        <span id="live-badge" class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded-full font-bold border border-emerald-500/50 flex items-center gap-1 live-pulse">
+                            <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div> ON-CHAIN
+                        </span>
+                    </div>
+                    <p id="asset-desc" class="text-xs text-slate-400 mt-1">ดึงข้อมูลจริงจากเครือข่ายบิตคอยน์</p>
+                </div>
+                <div class="text-center mt-4 sm:mt-0 bg-[#050A14] p-3 rounded-xl border border-gold/30 w-full sm:w-auto shadow-inner">
+                    <div class="text-[10px] text-gold uppercase tracking-widest font-bold">ค่า S2F (ความแข็งแกร่ง)</div>
+                    <div id="s2f-score" class="text-3xl font-mono font-black text-white drop-shadow-[0_0_10px_rgba(230,194,122,0.8)]">...</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                    <div class="text-xs text-slate-400 uppercase tracking-widest mb-1 flex items-center justify-between">
+                        <span>Stock (ที่มีอยู่เดิม)</span>
+                    </div>
+                    <div id="stock-val" class="text-xl font-mono text-white">Loading...</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 uppercase tracking-widest mb-1 flex items-center justify-between">
+                        <span>Flow (ผลิตเพิ่มรายปี)</span>
+                        <span id="block-reward" class="text-[10px] text-cyan-400 hidden">Reward: 3.125 BTC</span>
+                    </div>
+                    <div id="flow-val" class="text-xl font-mono text-cyan-400">Loading...</div>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-widest">อัตราเงินเฟ้อรายปี (Inflation Rate)</span>
+                    <span id="inf-rate" class="font-mono text-sm font-bold text-rose-400">...</span>
+                </div>
+                <div class="h-3 w-full bg-[#050A14] rounded-full overflow-hidden shadow-inner border border-slate-800">
+                    <div id="inf-bar" class="h-full bg-rose-500 transition-all duration-700" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-[#050A14]/80 border-l-4 border-gold p-5 rounded-r-xl shadow-lg pop-in flex items-start gap-4" style="animation-delay: 0.2s;">
+            <div class="text-2xl mt-1">💡</div>
+            <div>
+                <span class="text-gold font-bold text-xs uppercase tracking-widest block mb-2">บทวิเคราะห์ (Analysis)</span>
+                <p id="takeaway-text" class="text-sm text-slate-300 leading-relaxed">กำลังดึงข้อมูล...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ข้อมูล Macro (เงินเฟียต และ ทองคำ) อิงจากสถิติปีล่าสุด
+        const staticAssets = {
+            fiat: { 
+                name: "US Dollar (M2 Supply)", desc: "ข้อมูลมหภาคจาก FED (Federal Reserve)", 
+                stockStr: "20,800,000 ล้าน USD", flowStr: "1,450,000 ล้าน USD", 
+                s2f: 14, inf: 7.0, 
+                msg: "ต้องใช้เวลาเพียง 14 ปี ในการพิมพ์เงินเฟียตออกมาเท่ากับจำนวนเงินที่มีอยู่ทั้งหมดในระบบปัจจุบัน (เงินอ่อนค่าลงอย่างรวดเร็ว เนื่องจากเป็นระบบที่เสกเงินจากอากาศได้)" 
+            },
+            gold: { 
+                name: "ทองคำ (Gold)", desc: "ข้อมูลจาก World Gold Council", 
+                stockStr: "209,000 ตัน", flowStr: "3,300 ตัน", 
+                s2f: 63, inf: 1.5, 
+                msg: "ต้องใช้เวลาขุดทองคำนานถึง 63 ปี ถึงจะได้ทองคำเท่ากับปริมาณที่มนุษย์ขุดขึ้นมาได้ทั้งหมดในประวัติศาสตร์ มันจึงถูกใช้เป็นเงิน (Hard Money) มานับพันปี" 
+            }
+        };
+
+        // ตัวแปรเก็บข้อมูล Bitcoin แบบ Live
+        let liveBtcData = { stockStr: "...", flowStr: "...", s2f: 0, inf: 0, reward: 0, msg: "กำลังเชื่อมต่อโหนด..." };
+
+        async function fetchLiveBitcoinData() {
+            try {
+                // 1. ดึง Block Height ล่าสุด
+                const heightRes = await fetch('https://blockchain.info/q/getblockcount');
+                const currentBlock = parseInt(await heightRes.text());
+
+                // 2. ดึงจำนวน BTC ทั้งหมดในระบบ (หน่วย Satoshi)
+                const supplyRes = await fetch('https://blockchain.info/q/totalbc');
+                const totalSatoshis = parseInt(await supplyRes.text());
+                const currentStock = totalSatoshis / 100000000; // แปลงเป็น BTC
+
+                // 3. คำนวณ Block Reward ปัจจุบัน (Halving Era)
+                const era = Math.floor(currentBlock / 210000);
+                const currentReward = 50 / Math.pow(2, era); // ปัจจุบันคือ 3.125 BTC
+
+                // 4. คำนวณ Flow รายปี (144 บล็อกต่อวัน * 365.25 วัน)
+                const blocksPerYear = 144 * 365.25;
+                const yearlyFlow = currentReward * blocksPerYear;
+
+                // 5. คำนวณ S2F และ Inflation
+                const s2f = currentStock / yearlyFlow;
+                const inflation = (yearlyFlow / currentStock) * 100;
+
+                liveBtcData = {
+                    stockStr: Math.floor(currentStock).toLocaleString() + " BTC",
+                    flowStr: Math.round(yearlyFlow).toLocaleString() + " BTC",
+                    s2f: Math.round(s2f),
+                    inf: inflation.toFixed(2),
+                    reward: currentReward,
+                    msg: `คำนวณสดจากบล็อกที่ <b>${currentBlock.toLocaleString()}</b> (Reward: ${currentReward} BTC).<br>ต้องใช้เวลาขุดถึง <b>${Math.round(s2f)} ปี</b> กว่าจะได้จำนวนเหรียญเท่ากับตลาดตอนนี้ นี่คือสินทรัพย์ที่แข็งแกร่งที่สุดในประวัติศาสตร์มนุษย์!`
+                };
+
+                // ถ้าผู้ใช้อยู่หน้า BTC ให้รีเฟรชข้อมูล
+                if(document.getElementById('btn-btc').classList.contains('active')) {
+                    selectAsset('btc');
+                }
+            } catch (err) {
+                console.error("Failed to fetch BTC Data", err);
+                liveBtcData.msg = "ไม่สามารถดึงข้อมูลเครือข่ายได้ (อาจติด CORS หรือ Network Error) โปรดลองใหม่";
+            }
+        }
+
+        function selectAsset(key) {
+            document.querySelectorAll('.asset-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + key).classList.add('active');
+
+            const liveBadge = document.getElementById('live-badge');
+            const rewardLabel = document.getElementById('block-reward');
+
+            if (key === 'btc') {
+                liveBadge.classList.remove('hidden');
+                liveBadge.className = "bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded-full font-bold border border-emerald-500/50 flex items-center gap-1 live-pulse";
+                liveBadge.innerHTML = '<div class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div> ON-CHAIN';
+                
+                document.getElementById('asset-name').innerText = "Bitcoin (Live Sync)";
+                document.getElementById('asset-desc').innerText = "ดึงและคำนวณข้อมูลจริงจากบล็อกเชน";
+                
+                document.getElementById('stock-val').innerText = liveBtcData.stockStr;
+                document.getElementById('flow-val').innerText = liveBtcData.flowStr;
+                document.getElementById('s2f-score').innerText = liveBtcData.s2f || "...";
+                document.getElementById('inf-rate').innerText = liveBtcData.inf ? liveBtcData.inf + "%" : "...";
+                document.getElementById('takeaway-text').innerHTML = liveBtcData.msg;
+
+                if(liveBtcData.reward > 0) {
+                    rewardLabel.classList.remove('hidden');
+                    rewardLabel.innerText = "Reward: " + liveBtcData.reward + " BTC/Block";
+                }
+                updateColors(liveBtcData.s2f, liveBtcData.inf);
+            } else {
+                liveBadge.className = "bg-slate-700/50 text-slate-400 text-[10px] px-2 py-1 rounded-full font-bold border border-slate-600 flex items-center gap-1";
+                liveBadge.innerHTML = '📊 MACRO DATA';
+                rewardLabel.classList.add('hidden');
+
+                const data = staticAssets[key];
+                document.getElementById('asset-name').innerText = data.name;
+                document.getElementById('asset-desc').innerText = data.desc;
+                document.getElementById('stock-val').innerText = data.stockStr;
+                document.getElementById('flow-val').innerText = data.flowStr;
+                document.getElementById('s2f-score').innerText = data.s2f;
+                document.getElementById('inf-rate').innerText = data.inf + "%";
+                document.getElementById('takeaway-text').innerHTML = data.msg;
+                
+                updateColors(data.s2f, data.inf);
+            }
+        }
+
+        function updateColors(s2f, inf) {
+            // Animate inflation bar (capped at 15% for visual scaling)
+            let barWidth = inf > 15 ? 100 : (inf / 15) * 100;
+            if(isNaN(barWidth)) barWidth = 0;
+            const bar = document.getElementById('inf-bar');
+            bar.style.width = barWidth + "%";
+            
+            // Color coding S2F
+            const scoreEl = document.getElementById('s2f-score');
+            if(s2f < 20) scoreEl.className = "text-3xl font-mono font-black text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)]";
+            else if(s2f < 70) scoreEl.className = "text-3xl font-mono font-black text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]";
+            else scoreEl.className = "text-3xl font-mono font-black text-gold drop-shadow-[0_0_10px_rgba(230,194,122,0.8)]";
+        }
+        
+        // Start Process
+        selectAsset('btc'); // โชว์หน้า Loading ก่อน
+        fetchLiveBitcoinData(); // ยิงดึงข้อมูลจาก Blockchain.info (ไม่มี API Key, ไม่ติด CORS)
+    </script>
+</body>
+</html>

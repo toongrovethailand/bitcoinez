@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Bitcoin Rabbit Hole - Chapter 4: The Gold Furnace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', // Text Primary
+                            400: '#8B9BB4', // Text Secondary
+                            500: '#64748B', 
+                            700: '#1c2e4a', // Light Border
+                            800: '#162645',
+                            900: '#101a30', // Deep Navy Card Base
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Premium Gold Nugget (เอา overflow: hidden ออกเพื่อไม่ให้ป้ายชื่อโดนตัด) */
+        .gold-nugget {
+            background: linear-gradient(135deg, #FCE5A1 0%, #E6C27A 50%, #A67C00 100%);
+            border: 1px solid #FFF;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.6), 0 5px 15px rgba(230,194,122,0.3);
+            color: #050A14;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+        }
+
+        /* เลเยอร์แสงเงาที่ถูกแยกออกมาเพื่อป้องกันการล้นขอบ */
+        .shine-layer {
+            position: absolute;
+            inset: 0;
+            border-radius: 11px;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .shine-layer::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
+            transform: rotate(45deg) translate(-50%, -50%); transition: transform 0.5s;
+        }
+        
+        .gold-nugget:hover { transform: scale(1.05) translateY(-2px); box-shadow: inset 0 0 15px rgba(255,255,255,0.8), 0 8px 25px rgba(230,194,122,0.6); }
+        .gold-nugget:hover .shine-layer::before { transform: rotate(45deg) translate(50%, 50%); }
+
+        /* Slag Nugget (Spent) */
+        .slag-nugget {
+            background: linear-gradient(135deg, #1c2e4a 0%, #101a30 50%, #050A14 100%);
+            border: 1px solid #334155;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            color: #64748B;
+            border-radius: 12px;
+            text-decoration: line-through;
+            text-decoration-color: #E11D48;
+            text-decoration-thickness: 2px;
+            opacity: 0.8;
+            position: relative;
+        }
+
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+
+        .melt-anim { animation: meltAway 1s forwards; pointer-events: none; }
+        @keyframes meltAway {
+            0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+            50% { transform: scale(0.9) translateY(20px); opacity: 0.8; filter: brightness(2) drop-shadow(0 0 20px #E6C27A); }
+            100% { transform: scale(0); opacity: 0; filter: brightness(3); }
+        }
+
+        /* Input styling */
+        select option { background-color: #050A14; color: #FFF; }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6">
+
+    <div class="max-w-6xl w-full relative z-10">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">หลอมทองคำดิจิทัล (UTXO Model)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">หยิบก้อนทองคำ (UTXO) จากกระเป๋าโยนเข้าเตาหลอม เพื่อสร้างก้อนทองก้อนใหม่ให้ผู้รับและก้อนใหม่ให้ตัวเอง ก้อนทองที่ถูกหลอมแล้วจะกลายเป็นเศษหินสีแดงในสมุดบัญชีโลก</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10" id="characters-container">
+            </div>
+
+        <div class="glass-panel border-t-4 border-t-gold rounded-xl p-6 shadow-2xl relative overflow-hidden mb-10">
+            <div class="absolute top-0 right-1/2 translate-x-1/2 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+            
+            <h3 class="text-xl font-bold text-gold mb-6 flex items-center justify-center gap-2 uppercase tracking-widest"><span class="text-2xl animate-pulse drop-shadow-[0_0_10px_rgba(249,115,22,0.8)]">🔥</span> เตาหลอมธุรกรรม</h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-8 items-start relative z-10">
+                
+                <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700 h-full flex flex-col shadow-inner">
+                    <div class="flex justify-between items-center mb-4">
+                        <label class="text-xs text-gold font-bold uppercase tracking-wide">1. เลือกผู้ที่จะโอนเงิน</label>
+                        <select id="sel-sender" class="bg-[#050A14] border border-slate-600 rounded p-1.5 text-white text-sm focus:outline-none focus:border-gold transition-colors" onchange="updateUtxoSelection()">
+                            <option value="">-- ใครจะโอน? --</option>
+                            <option value="Alice">👩 Alice</option>
+                            <option value="Bob">👨 Bob</option>
+                            <option value="Charlie">👱‍♂️ Charlie</option>
+                            <option value="Miner">⛏️ Miner</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-[#050A14]/80 rounded-lg p-4 border border-slate-700 flex-grow shadow-inner relative">
+                        <p class="text-[10px] text-slate-400 text-center mb-3 tracking-wide">คลิกก้อนทองเพื่อโยนเข้าเตาหลอม 👇</p>
+                        <div id="available-utxos" class="flex flex-wrap justify-center gap-4 min-h-[60px] items-center">
+                            <span class="text-xs text-slate-500 italic">โปรดเลือกผู้ส่งก่อน</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 bg-orange-950/20 border border-orange-900/50 rounded-xl p-4 min-h-[120px] flex flex-col shadow-[inset_0_0_20px_rgba(249,115,22,0.05)]">
+                        <span class="text-[10px] text-orange-400 font-bold text-center mb-3 uppercase tracking-widest flex items-center justify-center gap-1">📥 ในเตาหลอม (Inputs)</span>
+                        <div id="furnace-inputs" class="flex flex-wrap justify-center gap-4 flex-grow items-center">
+                            </div>
+                        <div class="mt-3 text-center border-t border-orange-900/40 pt-2 flex justify-between items-center px-2">
+                            <span class="text-xs text-slate-400">ยอดรวมวัตถุดิบ: </span>
+                            <span id="total-input-val" class="text-gold font-bold font-mono text-lg drop-shadow-md">0.00 BTC</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center justify-center py-4 lg:py-28 h-full">
+                    <div id="furnace-icon" class="text-5xl drop-shadow-[0_0_20px_rgba(230,194,122,0.6)] transition-all">➔</div>
+                </div>
+
+                <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700 h-full flex flex-col justify-between shadow-inner relative" id="receiver-panel">
+                    
+                    <div class="space-y-5 relative">
+                        <div id="receiver-overlay" class="absolute inset-0 z-20 bg-[#050A14]/80 backdrop-blur-[2px] rounded-lg flex items-center justify-center border border-slate-700/50">
+                            <span class="text-xs text-gold font-bold tracking-widest uppercase animate-pulse">รอเลือกผู้ส่ง...</span>
+                        </div>
+
+                        <div class="bg-[#050A14]/80 p-4 rounded-xl border border-slate-700 shadow-inner">
+                            <label class="text-xs text-cyan-400 font-bold uppercase block mb-2 tracking-wide">2. จ่ายให้ใคร? (Output)</label>
+                            <div class="flex items-center gap-3">
+                                <select id="sel-receiver" class="w-1/2 bg-slate-900 border border-slate-700 rounded p-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors" onchange="autoCalculateChange()">
+                                    <option value="">- เลือกผู้รับ -</option>
+                                    <option value="Alice">👩 Alice</option>
+                                    <option value="Bob">👨 Bob</option>
+                                    <option value="Charlie">👱‍♂️ Charlie</option>
+                                </select>
+                                <div class="w-1/2 flex items-center gap-2">
+                                    <div class="relative w-full">
+                                        <input type="number" id="input-amount" min="0" step="0.1" value="0" placeholder="0.0" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 pr-14 text-cyan-400 font-mono font-bold focus:outline-none focus:border-cyan-500 transition-colors" oninput="autoCalculateChange()">
+                                        <button onclick="setMaxAmount()" class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] bg-cyan-950/50 hover:bg-cyan-900 text-cyan-400 border border-cyan-800 hover:border-cyan-500 px-2 py-1 rounded transition-all font-bold tracking-wider" title="โอนทั้งหมด (หัก Fee แล้ว)">MAX</button>
+                                    </div>
+                                    <span class="text-slate-500 font-bold text-sm shrink-0">BTC</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#050A14]/80 p-4 rounded-xl border border-slate-700 shadow-inner">
+                            <label id="label-change" class="text-xs text-emerald-400 font-bold uppercase block mb-2 tracking-wide">3. ทองก้อนใหม่ให้ตัวเอง (Output 2 - Change)</label>
+                            <div class="flex items-center gap-3">
+                                <div class="w-1/2 bg-slate-900/40 border border-slate-700/50 rounded p-2.5 text-slate-300 text-sm flex items-center opacity-70 cursor-not-allowed select-none">
+                                    <span id="change-emoji" class="mr-2">❔</span>
+                                    <span id="change-name" class="truncate font-bold">รอเลือกผู้ส่ง</span>
+                                </div>
+                                <div class="w-1/2 flex items-center gap-2">
+                                    <input type="number" id="input-change" min="0" step="0.1" value="0" placeholder="0.0" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 transition-colors" oninput="calculateFee()">
+                                    <span class="text-slate-500 font-bold text-sm shrink-0">BTC</span>
+                                </div>
+                            </div>
+                            <span class="text-[9px] text-slate-500 block mt-2 tracking-wide">(* ปรับลดทองของตัวเอง = เพิ่มค่าธรรมเนียมให้ Miner)</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <div class="bg-[#050A14]/80 border border-gold/30 rounded-xl p-4 text-center transition-all duration-300 shadow-inner" id="fee-box">
+                            <span class="text-[10px] text-slate-400 block mb-1.5 uppercase tracking-widest font-bold">4. ส่วนต่างที่หายไป (ค่าแรงนักขุด ⛏️)</span>
+                            <div id="fee-amount" class="text-gold font-bold text-2xl font-mono transition-colors drop-shadow-md">0.00 BTC</div>
+                            <div id="fee-status" class="text-[10px] mt-2 hidden transition-colors font-bold tracking-wide"></div>
+                        </div>
+                        <div id="fee-warning" class="text-xs text-rose-500 font-bold text-center mt-2 hidden bg-rose-950/30 py-1 rounded">⚠️ ยอดวัตถุดิบไม่พอหลอม!</div>
+                    </div>
+
+                    <button id="btn-broadcast" onclick="executeTransaction()" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-all flex items-center justify-center gap-2 mt-5 opacity-50 cursor-not-allowed transform tracking-widest uppercase text-sm" disabled>
+                        🔥 กดปุ่มหลอมทองคำ!
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-xl p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] border border-slate-700">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-700/80 pb-5 gap-4">
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2 mb-1"><span class="text-2xl">📚</span> Global UTXO Set</h3>
+                    <p class="text-xs text-slate-400">สมุดบัญชีส่วนกลางที่บันทึกประวัติก้อนทองทั้งหมด (ทองที่ถูกหลอมไปแล้วจะกลายเป็นหินสีแดง)</p>
+                </div>
+                
+                <div class="bg-[#050A14] px-5 py-3 rounded-xl border border-slate-700 shrink-0 flex items-center justify-between md:justify-start gap-4 shadow-inner w-full md:w-auto">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-500 uppercase tracking-widest text-[10px]">ทั้งหมด:</span>
+                        <span id="global-utxo-count" class="text-white font-bold font-mono text-lg">0</span>
+                        <span class="text-slate-500 text-[10px]">ก้อน</span>
+                    </div>
+                    <div class="w-px h-6 bg-slate-700"></div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-500 uppercase tracking-widest text-[10px]">ใช้ได้ (UNSPENT):</span>
+                        <span id="global-utxo-total-amount" class="text-gold font-bold font-mono text-lg drop-shadow-[0_0_5px_rgba(230,194,122,0.5)]">0.00</span>
+                        <span class="text-slate-500 text-[10px]">BTC</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="global-utxo-container" class="flex flex-wrap gap-4 pt-4 pb-2 px-2 max-h-[250px] overflow-y-auto bg-[#050A14]/80 rounded-xl border border-slate-800 shadow-inner">
+                </div>
+        </div>
+
+    </div>
+
+    <script src="./asset/js/utxo.js"></script>
+</body>
+</html>

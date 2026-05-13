@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hash (Proof of work)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', 
+                            400: '#8B9BB4', 
+                            500: '#64748B', 
+                            700: '#1c2e4a', 
+                            800: '#162645',
+                            900: '#101a30', 
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .hash-success { animation: flashGold 1.5s ease-out forwards; }
+        @keyframes flashGold {
+            0% { background-color: rgba(230, 194, 122, 0.3); box-shadow: 0 0 50px rgba(230, 194, 122, 0.8); border-color: #E6C27A; }
+            100% { background-color: rgba(5, 10, 20, 0.85); box-shadow: 0 0 20px rgba(230, 194, 122, 0.3); border-color: rgba(230, 194, 122, 0.5); }
+        }
+
+        .btn-gold-solid {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(230, 194, 122, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-gold-solid:hover {
+            background-color: #f5d693;
+            box-shadow: 0 0 25px var(--gold-glow-strong);
+            transform: translateY(-2px);
+        }
+
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        .blur-text { filter: blur(0.5px); opacity: 0.8; }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6 transition-colors duration-500">
+
+    <div class="max-w-4xl w-full relative z-10">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">การตามล่าเลขศูนย์ (Proof of Work)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+                ในการสร้างบล็อก เครือข่ายมี <b>กติกา (Target)</b> ว่า Hash ที่ได้จะต้องมี <b class="text-white">เลขศูนย์นำหน้า</b> ตามจำนวนที่กำหนด ยิ่งศูนย์เยอะ ยิ่งหายากมหาศาล!
+            </p>
+        </div>
+
+        <div class="glass-panel border-t-4 border-t-cyan-500 rounded-xl p-5 mb-8 flex flex-col md:flex-row gap-6 shadow-[0_0_30px_rgba(34,211,238,0.1)] pop-in">
+            <div class="md:w-1/2 border-b md:border-b-0 md:border-r border-slate-700/80 pb-4 md:pb-0 md:pr-6">
+                <h3 class="text-cyan-400 font-bold mb-3 flex items-center gap-2 uppercase tracking-widest text-xs"><span>🌍</span> สถานะเครือข่าย Bitcoin ของจริง</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Global Hashrate</div>
+                        <div id="real-hashrate" class="text-lg font-mono font-bold text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] animate-pulse">Loading...</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Current Difficulty</div>
+                        <div id="real-difficulty" class="text-lg font-mono font-bold text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">Loading...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="md:w-1/2">
+                <h3 class="text-gold font-bold mb-3 flex items-center gap-2 uppercase tracking-widest text-xs"><span>💻</span> พลังประมวลผลเครื่องคุณ (Local)</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Your Hashrate</div>
+                        <div id="local-hashrate" class="text-lg font-mono font-bold text-gold drop-shadow-[0_0_5px_rgba(230,194,122,0.5)] transition-colors">0 H/s</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1" title="เวลาที่คาดว่าจะใช้เพื่อขุดบล็อกด้วยความยากที่คุณตั้งไว้">Est. Time (ที่ Target นี้)</div>
+                        <div id="est-time" class="text-lg font-mono font-bold text-rose-400 drop-shadow-[0_0_5px_rgba(225,29,72,0.5)]">รอขุด...</div>
+                    </div>
+                </div>
+                <div class="text-[9px] text-slate-500 mt-2 tracking-wide">* กด Auto-Mine เพื่อให้เครื่องเริ่มคำนวณ Hashing</div>
+            </div>
+        </div>
+
+        <div class="bg-[#050A14]/80 border-l-4 border-gold p-5 rounded-r-xl mb-8 shadow-[0_0_20px_rgba(230,194,122,0.1)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pop-in" style="animation-delay: 0.1s;">
+            <div class="flex-1">
+                <h3 class="text-gold font-bold mb-2 flex items-center gap-2 text-sm tracking-wide uppercase"><span>🎯</span> ภารกิจจำลองการขุด:</h3>
+                <p class="text-sm text-slate-300 leading-relaxed mb-3">
+                    สุ่มตัวเลข <b class="text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Nonce</b> ให้ได้ Hash ที่ขึ้นต้นด้วย <b>เลขศูนย์ตาม Target</b> ด้านขวามือ
+                </p>
+            </div>
+            
+            <div class="bg-[#050A14] p-4 rounded-xl border border-gold/30 shadow-inner shrink-0 w-full sm:w-56 text-center">
+                <label class="text-[10px] text-gold uppercase tracking-widest block mb-2 font-bold">ปรับความยาก (Target Zeros)</label>
+                <div class="flex items-center justify-center gap-3">
+                    <button onclick="adjustTarget(-1)" class="bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-full font-bold transition-colors shadow-inner">-</button>
+                    <span id="target-display" class="text-2xl font-mono font-black text-white w-8 text-center drop-shadow-md">4</span>
+                    <button onclick="adjustTarget(1)" class="bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-full font-bold transition-colors shadow-inner">+</button>
+                </div>
+                <div id="target-visual" class="text-xs text-gold/70 font-mono mt-2 tracking-widest truncate">0000...</div>
+                <div id="target-warning" class="text-[10px] text-emerald-500 font-bold mt-1">ระดับนี้เครื่องทั่วไปขุดได้สบาย</div>
+                <button onclick="setRealTarget()" class="mt-3 text-[10px] text-rose-400 border border-rose-900 hover:bg-rose-950 px-3 py-1.5 rounded-lg w-full transition-colors font-bold uppercase tracking-widest">🔥 ตั้งค่าเท่าโลกของจริง (19 ศูนย์)</button>
+            </div>
+        </div>
+
+        <div id="block-container" class="glass-panel rounded-xl p-6 md:p-8 w-full flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.8)] relative transition-all duration-300 pop-in" style="animation-delay: 0.2s;">
+            
+            <div id="success-overlay" class="absolute inset-0 z-20 bg-[#050A14]/95 backdrop-blur-md rounded-xl flex flex-col items-center justify-center opacity-0 pointer-events-none transition-all duration-500 border border-gold">
+                <div id="success-icon" class="text-7xl mb-4 drop-shadow-[0_0_20px_rgba(230,194,122,0.8)] scale-50 transition-transform duration-500">🏆</div>
+                <h2 class="text-3xl sm:text-4xl font-black text-gold mb-3 tracking-wider uppercase text-center drop-shadow-md">ขุดสำเร็จ!<br><span class="text-2xl sm:text-3xl text-white">(Block Found)</span></h2>
+                <p class="text-slate-300 text-sm text-center px-6 max-w-lg leading-relaxed mb-8">
+                    คุณค้นพบ Nonce ที่ทำให้ Hash ถูกต้องตามกติกาแล้ว! นี่คือหลักฐาน <b>Proof of Work</b> ที่บอกว่าคุณได้ใช้พลังงานและเวลาทำงานจริงๆ
+                </p>
+                <button onclick="resetMining()" class="btn-gold-solid py-3 px-10 rounded-xl font-bold text-sm shadow-[0_0_15px_rgba(230,194,122,0.3)]">
+                    เริ่มขุดบล็อกใหม่ ➔
+                </button>
+            </div>
+
+            <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/80 mb-6 shadow-inner">
+                <label class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-3 block border-b border-slate-700/80 pb-3">ข้อมูลในบล็อก (Block Header)</label>
+                
+                <div class="space-y-4 mt-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <span class="text-xs text-slate-400 w-24 shrink-0 uppercase tracking-widest">ข้อมูล (Data):</span>
+                        <input type="text" id="block-data" value="โอนเงินให้ Satoshi 50 BTC" class="w-full bg-[#050A14] border border-slate-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-gold transition-colors" oninput="updateHash()">
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 relative z-10">
+                        <span class="text-xs text-gold font-bold w-24 shrink-0 uppercase tracking-widest">Nonce:</span>
+                        <div class="flex w-full relative shadow-inner">
+                            <input type="number" id="nonce-input" value="0" min="0" class="w-full bg-[#050A14] border-y border-l border-gold/30 rounded-l-lg p-3 text-xl text-gold font-mono font-bold focus:outline-none focus:border-gold transition-colors" oninput="updateHash()">
+                            <button onclick="incrementNonce()" class="bg-gold/10 hover:bg-gold/20 border-y border-r border-gold/30 text-gold px-6 rounded-r-lg font-bold transition-colors text-xl shadow-inner">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-8">
+                <label class="text-[10px] text-slate-400 block mb-2 tracking-widest uppercase flex justify-between">
+                    <span>ผลลัพธ์ Hash (Data + Nonce):</span>
+                    <span id="hash-speed-indicator" class="text-gold hidden animate-pulse">⚡ Hashing...</span>
+                </label>
+                <div class="bg-[#050A14] border border-slate-700 rounded-xl p-5 shadow-inner text-center overflow-hidden flex items-center justify-center flex-wrap min-h-[80px]">
+                    <span id="hash-prefix" class="text-xl sm:text-2xl font-mono font-black text-rose-500 transition-colors tracking-widest drop-shadow-md">...</span>
+                    <span id="hash-suffix" class="text-sm sm:text-lg font-mono text-slate-500 break-all transition-colors">...</span>
+                </div>
+            </div>
+
+            <div class="flex justify-center mt-2">
+                <button id="btn-automine" onclick="startAutoMine()" class="btn-gold-solid py-4 px-10 rounded-xl w-full sm:w-auto text-sm flex items-center justify-center gap-3">
+                    <span class="text-lg">⚙️</span> ให้คอมพิวเตอร์ช่วยขุด (Auto-Mine)
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-12 bg-[#050A14]/80 border border-slate-700 p-6 sm:p-8 rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.8)] relative overflow-hidden pop-in" style="animation-delay: 0.3s;">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-gold/5 rounded-full blur-[80px] pointer-events-none"></div>
+            
+            <h4 class="text-white font-bold text-xl mb-4 flex items-center gap-2"><span class="text-2xl">💡</span> หัวใจของ Proof-of-Work</h4>
+            <div class="text-sm text-slate-300 leading-relaxed mb-6">
+                <p class="mb-4">ในแบบจำลองนี้คุณอาจใช้เวลาไม่กี่วินาทีเพื่อหาศูนย์ 4 ตัว แต่ลองกดปุ่ม <b>"ตั้งค่าเท่าโลกของจริง"</b> ดูสิ! คุณจะพบว่าคอมพิวเตอร์ของคุณต้องใช้เวลาหลายร้อยล้านปีกว่าจะหาเจอ </p>
+                
+                <div class="bg-navy/60 border border-gold/20 p-5 rounded-xl shadow-inner mt-6">
+                    <span class="text-gold font-bold text-xs uppercase tracking-[0.2em] block mb-3 border-b border-gold/10 pb-2">เกร็ดความรู้เพิ่มเติม (Year 2026)</span>
+                    <p class="text-slate-400 mb-4">
+                        เครื่องขุด <b class="text-white">Bitmain Antminer S21 (200 TH/s)</b> มีราคาประมาณ 80,000 บาท และมีค่าไฟเฉลี่ย 10,000 บาท/เดือน
+                    </p>
+                    
+                    <div id="s21-analysis" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                            <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">ส่วนแบ่งในเครือข่ายโลก</span>
+                            <div id="s21-share" class="text-lg font-mono font-bold text-cyan-400 animate-pulse">กำลังคำนวณ...</div>
+                        </div>
+                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                            <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">โอกาสสุ่มเจอบล็อกด้วยเครื่องเดียว</span>
+                            <div id="s21-chance" class="text-lg font-mono font-bold text-amber-400 animate-pulse">กำลังคำนวณ...</div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-xs text-slate-500 mt-4 italic leading-relaxed" id="s21-conclusion">
+                        * เมื่อเทียบกับกำลังขุดโลก (Global Hashrate) เครื่อง S21 หนึ่งเครื่องอาจต้องใช้เวลาขุดต่อเนื่องนานหลายชั่วอายุคนกว่าจะเจอสักบล็อก หากไม่ร่วมกลุ่มใน Mining Pool
+                    </p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl shadow-inner">
+                    <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest block mb-3">🎲 ไม่มีทางลัด (No Shortcut)</span>
+                    <span class="text-[13px] text-slate-400 leading-relaxed block">
+                        สมการ SHA-256 ไม่สามารถคำนวณย้อนกลับได้ วิธีเดียวที่จะหาคำตอบคือการ <b>"สุ่มตัวเลข (Brute-force)"</b> อย่างบ้าคลั่งวินาทีละล้านๆ ครั้ง
+                    </span>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl shadow-inner">
+                    <span class="text-rose-400 font-bold text-xs uppercase tracking-widest block mb-3">⚡ ค่าไฟ = ความปลอดภัย</span>
+                    <span class="text-[13px] text-slate-400 leading-relaxed block">
+                        ยิ่งความยากสูง ยิ่งต้องใช้ไฟฟ้ามหาศาล หากแฮกเกอร์ต้องการเจาะระบบ เขาต้องมีเครื่องขุดที่มีพลังมากกว่า 51% ของทั้งโลกรวมกัน
+                    </span>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl shadow-inner">
+                    <span class="text-cyan-400 font-bold text-xs uppercase tracking-widest block mb-3">EH/s = ล้านล้านล้านครั้งต่อวินาที</span>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl shadow-inner">
+                    <span class="text-rose-400 font-bold text-xs uppercase tracking-widest block mb-3">TH/s = ล้านล้านครั้งต่อวินาที</span>
+                </div>
+                
+            </div>
+            
+          
+        </div>
+
+    </div>
+
+   
+
+    <script>
+        function sha256(ascii) {
+            function rightRotate(value, amount) { return (value>>>amount) | (value<<(32 - amount)); };
+            var mathPow = Math.pow; var maxWord = mathPow(2, 32); var result = ''; var words = []; var asciiBitLength = ascii.length*8;
+            var hash = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225];
+            var k = [1116352408, 1899447441, 3049323471, 3921009573, 965070248, 237438962, 725511199, 76029189, 275056812, 206723606, 462214370, 462908921, 915227154, 915921829, 966050514, 2780633842, 3224354020, 2811436402, 3356061738, 2869850406, 3816654215, 2901353246, 3848245594, 3968257850, 4118042571, 3986872517, 4136657252, 4286441987, 4016767679, 4291888363, 11828352, 4294406256, 12615467, 34336214, 28243685, 34431872, 35649931, 35745512, 38555890, 45229641, 56346282, 53267571, 74768395, 60846513, 76229193, 85607371, 88523315, 96259463, 109594532, 110595371, 113333306, 119561081, 132640277, 145974051, 146974895, 149712814, 156828551, 169907765, 170908595, 173646524, 180762261, 193841465, 194842316, 197580225];
+            ascii += '\x80'; while (ascii.length%64 - 56) ascii += '\x00';
+            for (var i = 0; i < ascii.length; i++) words[i>>2] |= ascii.charCodeAt(i) << ((3 - i)%4)*8;
+            words[words.length] = ((asciiBitLength/maxWord)|0); words[words.length] = (asciiBitLength);
+            for (var j = 0; j < words.length;) {
+                var w = words.slice(j, j += 16); var oldHash = hash.slice(0);
+                for (var i = 0; i < 64; i++) {
+                    var w15 = w[i - 15], w2 = w[i - 2]; var a = hash[0], e = hash[4];
+                    var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e&hash[5])^((~e)&hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)))|0);
+                    var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+                    hash = [(temp1 + temp2)|0].concat(hash); hash[4] = (hash[4] + temp1)|0; hash.pop();
+                }
+                for (var i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i])|0;
+            }
+            for (var i = 0; i < 8; i++) for (var j = 3; j + 1; j--) { var b = (hash[i]>>(j*8))&255; result += ((b < 16) ? 0 : '') + b.toString(16); }
+            return result;
+        }
+
+        let targetZeros = 4; 
+        let targetPrefix = '0'.repeat(targetZeros);
+        let isMining = false;
+        let miningFrameId = null;
+        let localHashrate = 0;
+        let hashesInCurrentBatch = 0;
+        let batchStartTime = 0;
+        let lastUIUpdate = 0;
+        let realNetworkDifficulty = 0; 
+        let globalHashrateGH = 0;
+
+        async function fetchNetworkData() {
+            try {
+                const hrRes = await fetch('https://blockchain.info/q/hashrate');
+                globalHashrateGH = parseFloat(await hrRes.text());
+                const hrEH = (globalHashrateGH / 1e9).toFixed(2); 
+                
+                document.getElementById('real-hashrate').innerText = `${hrEH} EH/s`;
+                document.getElementById('real-hashrate').classList.remove('animate-pulse');
+
+                const diffRes = await fetch('https://blockchain.info/q/getdifficulty');
+                const diff = parseFloat(await diffRes.text());
+                realNetworkDifficulty = diff;
+                
+                const diffT = (diff / 1e12).toFixed(2);
+                document.getElementById('real-difficulty').innerText = `${diffT} T`;
+                
+                updateTimeEstimation();
+                updateS21Analysis();
+            } catch (error) {
+                console.error("Failed to fetch network data", error);
+                document.getElementById('real-hashrate').innerText = "Offline";
+                document.getElementById('real-difficulty').innerText = "Offline";
+            }
+        }
+
+        function updateS21Analysis() {
+            if (globalHashrateGH === 0) return;
+
+            // Antminer S21 = 200 TH/s = 200,000 GH/s
+            const s21HashrateGH = 200000;
+            const marketShare = (s21HashrateGH / globalHashrateGH) * 100;
+            
+            // Format Share to many decimals because it's tiny
+            document.getElementById('s21-share').innerText = marketShare.toFixed(8) + " %";
+            document.getElementById('s21-share').classList.remove('animate-pulse');
+
+            // Probability: Chance per block (1 in X)
+            const chanceOneIn = Math.round(globalHashrateGH / s21HashrateGH);
+            document.getElementById('s21-chance').innerText = "1 ใน " + chanceOneIn.toLocaleString() + " บล็อก";
+            document.getElementById('s21-chance').classList.remove('animate-pulse');
+
+            // Estimation Conclusion
+            // Avg 144 blocks per day
+            const blocksPerYear = 144 * 365.25;
+            const avgYearsToFindBlock = chanceOneIn / blocksPerYear;
+            
+            document.getElementById('s21-conclusion').innerHTML = 
+                `* เมื่อเทียบกับกำลังขุดทั้งโลกเครื่อง S21 มีส่วนแบ่งเพียงประมาณ <b>${marketShare.toFixed(8)}%</b> ของเครือข่าย <br>` +
+                `หมายความว่าหากคุณขุดเพียงคนเดียว อาจต้องใช้เวลาเฉลี่ยถึง <b>${Math.round(avgYearsToFindBlock).toLocaleString()} ปี</b> ถึงจะเจอสักบล็อก!`;
+        }
+
+        function setRealTarget() {
+            if(isMining) return;
+            targetZeros = 19;
+            targetPrefix = '0'.repeat(targetZeros);
+            updateTargetUI();
+        }
+
+        function adjustTarget(change) {
+            if(isMining) return; 
+            targetZeros += change;
+            if (targetZeros < 1) targetZeros = 1;
+            if (targetZeros > 20) targetZeros = 20;
+            targetPrefix = '0'.repeat(targetZeros);
+            updateTargetUI();
+        }
+
+        function updateTargetUI() {
+            document.getElementById('target-display').innerText = targetZeros;
+            let vis = targetPrefix;
+            if (vis.length > 10) vis = vis.substring(0, 10) + '...';
+            document.getElementById('target-visual').innerText = vis;
+
+            const warningEl = document.getElementById('target-warning');
+            if (targetZeros >= 10) {
+                warningEl.innerText = "ระดับนี้อาจใช้เวลาหลายปี!";
+                warningEl.className = "text-[10px] text-rose-500 font-bold mt-1";
+            } else if (targetZeros >= 6) {
+                warningEl.innerText = "ระดับนี้อาจใช้เวลาหลายชั่วโมง!";
+                warningEl.className = "text-[10px] text-amber-500 font-bold mt-1";
+            } else {
+                warningEl.innerText = "ระดับนี้เครื่องทั่วไปขุดได้สบาย";
+                warningEl.className = "text-[10px] text-emerald-500 font-bold mt-1";
+            }
+            
+            updateTimeEstimation();
+            updateHash();
+        }
+
+        function updateHash() {
+            const data = document.getElementById('block-data').value;
+            const nonce = document.getElementById('nonce-input').value;
+            const combinedString = data + nonce;
+            const hashResult = sha256(combinedString);
+            updateHashWith(hashResult);
+            return hashResult.startsWith(targetPrefix);
+        }
+
+        function updateHashWith(hashResult) {
+            const prefix = hashResult.substring(0, targetZeros);
+            const suffix = hashResult.substring(targetZeros);
+            const prefixEl = document.getElementById('hash-prefix');
+            const suffixEl = document.getElementById('hash-suffix');
+            
+            prefixEl.innerText = prefix;
+            suffixEl.innerText = suffix;
+
+            if (hashResult.startsWith(targetPrefix)) {
+                prefixEl.classList.remove('text-rose-500');
+                prefixEl.classList.add('text-gold');
+                suffixEl.classList.remove('text-slate-500');
+                suffixEl.classList.add('text-white');
+            } else {
+                prefixEl.classList.remove('text-gold');
+                prefixEl.classList.add('text-rose-500');
+                suffixEl.classList.remove('text-white');
+                suffixEl.classList.add('text-slate-500');
+            }
+        }
+
+        function incrementNonce() {
+            if(isMining) return;
+            const input = document.getElementById('nonce-input');
+            input.value = parseInt(input.value || 0) + 1;
+            updateHash();
+        }
+
+        function startAutoMine() {
+            if (isMining) {
+                stopAutoMine();
+                return;
+            }
+            isMining = true;
+            const btn = document.getElementById('btn-automine');
+            btn.innerHTML = `<span class="animate-spin text-xl">⚙️</span> กำลังเบิร์น CPU... (คลิกหยุด)`;
+            btn.classList.remove('btn-gold-solid');
+            btn.classList.add('bg-rose-600', 'hover:bg-rose-500', 'text-white', 'shadow-[0_0_20px_rgba(225,29,72,0.4)]');
+            
+            document.getElementById('hash-speed-indicator').classList.remove('hidden');
+            document.getElementById('hash-suffix').classList.add('blur-text'); 
+
+            hashesInCurrentBatch = 0;
+            batchStartTime = performance.now();
+            lastUIUpdate = batchStartTime;
+            
+            mineBatch();
+        }
+
+        function mineBatch() {
+            if (!isMining) return;
+
+            const data = document.getElementById('block-data').value;
+            const nonceInput = document.getElementById('nonce-input');
+            let nonce = parseInt(nonceInput.value) || 0;
+            let found = false;
+            const batchSize = 3000; 
+            let currentHash = '';
+            
+            for(let i=0; i<batchSize; i++) {
+                currentHash = sha256(data + nonce);
+                hashesInCurrentBatch++;
+                if (currentHash.startsWith(targetPrefix)) {
+                    nonceInput.value = nonce;
+                    updateHashWith(currentHash); 
+                    triggerSuccess();
+                    found = true;
+                    break;
+                }
+                nonce++;
+            }
+            
+            if (!found) {
+                nonceInput.value = nonce;
+                let now = performance.now();
+                let elapsedSec = (now - batchStartTime) / 1000;
+                
+                if (now - lastUIUpdate > 50) {
+                    updateHashWith(currentHash);
+                    lastUIUpdate = now;
+                }
+
+                if (elapsedSec >= 0.5) {
+                    localHashrate = Math.round(hashesInCurrentBatch / elapsedSec);
+                    document.getElementById('local-hashrate').innerText = localHashrate.toLocaleString() + ' H/s';
+                    updateTimeEstimation();
+                    hashesInCurrentBatch = 0;
+                    batchStartTime = now;
+                }
+
+                miningFrameId = requestAnimationFrame(mineBatch);
+            }
+        }
+
+        function stopAutoMine() {
+            isMining = false;
+            cancelAnimationFrame(miningFrameId);
+            const btn = document.getElementById('btn-automine');
+            btn.innerHTML = `<span class="text-lg">⚙️</span> ให้คอมพิวเตอร์ช่วยขุด (Auto-Mine)`;
+            btn.classList.remove('bg-rose-600', 'hover:bg-rose-500', 'text-white', 'shadow-[0_0_20px_rgba(225,29,72,0.4)]');
+            btn.classList.add('btn-gold-solid');
+            
+            document.getElementById('hash-speed-indicator').classList.add('hidden');
+            document.getElementById('hash-suffix').classList.remove('blur-text');
+        }
+
+        function triggerSuccess() {
+            stopAutoMine();
+            const container = document.getElementById('block-container');
+            const overlay = document.getElementById('success-overlay');
+            const icon = document.getElementById('success-icon');
+            
+            container.classList.add('hash-success');
+            
+            setTimeout(() => {
+                overlay.classList.remove('pointer-events-none', 'opacity-0');
+                overlay.classList.add('opacity-100');
+                icon.classList.remove('scale-50');
+                icon.classList.add('scale-100');
+            }, 500);
+        }
+
+        function resetMining() {
+            const container = document.getElementById('block-container');
+            const overlay = document.getElementById('success-overlay');
+            const icon = document.getElementById('success-icon');
+            const nonceInput = document.getElementById('nonce-input');
+            
+            overlay.classList.remove('opacity-100');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            icon.classList.remove('scale-100');
+            icon.classList.add('scale-50');
+
+            setTimeout(() => {
+                container.classList.remove('hash-success');
+                nonceInput.value = 0;
+                updateHash();
+            }, 500);
+        }
+
+        function updateTimeEstimation() {
+            const estEl = document.getElementById('est-time');
+            if (localHashrate === 0) {
+                estEl.innerText = "รอขุด...";
+                return;
+            }
+            const probability = Math.pow(16, -targetZeros);
+            const expectedHashes = 1 / probability;
+            const expectedSeconds = expectedHashes / localHashrate;
+            
+            if (expectedSeconds < 60) {
+                estEl.innerText = `${Math.round(expectedSeconds)} วินาที`;
+            } else if (expectedSeconds < 3600) {
+                estEl.innerText = `${Math.round(expectedSeconds / 60)} นาที`;
+            } else if (expectedSeconds < 86400) {
+                estEl.innerText = `${Math.round(expectedSeconds / 3600)} ชั่วโมง`;
+            } else {
+                const expectedYears = expectedSeconds / (86400 * 365.25);
+                if (expectedYears > 1e9) {
+                    const billionYears = (expectedYears / 1e9).toFixed(2);
+                    estEl.innerText = `${billionYears} พันล้านปี!`;
+                } else if (expectedYears > 1e6) {
+                    const millionYears = (expectedYears / 1e6).toFixed(2);
+                    estEl.innerText = `${millionYears} ล้านปี!`;
+                } else if (expectedYears >= 1) {
+                    estEl.innerText = `${expectedYears.toLocaleString(undefined, {maximumFractionDigits: 0})} ปี`;
+                } else {
+                    estEl.innerText = `${Math.round(expectedSeconds / 86400)} วัน`;
+                }
+            }
+        }
+
+        function showNextChapterAlert() {
+            const modal = document.getElementById('custom-alert');
+            const box = document.getElementById('custom-alert-box');
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.replace('scale-95', 'scale-100');
+        }
+
+        function closeCustomAlert() {
+            const modal = document.getElementById('custom-alert');
+            const box = document.getElementById('custom-alert-box');
+            modal.classList.replace('opacity-100', 'opacity-0');
+            modal.classList.add('pointer-events-none');
+            box.classList.replace('scale-100', 'scale-95');
+        }
+
+        window.onload = () => {
+            updateTargetUI();
+            fetchNetworkData(); 
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Double-Spend Problem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{slate:{300:'#FFFFFF',400:'#8B9BB4',900:'#101a30'},gold:{DEFAULT:'#E6C27A'}},fontFamily:{sans:['Prompt','sans-serif'],mono:['Fira Code','monospace']}}}}</script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: transparent; color: #FFF; overflow-x: hidden; }
+        .glass-panel { background: rgba(16, 26, 48, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+        .pop-in { animation: popIn 0.5s forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+        
+        .tab-btn { transition: all 0.2s; border-bottom: 2px solid transparent; }
+        .tab-btn.active { color: #E6C27A; border-bottom: 2px solid #E6C27A; background: rgba(230,194,122,0.1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fade 0.3s; }
+        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Ledger specific */
+        .ledger-row { background: rgba(16,26,48,0.8); border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-family: monospace; font-size: 12px; display: flex; justify-content: space-between; }
+        .ledger-row.new { animation: highlightRow 1s forwards; }
+        @keyframes highlightRow { 0% { background: rgba(52, 211, 153, 0.3); border-color: #34d399; } 100% { background: rgba(16,26,48,0.8); border-color: rgba(255,255,255,0.1); } }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center py-6">
+    <div class="max-w-4xl w-full relative z-10">
+        
+        <div class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-gold mt-5 mb-3">การจ่ายเงินซ้ำซ้อน (Double-Spend)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm leading-relaxed">
+                จำลองการส่งมอบวัตถุ เพื่อหาคำตอบว่าทำไม "เงินสดดิจิทัล (Digital Cash)" ถึงเป็นสิ่งที่เป็นไปไม่ได้เลยตลอด 40 ปี ก่อนการมาถึงของโครงสร้างสมุดบัญชีแบบ Blockchain
+            </p>
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-2 mb-6 border-b border-slate-700 pb-px pop-in">
+            <button class="tab-btn active px-4 py-2 text-sm font-bold uppercase tracking-widest text-slate-400 rounded-t-lg" onclick="openTab('tab1', this)">1. กายภาพ (Physical)</button>
+            <button class="tab-btn px-4 py-2 text-sm font-bold uppercase tracking-widest text-slate-400 rounded-t-lg" onclick="openTab('tab2', this)">2. ดิจิทัลยุคเก่า (Digital Copy)</button>
+            <button class="tab-btn px-4 py-2 text-sm font-bold uppercase tracking-widest text-slate-400 rounded-t-lg" onclick="openTab('tab3', this)">3. บล็อกเชน (Ledger)</button>
+        </div>
+
+        <div id="tab1" class="tab-content active glass-panel border-t-4 border-t-gold rounded-xl p-6 mb-6">
+            <h3 class="text-gold font-bold mb-4 flex items-center gap-2 uppercase text-xs border-b border-slate-700 pb-2">📦 โลกกายภาพ (ยื่นหมูยื่นแมว)</h3>
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-6">
+                
+                <div class="bg-slate-900 p-4 rounded-xl text-center w-full sm:w-1/3 border border-slate-700">
+                    <div class="text-xs text-slate-400 mb-2 uppercase tracking-widest">คุณ (มีแอปเปิล 1 ผล)</div>
+                    <div id="phys-my-inv" class="h-20 flex items-center justify-center text-4xl transition-all">🍎</div>
+                </div>
+
+                <div class="flex flex-col gap-3 w-full sm:w-1/3">
+                    <button onclick="sendPhysical('A')" id="btn-phys-a" class="bg-slate-800 hover:bg-slate-700 text-white py-2 rounded font-bold text-xs border border-slate-600 transition-colors">ยื่นให้ นาย A ➔</button>
+                    <button onclick="sendPhysical('B')" id="btn-phys-b" class="bg-slate-800 hover:bg-slate-700 text-white py-2 rounded font-bold text-xs border border-slate-600 transition-colors">ยื่นให้ นาย B ➔</button>
+                </div>
+
+                <div class="flex flex-col gap-2 w-full sm:w-1/3">
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span class="text-xs text-slate-400">กระเป๋า นาย A:</span>
+                        <span id="phys-a-inv" class="text-xl grayscale opacity-50 transition-all">🍎</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span class="text-xs text-slate-400">กระเป๋า นาย B:</span>
+                        <span id="phys-b-inv" class="text-xl grayscale opacity-50 transition-all">🍎</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-400 text-center">อธิบาย: ในโลกกายภาพ เมื่อคุณยื่นแอปเปิลให้คนอื่น มันจะ <span class="text-emerald-400 font-bold">หายไปจากมือคุณ</span> ทำให้คุณไม่สามารถส่งแอปเปิลลูกเดียวกันให้นาย B ซ้ำได้</div>
+        </div>
+
+        <div id="tab2" class="tab-content glass-panel border-t-4 border-t-cyan-500 rounded-xl p-6 mb-6">
+            <h3 class="text-cyan-400 font-bold mb-4 flex items-center gap-2 uppercase text-xs border-b border-slate-700 pb-2">💾 โลกดิจิทัลยุคเก่า (Copy & Paste)</h3>
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-6">
+                
+                <div class="bg-slate-900 p-4 rounded-xl text-center w-full sm:w-1/3 border border-slate-700">
+                    <div class="text-xs text-slate-400 mb-2 uppercase tracking-widest">คุณ (มีไฟล์รูป .JPG)</div>
+                    <div class="h-20 flex items-center justify-center text-4xl">🖼️</div>
+                </div>
+
+                <div class="flex flex-col gap-3 w-full sm:w-1/3">
+                    <button onclick="sendDigital('A')" class="bg-slate-800 hover:bg-slate-700 text-white py-2 rounded font-bold text-xs border border-slate-600 transition-colors">ส่งไฟล์ให้ นาย A ➔</button>
+                    <button onclick="sendDigital('B')" class="bg-slate-800 hover:bg-slate-700 text-white py-2 rounded font-bold text-xs border border-slate-600 transition-colors">ส่งไฟล์ให้ นาย B ➔</button>
+                </div>
+
+                <div class="flex flex-col gap-2 w-full sm:w-1/3">
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span class="text-xs text-slate-400">Inbox นาย A:</span>
+                        <span id="dig-a-inv" class="text-xl grayscale opacity-50 transition-all">🖼️</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                        <span class="text-xs text-slate-400">Inbox นาย B:</span>
+                        <span id="dig-b-inv" class="text-xl grayscale opacity-50 transition-all">🖼️</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-400 text-center">อธิบาย: ข้อมูลดิจิทัล (เช่น รูปภาพ, ไฟล์ MP3) <span class="text-rose-400 font-bold">สามารถถูกทำสำเนาได้ไม่จำกัด</span> ถ้าเราใช้ไฟล์รูปแทนเงิน คุณสามารถกดส่งให้ร้อยคนได้ นี่คือปัญหา Double-Spend ที่ทำให้เงินดิจิทัลพังพินาศ</div>
+        </div>
+
+        <div id="tab3" class="tab-content glass-panel border-t-4 border-t-orange-500 rounded-xl p-6 mb-6">
+            <h3 class="text-orange-400 font-bold mb-4 flex items-center gap-2 uppercase text-xs border-b border-slate-700 pb-2">🔗 ระบบบล็อกเชน (Public Ledger)</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-4 flex justify-between items-center">
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">ยอดเงินของคุณ (Balance)</div>
+                        <div id="ledg-bal" class="text-2xl font-mono font-bold text-orange-400">1 BTC</div>
+                    </div>
+
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="sendLedger('A')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-bold text-xs border border-slate-600 transition-colors">โอนให้ นาย A</button>
+                        <button onclick="sendLedger('B')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-lg font-bold text-xs border border-slate-600 transition-colors">โอนให้ นาย B</button>
+                    </div>
+
+                    <div id="node-alert" class="hidden bg-rose-900/50 border border-rose-500 text-rose-300 p-3 rounded text-xs font-mono font-bold">
+                        ⚠️ NODE REJECTED: ตรวจพบการโอนซ้ำซ้อน (Double-Spend) ยอดเงินไม่เพียงพอ!
+                    </div>
+                </div>
+
+                <div class="bg-[#050A14] p-4 rounded-xl border border-slate-700 shadow-inner">
+                    <div class="text-xs text-slate-500 uppercase tracking-widest mb-3 font-bold flex justify-between">
+                        <span>สมุดบัญชีเครือข่าย (Ledger)</span>
+                        <span class="text-emerald-500 animate-pulse">● Syncing</span>
+                    </div>
+                    
+                    <div id="ledger-entries">
+                        <div class="ledger-row text-slate-500"><span>[000] System ➔ คุณ</span><span>+1 BTC</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-xs text-slate-400 text-center">อธิบาย: บิตคอยน์แก้ปัญหาโดยการ <span class="text-orange-400 font-bold">ไม่ใช้ไฟล์ภาพ แต่ใช้ "สมุดบัญชี (Ledger)"</span> เมื่อคุณโอนให้ A ระบบจะบันทึกหักเงินคุณทันที หากคุณพยายามโอนซ้ำให้ B โหนดทั่วโลกจะเช็คสมุดบัญชีและ <b>"ปฏิเสธ (Reject)"</b> ธุรกรรมนั้นทันที!</div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tab system
+        function openTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // Tab 1: Physical
+        let hasPhysicalApples = true;
+        function sendPhysical(target) {
+            if(!hasPhysicalApples) return;
+            hasPhysicalApples = false;
+            document.getElementById('phys-my-inv').style.opacity = '0';
+            document.getElementById('phys-my-inv').style.transform = 'scale(0)';
+            
+            let targetEl = document.getElementById(`phys-${target.toLowerCase()}-inv`);
+            targetEl.classList.remove('grayscale', 'opacity-50');
+            targetEl.classList.add('text-emerald-400', 'drop-shadow-md');
+            
+            document.getElementById('btn-phys-a').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btn-phys-b').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        // Tab 2: Digital
+        function sendDigital(target) {
+            let targetEl = document.getElementById(`dig-${target.toLowerCase()}-inv`);
+            targetEl.classList.remove('grayscale', 'opacity-50');
+            
+            // Effect to show copying
+            targetEl.style.transform = 'scale(1.3)';
+            setTimeout(() => targetEl.style.transform = 'scale(1)', 200);
+        }
+
+        // Tab 3: Ledger
+        let myBalance = 1;
+        let txCount = 1;
+        function sendLedger(target) {
+            const alertBox = document.getElementById('node-alert');
+            
+            if (myBalance <= 0) {
+                // Reject: Double Spend
+                alertBox.classList.remove('hidden');
+                setTimeout(() => alertBox.classList.add('hidden'), 3000);
+                return;
+            }
+
+            // Success Transfer
+            myBalance = 0;
+            document.getElementById('ledg-bal').innerText = "0 BTC";
+            document.getElementById('ledg-bal').classList.replace('text-orange-400', 'text-slate-500');
+
+            // Add to ledger
+            const ledger = document.getElementById('ledger-entries');
+            const row = document.createElement('div');
+            row.className = 'ledger-row new text-white';
+            const txId = String(txCount).padStart(3, '0');
+            row.innerHTML = `<span>[${txId}] คุณ ➔ นาย ${target}</span><span class="text-emerald-400">1 BTC</span>`;
+            
+            // Insert at top below the header conceptually, or prepend
+            ledger.prepend(row);
+            txCount++;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', // Text Primary
+                            400: '#8B9BB4', // Text Secondary
+                            500: '#64748B', 
+                            700: '#1c2e4a', // Light Border
+                            800: '#162645',
+                            900: '#101a30', // Deep Navy Card Base
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* แอนิเมชันตอนเกิด Avalanche Effect (เปลี่ยนเป็นสีแดงแล้วเฟดกลับเป็นสีทอง) */
+        .hash-flash { animation: flashRed 0.6s ease-out; }
+        @keyframes flashRed {
+            0% { color: #E11D48; text-shadow: 0 0 20px rgba(225, 29, 72, 0.9); transform: scale(1.02); }
+            100% { color: var(--gold-accent); text-shadow: 0 0 5px rgba(230, 194, 122, 0.3); transform: scale(1); }
+        }
+
+        /* Custom Button */
+        .btn-gold-solid {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(230, 194, 122, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-gold-solid:hover {
+            background-color: #f5d693;
+            box-shadow: 0 0 25px var(--gold-glow-strong);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6 transition-colors duration-500">
+
+    <div class="max-w-5xl w-full relative z-10">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">โซ่ทองแห่งความจริง (The Magic of Hash)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">ลองแก้ไขข้อความในบล็อกที่ 1 แล้วสังเกตดูว่ารหัส Hash สีทอง (ตัวอักษร 64 ตัว) เปลี่ยนแปลงไปอย่างไร และมันส่งผลกระทบต่อเนื่องเป็นโดมิโนไปยังบล็อกอื่นๆ อย่างไรบ้าง</p>
+        </div>
+
+        <div class="bg-[#050A14]/80 border-l-4 border-gold p-5 rounded-r-xl mb-10 shadow-[0_0_20px_rgba(230,194,122,0.1)]">
+            <h3 class="text-gold font-bold mb-2 flex items-center gap-2 text-lg tracking-wide uppercase text-sm"><span>🎯</span> ภารกิจของคุณ:</h3>
+            <p class="text-sm text-slate-300 leading-relaxed">ลองเปลี่ยนตัวเลขเงินในกล่อง <b class="text-white bg-slate-800 px-2 py-0.5 rounded">Block #1</b> จาก <b>"100 บาท"</b> เป็น <b>"900 บาท"</b> แล้วดูว่าเกิดอะไรขึ้นกับ Block #2 และ Block #3</p>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-6 items-center lg:items-stretch justify-center w-full relative z-10">
+            
+            <div class="glass-panel rounded-xl p-5 w-full lg:w-1/3 flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.5)] relative transition-all duration-300 hover:border-gold/50 hover:-translate-y-1">
+                <div class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-widest flex justify-between items-center">
+                    <span>📦 Block #1</span>
+                    <span class="text-gold bg-gold/10 border border-gold/20 px-2 py-0.5 rounded shadow-[0_0_5px_rgba(230,194,122,0.2)]">Genesis</span>
+                </div>
+                
+                <div class="mb-5">
+                    <label class="text-[10px] text-slate-400 mb-1.5 block tracking-widest uppercase">ข้อมูลธุรกรรม (Data):</label>
+                    <textarea id="data-1" rows="3" class="w-full bg-[#050A14] border border-slate-700 rounded-lg p-3 text-sm text-white font-mono focus:outline-none focus:border-gold transition-colors resize-none shadow-inner" oninput="updateChain()">โอนเงินให้คุณ A 100 บาท</textarea>
+                </div>
+                
+                <div class="mt-auto pt-4 border-t border-slate-700/80">
+                    <label class="text-[10px] text-slate-400 block mb-1.5 tracking-widest uppercase">ผลลัพธ์ Hash:</label>
+                    <div id="hash-1" class="text-[10px] text-gold font-mono break-all leading-relaxed transition-colors drop-shadow-[0_0_5px_rgba(230,194,122,0.3)]"></div>
+                </div>
+            </div>
+
+            <div class="text-gold/50 text-3xl rotate-90 lg:rotate-0 flex-shrink-0 drop-shadow-md">➔</div>
+
+            <div class="glass-panel rounded-xl p-5 w-full lg:w-1/3 flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.5)] relative transition-all duration-300 hover:border-gold/50 hover:-translate-y-1">
+                <div class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-widest flex justify-between items-center">
+                    <span>📦 Block #2</span>
+                </div>
+                
+                <div class="mb-4 bg-[#050A14]/80 p-3 rounded-lg border border-slate-700 shadow-inner">
+                    <label class="text-[10px] text-slate-500 block mb-1 flex items-center gap-1 tracking-widest uppercase">🔗 Prev Hash <span class="text-[8px] text-slate-600 normal-case tracking-normal">(ดึงจาก Block #1)</span>:</label>
+                    <div id="prev-2" class="text-[10px] text-slate-400 font-mono break-all leading-tight"></div>
+                </div>
+
+                <div class="mb-5">
+                    <label class="text-[10px] text-slate-400 mb-1.5 block tracking-widest uppercase">ข้อมูลธุรกรรม (Data):</label>
+                    <textarea id="data-2" rows="2" class="w-full bg-[#050A14] border border-slate-700 rounded-lg p-3 text-sm text-white font-mono focus:outline-none focus:border-gold transition-colors resize-none shadow-inner" oninput="updateChain()">โอนเงินให้คุณ B 50 บาท</textarea>
+                </div>
+                
+                <div class="mt-auto pt-4 border-t border-slate-700/80">
+                    <label class="text-[10px] text-slate-400 block mb-1.5 tracking-widest uppercase">ผลลัพธ์ Hash <span class="text-slate-500 normal-case tracking-normal">(Prev + Data)</span>:</label>
+                    <div id="hash-2" class="text-[10px] text-gold font-mono break-all leading-relaxed transition-colors drop-shadow-[0_0_5px_rgba(230,194,122,0.3)]"></div>
+                </div>
+            </div>
+
+            <div class="text-gold/50 text-3xl rotate-90 lg:rotate-0 flex-shrink-0 drop-shadow-md">➔</div>
+
+            <div class="glass-panel rounded-xl p-5 w-full lg:w-1/3 flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.5)] relative transition-all duration-300 hover:border-gold/50 hover:-translate-y-1">
+                <div class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-widest flex justify-between items-center">
+                    <span>📦 Block #3</span>
+                </div>
+                
+                <div class="mb-4 bg-[#050A14]/80 p-3 rounded-lg border border-slate-700 shadow-inner">
+                    <label class="text-[10px] text-slate-500 block mb-1 flex items-center gap-1 tracking-widest uppercase">🔗 Prev Hash <span class="text-[8px] text-slate-600 normal-case tracking-normal">(ดึงจาก Block #2)</span>:</label>
+                    <div id="prev-3" class="text-[10px] text-slate-400 font-mono break-all leading-tight"></div>
+                </div>
+
+                <div class="mb-5">
+                    <label class="text-[10px] text-slate-400 mb-1.5 block tracking-widest uppercase">ข้อมูลธุรกรรม (Data):</label>
+                    <textarea id="data-3" rows="2" class="w-full bg-[#050A14] border border-slate-700 rounded-lg p-3 text-sm text-white font-mono focus:outline-none focus:border-gold transition-colors resize-none shadow-inner" oninput="updateChain()">ซื้อกาแฟ 10 บาท</textarea>
+                </div>
+                
+                <div class="mt-auto pt-4 border-t border-slate-700/80">
+                    <label class="text-[10px] text-slate-400 block mb-1.5 tracking-widest uppercase">ผลลัพธ์ Hash <span class="text-slate-500 normal-case tracking-normal">(Prev + Data)</span>:</label>
+                    <div id="hash-3" class="text-[10px] text-gold font-mono break-all leading-relaxed transition-colors drop-shadow-[0_0_5px_rgba(230,194,122,0.3)]"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mt-12 bg-[#050A14]/80 border border-slate-700 p-6 sm:p-8 rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.8)] relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-gold/5 rounded-full blur-[80px] pointer-events-none"></div>
+            
+            <h4 class="text-white font-bold text-xl mb-4 flex items-center gap-2"><span class="text-2xl">💡</span> สิ่งที่คุณเพิ่งได้เรียนรู้ไป (Avalanche Effect)</h4>
+            <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                คุณจะเห็นว่าการเปลี่ยนแปลงข้อความแม้เพียงตัวอักษรเดียวใน <b>Block #1</b> จะส่งผลให้ <b>Hash ของ Block #1</b> เปลี่ยนไปเป็นคนละค่าโดยสิ้นเชิง<br><br>
+                เมื่อ Hash ของ Block #1 เปลี่ยน ➔ มันก็จะทำให้ค่า <b>Prev Hash ของ Block #2</b> เปลี่ยนตาม ➔ ส่งผลให้สมการรวมของ Block #2 เปลี่ยน ➔ ทำให้ <b>Hash ของ Block #2</b> เปลี่ยนไปอีกที ➔ และสะเทือนไปถึง Block ถัดๆ ไปเรื่อยๆ อย่างไม่มีที่สิ้นสุด!
+            </p>
+            
+            <div class="bg-rose-950/20 border-l-4 border-rose-500 pl-4 py-3 rounded-r-lg shadow-inner">
+                <span class="text-rose-400 font-bold text-sm uppercase tracking-widest block mb-2">The Power of Blockchain</span>
+                <span class="text-[13px] text-rose-200/90 leading-relaxed block">
+                    นี่คือเหตุผลที่ว่าทำไม <b>แฮกเกอร์ถึงไม่สามารถย้อนกลับไปแก้ไขข้อมูลการโอนเงินในอดีตได้</b> เพราะถ้าพวกเขาแอบแก้ข้อมูลในบล็อกเก่า พวกเขาจะต้องมานั่งคำนวณรหัส Hash ของบล็อกที่เหลือใหม่ทั้งหมดให้ทันก่อนที่คนอื่นๆ จะจับได้ ซึ่งเป็นเรื่องที่เป็นไปไม่ได้เลยในทางคณิตศาสตร์!
+                </span>
+            </div>
+            
+        </div>
+
+    </div>
+
+    <script>
+        // ฟังก์ชันคำนวณ SHA-256 (จำลองตัดตอนมาจาก core.js เพื่อให้รัน Standalone ได้)
+        function sha256(ascii) {
+            function rightRotate(value, amount) { return (value>>>amount) | (value<<(32 - amount)); };
+            var mathPow = Math.pow; var maxWord = mathPow(2, 32); var result = ''; var words = []; var asciiBitLength = ascii.length*8;
+            var hash = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225];
+            var k = [1116352408, 1899447441, 3049323471, 3921009573, 965070248, 237438962, 725511199, 76029189, 275056812, 206723606, 462214370, 462908921, 915227154, 915921829, 966050514, 2780633842, 3224354020, 2811436402, 3356061738, 2869850406, 3816654215, 2901353246, 3848245594, 3968257850, 4118042571, 3986872517, 4136657252, 4286441987, 4016767679, 4291888363, 11828352, 4294406256, 12615467, 34336214, 28243685, 34431872, 35649931, 35745512, 38555890, 45229641, 56346282, 53267571, 74768395, 60846513, 76229193, 85607371, 88523315, 96259463, 109594532, 110595371, 113333306, 119561081, 132640277, 145974051, 146974895, 149712814, 156828551, 169907765, 170908595, 173646524, 180762261, 193841465, 194842316, 197580225];
+            ascii += '\x80'; while (ascii.length%64 - 56) ascii += '\x00';
+            for (var i = 0; i < ascii.length; i++) words[i>>2] |= ascii.charCodeAt(i) << ((3 - i)%4)*8;
+            words[words.length] = ((asciiBitLength/maxWord)|0); words[words.length] = (asciiBitLength);
+            for (var j = 0; j < words.length;) {
+                var w = words.slice(j, j += 16); var oldHash = hash.slice(0);
+                for (var i = 0; i < 64; i++) {
+                    var w15 = w[i - 15], w2 = w[i - 2]; var a = hash[0], e = hash[4];
+                    var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e&hash[5])^((~e)&hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)))|0);
+                    var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+                    hash = [(temp1 + temp2)|0].concat(hash); hash[4] = (hash[4] + temp1)|0; hash.pop();
+                }
+                for (var i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i])|0;
+            }
+            for (var i = 0; i < 8; i++) for (var j = 3; j + 1; j--) { var b = (hash[i]>>(j*8))&255; result += ((b < 16) ? 0 : '') + b.toString(16); }
+            return result;
+        }
+
+        // ตัวแปรเก็บค่า Hash ล่าสุดเพื่อเอาไว้เช็คว่าต้องเล่นแอนิเมชันไหม
+        let lastHash1 = ""; let lastHash2 = ""; let lastHash3 = "";
+
+        function triggerFlash(elementId) {
+            const el = document.getElementById(elementId);
+            el.classList.remove('hash-flash');
+            void el.offsetWidth; // trigger reflow เพื่อให้ CSS Animation เล่นซ้ำ
+            el.classList.add('hash-flash');
+        }
+
+        function updateChain() {
+            // Block 1: คำนวณจาก Data อย่างเดียว
+            const data1 = document.getElementById('data-1').value;
+            const hash1 = sha256(data1);
+            document.getElementById('hash-1').innerText = hash1;
+            if (lastHash1 !== "" && lastHash1 !== hash1) triggerFlash('hash-1');
+            lastHash1 = hash1;
+
+            // Block 2: คำนวณจาก Hash1 + Data2
+            const data2 = document.getElementById('data-2').value;
+            document.getElementById('prev-2').innerText = hash1;
+            const hash2 = sha256(hash1 + data2);
+            document.getElementById('hash-2').innerText = hash2;
+            if (lastHash2 !== "" && lastHash2 !== hash2) {
+                triggerFlash('prev-2'); triggerFlash('hash-2');
+            }
+            lastHash2 = hash2;
+
+            // Block 3: คำนวณจาก Hash2 + Data3
+            const data3 = document.getElementById('data-3').value;
+            document.getElementById('prev-3').innerText = hash2;
+            const hash3 = sha256(hash2 + data3);
+            document.getElementById('hash-3').innerText = hash3;
+            if (lastHash3 !== "" && lastHash3 !== hash3) {
+                triggerFlash('prev-3'); triggerFlash('hash-3');
+            }
+            lastHash3 = hash3;
+        }
+
+        // โหลดครั้งแรกตอนเปิดหน้าเว็บ
+        window.onload = updateChain;
+    </script>
+</body>
+</html>

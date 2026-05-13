@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Exchange & IOU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', // Text Primary
+                            400: '#8B9BB4', // Text Secondary
+                            500: '#64748B', 
+                            700: '#1c2e4a', // Light Border
+                            800: '#162645',
+                            900: '#101a30', // Deep Navy Card Base
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        .glitch { animation: glitch 0.3s infinite; }
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .screen-shake { animation: shakeScreen 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shakeScreen {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .hacked-overlay { 
+            background: radial-gradient(circle, rgba(225,29,72,0.15) 0%, rgba(5,10,20,0.95) 100%) !important; 
+        }
+
+        /* Custom Buttons */
+        .btn-gold-solid {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(230, 194, 122, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-gold-solid:hover {
+            background-color: #f5d693;
+            box-shadow: 0 0 25px var(--gold-glow-strong);
+            transform: translateY(-2px);
+        }
+        
+        .btn-gold-outline {
+            background-color: transparent;
+            color: var(--gold-accent);
+            border: 1px solid var(--gold-accent);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(230, 194, 122, 0.1);
+        }
+        .btn-gold-outline:hover {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            box-shadow: 0 0 20px var(--gold-glow-strong);
+        }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6 transition-colors duration-500" id="main-body">
+
+    <div class="max-w-6xl w-full relative z-10" id="app-container">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">ภาพลวงตาของตลาดซื้อขายบิตคอยน์ (The Exchange & IOU)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">ซื้อบิตคอยน์ผ่านกระดานเทรดนั้นง่ายดายและรวดเร็ว แต่คุณเคยสงสัยไหมว่า... บิตคอยน์ที่คุณเห็นในจอ เป็นของคุณจริงๆ หรือเปล่า?</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            
+            <div class="glass-panel border-t-4 border-t-gold rounded-xl shadow-2xl overflow-hidden relative transition-all duration-300" id="exchange-panel">
+                <div class="bg-slate-900/80 px-5 py-4 border-b border-slate-700 flex justify-between items-center" id="exchange-header">
+                    <div class="font-bold text-lg text-white flex items-center gap-2">
+                        <span class="bg-gold text-navy font-black p-1 px-2 rounded text-xs shadow-[0_0_10px_rgba(230,194,122,0.4)]">TR</span>
+                        TrustMe Exchange
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                        <span class="text-emerald-400">ระบบทำงานปกติ</span>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <h3 class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">พอร์ตการลงทุนของคุณ</h3>
+                    <div class="text-4xl font-black text-white mb-6 font-mono drop-shadow-md flex items-center gap-2" id="portfolio-value">
+                        <span class="animate-pulse text-2xl text-slate-500">กำลังดึงราคา...</span>
+                    </div>
+
+                    <div class="space-y-4 mb-8">
+                        <div class="bg-[#050A14]/80 border border-slate-700 p-4 rounded-xl flex justify-between items-center shadow-inner">
+                            <div class="flex items-center gap-3">
+                                <div class="text-2xl drop-shadow-md">🇹🇭</div>
+                                <div>
+                                    <div class="font-bold text-white text-sm">Thai Baht (THB)</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">เงินสดพร้อมเทรด</div>
+                                </div>
+                            </div>
+                            <div class="font-mono font-bold text-xl text-white" id="thb-balance">...</div>
+                        </div>
+
+                        <div class="bg-[#050A14]/80 border border-slate-700 p-4 rounded-xl flex justify-between items-center shadow-inner">
+                            <div class="flex items-center gap-3">
+                                <div class="text-2xl drop-shadow-[0_0_8px_rgba(230,194,122,0.6)]">₿</div>
+                                <div>
+                                    <div class="font-bold text-white text-sm">Bitcoin (BTC)</div>
+                                    <div class="text-xs text-slate-500 mt-0.5" id="current-btc-price-display">ราคา: ... THB/BTC</div>
+                                </div>
+                            </div>
+                            <div class="font-mono font-bold text-xl text-gold" id="btc-balance">0.00000000</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/60 border border-gold/30 p-5 rounded-xl shadow-[inset_0_0_20px_rgba(230,194,122,0.05)]" id="trading-box">
+                        <h4 class="text-sm font-bold text-gold mb-4">ซื้อ Bitcoin สด (Market Order)</h4>
+                        <div class="flex gap-2">
+                            <button onclick="buyBitcoin()" id="btn-buy" class="btn-gold-solid flex-grow font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span id="btn-buy-text">⏳ โหลดราคาตลาด...</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel border border-slate-700 rounded-xl shadow-2xl p-6 flex flex-col relative" id="truth-panel">
+                <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">👁️ เบื้องหลังระบบ (Behind the Scenes)</h3>
+                <p class="text-xs text-slate-400 mb-6">สังเกตความเปลี่ยนแปลงระหว่างฐานข้อมูลของบริษัท (ซ้าย) และบล็อกเชนของบิตคอยน์จริงๆ (ขวา)</p>
+
+                <div class="grid grid-cols-2 gap-4 flex-grow">
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex flex-col transition-all duration-300" id="db-box">
+                        <div class="text-xs font-bold text-slate-300 uppercase mb-3 flex items-center gap-2 border-b border-slate-700 pb-3">
+                            <span class="text-lg">🗄️</span> ฐานข้อมูลบริษัท
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-3 leading-relaxed">แก้ไขตัวเลขได้ตามใจชอบโดยแอดมิน</p>
+                        
+                        <div class="bg-[#050A14] border border-slate-700 rounded-lg p-3 text-xs font-mono mb-3 shadow-inner transition-colors duration-500" id="db-user">
+                            <span class="text-slate-500 block mb-1">User_ID: 9942</span>
+                            <span class="text-emerald-400 block mb-0.5">THB: <span id="db-thb">...</span></span>
+                            <span class="text-gold block">BTC: <span id="db-btc">0.00000000</span></span>
+                        </div>
+                        <div class="bg-[#050A14] border border-slate-700 rounded-lg p-3 text-xs font-mono opacity-50 shadow-inner">
+                            <span class="text-slate-500 block mb-1">User_ID: 8810</span>
+                            <span class="text-emerald-400 block mb-0.5">THB: 500,000</span>
+                            <span class="text-gold block">BTC: 0.50000000</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex flex-col relative overflow-hidden">
+                        <div class="text-xs font-bold text-gold uppercase mb-3 flex items-center gap-2 border-b border-slate-700 pb-3">
+                            <span class="text-lg">⛓️</span> บล็อกเชนของจริง
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-3 leading-relaxed">แก้ไขไม่ได้ และต้องใช้เวลาอัปเดตผ่าน Node</p>
+                        
+                        <div class="bg-[#050A14] border border-slate-700 rounded-lg p-3 text-xs font-mono mb-3 shadow-inner">
+                            <span class="text-slate-400 block mb-1">TrustMe_Cold_Wallet</span>
+                            <span class="text-gold block mb-1">Balance: 10,000 BTC</span>
+                            <span class="text-slate-600 text-[10px] block">Tx_Count: 45,912</span>
+                        </div>
+
+                        <div class="mt-auto border border-dashed border-slate-600 bg-slate-900/50 rounded-lg p-3 text-center" id="blockchain-status">
+                            <div class="text-[10px] text-slate-400 mb-1.5">สถานะธุรกรรมของคุณบนเชน:</div>
+                            <div class="text-xs font-bold text-rose-500 bg-rose-950/30 py-1 rounded">❌ ไม่มีธุรกรรมเกิดขึ้น</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 bg-navy border border-gold/30 p-5 rounded-xl hidden pop-in shadow-[0_0_20px_rgba(230,194,122,0.1)]" id="truth-reveal">
+                    <h4 class="text-sm font-bold text-gold mb-2 flex items-center gap-2"><span>🎭</span> ภาพลวงตาของตัวเลข (IOU)</h4>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        สังเกตไหม? เมื่อคุณกดซื้อ เหรียญไม่ได้ถูกโอนบนบล็อกเชนจริงๆ บริษัทแค่เข้าไปแก้ตัวเลข <b>Database ฝั่งซ้าย</b> เพื่อบอกว่า "เราติดหนี้บิตคอยน์คุณ 1 BTC นะ (I Owe You)" <br><br>ตราบใดที่คุณยังไม่สั่ง <b class="text-white">"ถอนเหรียญออก (Withdraw)"</b> บิตคอยน์ทั้งหมดก็ยังคงอยู่ในกระเป๋าของบริษัท และคุณต้อง "เชื่อใจ" ว่าบริษัทจะไม่นำเงินคุณไปหมุน!
+                    </p>
+                </div>
+
+                <div class="mt-6 text-center hidden pop-in" id="crisis-action">
+                    <div class="text-xs text-slate-500 mb-3 uppercase tracking-widest font-bold">6 เดือนต่อมา... ตลาดเกิดความผันผวนอย่างหนัก</div>
+                    <button onclick="triggerCrisis()" class="bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(225,29,72,0.4)] animate-pulse transition-all text-sm uppercase tracking-wide">
+                        ⏩ ข้ามเวลาเพื่อดูข่าววันนี้
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="crisis-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-[#050A14]/90 backdrop-blur-md"></div>
+        <div class="bg-[#050A14] border border-rose-600 p-8 rounded-2xl max-w-xl w-full text-center shadow-[0_0_80px_rgba(225,29,72,0.3)] relative z-10 scale-95 opacity-0 transition-all duration-500" id="crisis-box">
+            <div class="text-6xl mb-4 glitch inline-block">🚨</div>
+            <h2 class="text-2xl sm:text-3xl font-black text-rose-500 mb-4 uppercase tracking-widest">ด่วน! TrustMe ล้มละลาย</h2>
+            
+            <div class="bg-rose-950/20 border border-rose-900/50 rounded-xl p-5 mb-6 text-left shadow-inner">
+                <p class="text-sm text-rose-200 leading-relaxed">
+                    มีรายงานว่าผู้บริหารของ <b>TrustMe Exchange</b> ได้แอบนำบิตคอยน์ของลูกค้าทั้งหมด 10,000 BTC ไปลงทุนจนขาดทุนยับเยิน และได้หอบกุญแจ Private Key หนีออกนอกประเทศไปแล้ว!<br><br>
+                    บริษัทประกาศระงับการถอนเงินทุกกรณี ตัวเลขพอร์ตของคุณที่มีอยู่ตอนนี้เป็นเพียง <b class="text-rose-400">"อากาศธาตุ"</b> ไม่สามารถแลกกลับมาเป็นเงินจริงได้อีกต่อไป...
+                </p>
+            </div>
+
+            <div class="bg-slate-900/80 border border-gold/30 p-6 rounded-xl mb-6 shadow-[0_0_20px_rgba(230,194,122,0.1)]">
+                <h3 class="text-sm uppercase tracking-widest font-bold text-gold mb-3">กฎเหล็กข้อที่ 1 ของบิตคอยน์</h3>
+                <div class="text-xl sm:text-2xl font-black text-white font-mono uppercase bg-[#050A14] py-4 rounded-lg border border-gold/20 shadow-inner">
+                    "Not your keys,<br>Not your coins."
+                </div>
+                <p class="text-xs text-slate-400 mt-4">ถ้าคุณไม่ได้ถือ <b>Private Key</b> เอง เหรียญนั้นก็ไม่ใช่ของคุณ</p>
+            </div>
+
+        </div>
+    </div>
+
+
+    <script src="./asset/js/wallet.js"></script>
+</body>
+</html>

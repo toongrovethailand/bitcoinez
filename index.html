@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Learning Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./asset/css/style.css">
+    <style>
+        /* CSS สำหรับซ่อนการ์ดและปุ่มแสดงเพิ่มเติม */
+        .hidden-card {
+            display: none !important;
+        }
+        .show-more-container {
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 40px;
+            width: 100%;
+        }
+
+        /* ------------------------------------------- */
+        /* CSS สำหรับ Donate Modal ที่เพิ่มเข้ามาใหม่ */
+        /* ------------------------------------------- */
+        .donate-modal-content {
+            max-width: 800px !important;
+            padding: 40px !important;
+        }
+        
+        .donate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .donate-card {
+            background: linear-gradient(145deg, rgba(30, 40, 60, 0.8), rgba(15, 20, 35, 0.9));
+            border: 1px solid var(--gold-accent);
+            border-radius: 15px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .donate-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .qr-box {
+            background: #fff;
+            width: 160px;
+            height: 160px;
+            margin: 15px auto;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .wallet-text {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #ccc;
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            margin-bottom: 20px;
+            border: 1px dashed rgba(230, 194, 122, 0.3);
+        }
+
+        /* ปุ่ม Donate ด้านบน Header */
+        .btn-donate-header {
+            background: rgba(230, 194, 122, 0.1);
+            margin-top: 15px;
+        }
+        .btn-donate-header:hover {
+            background: var(--gold-accent);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Money Simulation Center</h1>
+        <p>พื้นที่สำหรับเรียนรู้ "การเงิน" ผ่านประสบการณ์จำลอง</p>
+        <p>By Toon.grovethailand</p>
+        
+        <button class="btn btn-donate-header" onclick="openDonateModal()">☕ Support & Donate</button>
+    </header>
+
+    <div class="container">
+        
+        <div class="section-heading">LEARNING MONEY PROTOCOL</div>
+        <div class="card-grid">
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>คุณสมบัติ 6 ด้านของ "Money"</h3>
+                <p>ทำความเข้าใจว่าสิ่งใดควรค่าแก่การเรียกว่า "Money"</p>
+                <button class="btn" onclick="openModal('traitsofmoney.html')">Launch Simulation</button>
+            </div>
+
+            <div class="card reveal">
+                <h3>สิ่งมหัศจรรย์อันดับ 8 ของโลก</h3>
+                <p>จำลองช่วงเวลา "ทำงาน 36 ปี" (เช่น อายุ 24 ถึง 60 ปี) เพื่อดูว่า "เงิน 1 แสนบาท" จะกลายเป็นเท่าไหร่ หากวางไว้ในสินทรัพย์ที่ให้ผลตอบแทนต่างกัน</p>
+                <button class="btn" onclick="openModal('rule-of-72.html')">Launch Simulation</button>
+            </div>
+
+            
+        </div>
+
+        <div class="section-heading">LEARNING BITCOIN PROTOCOL</div>
+        <div class="card-grid">
+            <div class="card reveal">
+                <h3>Exchange คือ Market</h3>
+                <p>เราไม่ควรเก็บรักษาบิตคอยน์บน "ความเชื่อใจ" เราเข้าไปในตลาดเพื่อแลกซื้อมันมา ดังนั้นอย่าลืมเอามันกลับบ้านด้วยหละ</p>
+                <button class="btn" onclick="openModal('wallet.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>เก็บบิตคอยน์ด้วยตัวเอง</h3>
+                <p>ทำความเข้าใจว่าการเก็บรักษาบิตคอยน์ด้วยตัวเองผ่านอุปกรณ์ Hardware Wallet กับความสำคัญของการจด Seed Phrase ให้ปลอดภัย</p>
+                <button class="btn" onclick="openModal('self-custody.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>วิธีการบันทึกธุรกรรมแบบบิตคอยน์</h3>
+                <p>ในระบบบิตคอยน์เราใช้วิธีการบันทึกธุรกรรมแบบ UTXO Modal มันก็เหมือนการหลอมทอง หรือ แบ่งทองเป็นก้อนเล็ก ๆ นี่แหละ</p>
+                <button class="btn" onclick="openModal('utxo.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>Blockchain ลำดับและการเชื่อมต่อ</h3>
+                <p>ข้อมูลธุรกรรมถูกคัดลอกและกระจายไปยังโหนดจำนวนมากทั่วโลก ถูกเชื่อมต่อกันเป็นลำดับด้วยแฮช (Hash) และง่ายต่อการตรวจสอบ</p>
+                <button class="btn" onclick="openModal('blockchain.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>Hash โซ่ทองพลังงานและเวลา</h3>
+                <p>การหลอมโซ่ทองแห่งความจริง (Proof of work) ไม่ได้ปิดผนึกข้อมูลแบบแก้ไม่ได้ แต่สร้างต้นทุนมหาศาลในการแก้ไข </p>
+                <button class="btn" onclick="openModal('proofofwork.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>Signature เปิดเผยแต่ปลอมไม่ได้</h3>
+                <p>Bitcoin “เปิดเผยลายเซ็น เพื่อให้ทุกคนตรวจสอบได้” โดยที่ “ความลับ (Private Key) ไม่เคยหลุดออกมา” </p>
+                <button class="btn" onclick="openModal('signature.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                
+                <div class="card-badge badge-hot">🔥 ยอดฮิต</div>
+                <h3>Miner & Validator</h3>
+                <p>สวมบทบาทเป็นนักขุด และ ผู้ตรวจสอบ ธุรกรรม เพื่อเข้าใจการทำงานเบื้องหลังของระบบบิตคอยน์อย่างลึกซึ้ง</p>
+                <button class="btn" onclick="openModal('larp/index.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-hot">🔥 ยอดฮิต</div>
+                <h3>Seed Phrase BIP-39</h3>
+                <p>คำ 12-24 คำ ที่ช่วยให้คุณจดจำ “Master Key” ของเงินทั้งหมดของคุณใช้เพื่อ “สร้าง กู้คืน และ ควบคุมบิตคอยน์” ด้วยอธิปไตยของตนเอง</p>
+                <button class="btn" onclick="openModal('bip-39.html')">Launch Simulation</button>
+            </div>
+        </div>
+
+        <div class="section-heading">STRATEGIC INSIGHTS & ECONOMICS</div>
+        <div class="card-grid">
+            
+            <div class="card reveal">
+                <div class="card-badge badge-new">✨ มาใหม่</div>
+                <h3>The Goal of Bitcoin Saving</h3>
+                <p>จำลองเป้าหมายการเก็บออมบิตคอยน์ ให้เพียงพอกับการใช้ชีวิตได้ตรงกับไลฟ์สไตล์ในวันที่ต้องการเกษียร บางที 0.05 BTC ก็อาจจะเพียงพอ </p>
+                <button class="btn" onclick="openModal('purchasingpow.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <div class="card-badge badge-recommended">★ แนะนำ</div>
+                <h3>Purchasing Power</h3>
+                <p>ทำความเข้าใจ "เงินเฟ้อ" ภาษีที่มองไม่เห็นซึ่งคอยกัดกินอำนาจซื้อของคุณ และเหตุผลที่ทำไมเราถึงต้องเก็บออมในสินทรัพย์ที่มีจำกัด </p>
+                <button class="btn" onclick="openModal('purchasingpower.html')">Launch Simulation</button>
+            </div>
+            <div class="card reveal">
+                <h3>Stock-to-Flow (S2F)</h3>
+                <p>เปรียบเทียบอัตราการผลิตใหม่ (Flow) ต่อของที่มีอยู่เดิม (Stock) ระหว่าง Fiat, ทองคำ, และ Bitcoin</p>
+                <button class="btn" onclick="openModal('stock-to-flow.html')">Launch Simulation</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="mainModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="donateModal" class="modal">
+        <div class="modal-content donate-modal-content">
+            <span class="close-btn" onclick="closeDonateModal()">&times;</span>
+            <h2 style="text-align: center; color: var(--gold-accent); margin-bottom: 10px; font-size: 1.8rem;">SUPPORT & DONATE ⚡️</h2>
+            <p style="text-align: center; color: var(--text-secondary); font-size: 0.95rem;">
+                หากคุณชื่นชอบเนื้อหาและซิมูเลชั่นเหล่านี้ สามารถสนับสนุนการพัฒนาโปรเจกต์ได้ที่นี่ครับ
+            </p>
+            
+            <div class="donate-grid">
+                <div class="donate-card">
+                    <div class="donate-icon">⚡️</div>
+                    <h3 style="color: #fff; margin-bottom: 5px;">Lightning Network</h3>
+                    <div class="qr-box">
+                        <img src="./asset/img/lightning-qr.jpg" alt="Lightning QR" id="qr-lightning">
+                    </div>
+                    <p class="wallet-text" id="ln-address">feudalpickle37@walletofsatoshi.com</p>
+                    <button class="btn" style="width: 100%;" onclick="copyToClipboard('ln-address', this)">
+                        COPY ADDRESS
+                    </button>
+                </div>
+
+                <div class="donate-card">
+                    <div class="donate-icon">📱</div>
+                    <h3 style="color: #fff; margin-bottom: 5px;">PromptPay</h3>
+                    <div class="qr-box">
+                        <img src="./asset/img/promptpay-qr.jpg" alt="PromptPay QR" id="qr-promptpay">
+                    </div>
+                    <p class="wallet-text" id="pp-address">091-845-6446</p>
+                    <button class="btn" style="width: 100%;" onclick="copyToClipboard('pp-address', this)">
+                        COPY NUMBER
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="./asset/js/script.js"></script>
+
+    <script>
+        // ระบบซ่อนการ์ดและปุ่มแสดงเพิ่มเติม
+        document.addEventListener('DOMContentLoaded', () => {
+            const grids = document.querySelectorAll('.card-grid');
+            grids.forEach(grid => {
+                const cards = grid.querySelectorAll('.card');
+                if (cards.length > 6) {
+                    for (let i = 6; i < cards.length; i++) {
+                        cards[i].classList.add('hidden-card');
+                    }
+                    const btnContainer = document.createElement('div');
+                    btnContainer.className = 'show-more-container';
+                    
+                    const btn = document.createElement('button');
+                    btn.className = 'btn'; 
+                    btn.style.backgroundColor = '#555'; 
+                    btn.textContent = 'แสดงเพิ่มเติม';
+                    
+                    btn.addEventListener('click', function() {
+                        const isExpanded = btn.textContent === 'แสดงน้อยลง';
+                        if (isExpanded) {
+                            for (let i = 6; i < cards.length; i++) {
+                                cards[i].classList.add('hidden-card');
+                            }
+                            btn.textContent = 'แสดงเพิ่มเติม';
+                            const heading = grid.previousElementSibling;
+                            if (heading) heading.scrollIntoView({ behavior: 'smooth' });
+                        } else {
+                            for (let i = 6; i < cards.length; i++) {
+                                cards[i].classList.remove('hidden-card');
+                            }
+                            btn.textContent = 'แสดงน้อยลง';
+                        }
+                    });
+                    btnContainer.appendChild(btn);
+                    grid.parentNode.insertBefore(btnContainer, grid.nextSibling);
+                }
+            });
+        });
+
+        // ----------------------------------------------------
+        // ฟังก์ชันสำหรับเปิด-ปิด Donate Modal
+        // ----------------------------------------------------
+        function openDonateModal() {
+            document.getElementById('donateModal').style.display = 'block';
+        }
+
+        function closeDonateModal() {
+            document.getElementById('donateModal').style.display = 'none';
+        }
+
+        // ----------------------------------------------------
+        // ฟังก์ชันคัดลอกข้อความ
+        // ----------------------------------------------------
+        function copyToClipboard(elementId, buttonElement) {
+            const textToCopy = document.getElementById(elementId).innerText;
+            const originalText = buttonElement.innerHTML;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                buttonElement.innerHTML = "✅ Copied!";
+                buttonElement.style.backgroundColor = "#28a745";
+                buttonElement.style.borderColor = "#28a745";
+                buttonElement.style.color = "#fff";
+                
+                setTimeout(() => {
+                    buttonElement.innerHTML = originalText;
+                    buttonElement.style.backgroundColor = "transparent";
+                    buttonElement.style.borderColor = "var(--gold-accent)";
+                    buttonElement.style.color = "var(--gold-accent)";
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert("ไม่สามารถคัดลอกได้ กรุณาคัดลอกด้วยตนเอง");
+            });
+        }
+    </script>
+</body>
+</html>

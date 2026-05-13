@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', 
+                            400: '#8B9BB4', 
+                            500: '#64748B', 
+                            700: '#1c2e4a', 
+                            800: '#162645',
+                            900: '#101a30', 
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Hardware Wallet UI (Keep some original styles but enhance depth) */
+        .hw-device {
+            background: linear-gradient(145deg, #1e293b 0%, #050A14 100%);
+            box-shadow: 
+                -5px -5px 15px rgba(255,255,255,0.03),
+                10px 10px 30px rgba(0,0,0,0.9),
+                inset 0 0 0 1px rgba(230,194,122,0.15); /* Gold tint border */
+        }
+        
+        /* เครื่องสีส้ม */
+        .hw-device-orange {
+            background: linear-gradient(145deg, #ea580c 0%, #431407 100%);
+            box-shadow: 
+                -5px -5px 15px rgba(234, 88, 12, 0.1),
+                10px 10px 30px rgba(0,0,0,0.9),
+                inset 0 0 0 1px rgba(234, 88, 12, 0.3);
+        }
+
+        .hw-screen {
+            background: #020617;
+            box-shadow: inset 0 0 25px #000;
+            text-shadow: 0 0 5px rgba(56, 189, 248, 0.5);
+        }
+        
+        .hw-btn {
+            background: linear-gradient(to bottom, #27272a, #000000);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.2), inset 0 -1px 1px rgba(0,0,0,0.5);
+            border: 1px solid #000;
+            transition: all 0.1s;
+        }
+        .hw-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.8), inset 0 1px 1px rgba(0,0,0,0.8);
+        }
+
+        .pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        
+        .shake { animation: shakeErr 0.4s ease-in-out; }
+        @keyframes shakeErr { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+
+        .destroy-anim { animation: burnDown 1.5s forwards; pointer-events: none; }
+        @keyframes burnDown {
+            0% { filter: brightness(1); transform: scale(1); }
+            30% { filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5); transform: scale(1.05) rotate(2deg); }
+            70% { opacity: 1; transform: scale(0.9) translateY(20px) rotate(-2deg); filter: brightness(0) drop-shadow(0 0 20px red); }
+            100% { opacity: 0; transform: scale(0.5) translateY(50px); filter: brightness(0); }
+        }
+
+        /* Custom Button */
+        .btn-gold-outline {
+            background-color: transparent;
+            color: var(--gold-accent);
+            border: 1px solid var(--gold-accent);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(230, 194, 122, 0.1);
+        }
+        .btn-gold-outline:hover {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            box-shadow: 0 0 20px var(--gold-glow-strong);
+        }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6 transition-colors duration-500">
+
+    <div class="max-w-5xl w-full relative z-10" id="app-container">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">ตู้เซฟส่วนตัว (Self-Custody)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">เพื่อไม่ให้ซ้ำรอยกระดานเทรดล้มละลาย ถึงเวลาที่คุณต้องถือ "กุญแจส่วนตัว" ด้วยตัวเองผ่านอุปกรณ์ Hardware Wallet</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-10 items-center">
+            
+            <div class="space-y-6">
+                <div class="glass-panel border-l-4 border-l-gold p-6 rounded-xl shadow-2xl">
+                    <h3 class="text-xl font-bold text-white mb-3 flex items-center gap-2">🔑 กุญแจสู่ความมั่งคั่ง</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed mb-4">
+                        บิตคอยน์ไม่มีการสมัครสมุดบัญชีด้วยบัตรประชาชน ระบบจะจดจำคุณผ่าน <b>"Seed Phrase (รหัส 12 คำ)"</b> ซึ่งเปรียบเสมือนรหัสผ่านขั้นสูงสุดในการสร้าง <b>Private Key</b> <br><br>
+                        <span class="text-rose-400 font-bold bg-rose-950/30 px-2 py-1 rounded">⚠️ คำเตือน:</span> ใครก็ตามที่รู้ 12 คำนี้ จะสามารถเข้าถึงเงินคุณได้ทันที! ห้ามถ่ายรูป ห้ามพิมพ์เก็บในคอมพิวเตอร์ ให้จดใส่กระดาษและเก็บไว้ในที่ปลอดภัยเท่านั้น!
+                    </p>
+                </div>
+
+                <div id="context-box" class="bg-navy/80 border border-gold/30 p-6 rounded-xl shadow-[0_0_20px_rgba(230,194,122,0.1)] pop-in">
+                    <h4 class="text-gold font-bold mb-3 flex items-center gap-2 tracking-wide uppercase text-sm"><span>🎯</span> ภารกิจของคุณ:</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed" id="context-text">เปิดเครื่อง Hardware Wallet ด้านขวามือ และทำตามขั้นตอนบนหน้าจอเพื่อตั้งค่ากระเป๋าใบแรกของคุณ</p>
+                </div>
+            </div>
+
+            <div class="flex justify-center w-full" id="device-wrapper">
+                <div class="hw-device rounded-[2rem] p-4 w-[320px] h-[550px] flex flex-col relative border border-slate-700/50">
+                    
+                    <div class="w-16 h-2 bg-black mx-auto rounded-b-md mb-6 opacity-50 shadow-inner"></div>
+                    
+                    <div class="text-center text-[10px] text-slate-400 tracking-[0.4em] font-extrabold uppercase mb-3 drop-shadow-sm" style="text-shadow: 0 1px 1px rgba(0,0,0,0.8);">VaultKey Mini</div>
+
+                    <div class="hw-screen rounded-xl flex-grow mb-6 p-4 flex flex-col justify-center items-center text-center relative overflow-hidden border border-slate-700">
+                        <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAiIGZpbGwtb3BhY2l0eT0iMC41Ii8+PHBhdGggZD0iTTAgMGg0djFIMHptMCAyaDR2MUgweiIgZmlsbD0iIzIyMiIvPjwvc3ZnPg==')] opacity-20 pointer-events-none mix-blend-overlay"></div>
+                        
+                        <div id="screen-content" class="w-full text-cyan-400 font-mono relative z-10 flex flex-col h-full justify-center">
+                            </div>
+                    </div>
+
+                    <div class="flex justify-between px-6 pb-4">
+                        <button id="btn-left" onmousedown="hwBtnPress('left')" class="hw-btn w-16 h-6 rounded-full focus:outline-none"></button>
+                        <div class="text-[9px] text-slate-500 font-bold flex items-center tracking-widest" style="text-shadow: 0 1px 2px rgba(0,0,0,0.8);">◀ PREV &nbsp;|&nbsp; NEXT ▶</div>
+                        <button id="btn-right" onmousedown="hwBtnPress('right')" class="hw-btn w-16 h-6 rounded-full focus:outline-none"></button>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="cheat-modal" class="fixed inset-0 z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300" style="background-color: rgba(5, 10, 20, 0.85); backdrop-filter: blur(8px);">
+        <div id="cheat-modal-box" class="bg-[#050A14]/90 border border-gold/50 p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_10px_40px_rgba(0,0,0,0.8),_0_0_30px_rgba(230,194,122,0.2)] transform scale-95 transition-transform duration-300 backdrop-blur-xl">
+            <div class="text-4xl mb-4">📝</div>
+            <h3 class="text-xl font-bold text-gold mb-4 uppercase tracking-widest">แอบดูคำศัพท์ (Cheat Sheet)</h3>
+            <div id="cheat-seed-content" class="grid grid-cols-3 gap-2 text-left bg-slate-900 border border-slate-700 p-4 rounded-lg font-mono text-sm text-white mb-6 shadow-inner">
+                </div>
+            <button onclick="closeCheatModal()" class="btn-gold-outline w-full py-2.5 rounded-lg text-sm font-bold uppercase">
+                จดเรียบร้อย ปิดหน้าต่าง
+            </button>
+        </div>
+    </div>
+
+    <div id="custom-alert" class="fixed inset-0 z-[9999] flex items-center justify-center hidden opacity-0 transition-opacity duration-300" style="background-color: rgba(5, 10, 20, 0.85); backdrop-filter: blur(8px);">
+        <div id="custom-alert-box" class="bg-[#050A14]/90 border border-emerald-500/50 p-8 rounded-2xl max-w-sm w-[90%] text-center shadow-[0_10px_40px_rgba(0,0,0,0.8),_0_0_30px_rgba(16,185,129,0.3)] transform scale-95 transition-transform duration-300 backdrop-blur-xl">
+            <div class="text-6xl mb-4 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]" style="animation: popIn 0.5s ease-out forwards;">🚀</div>
+            <h3 class="text-xl font-bold text-emerald-400 mb-3">สุดยอด! เซฟตี้ 100%</h3>
+            <p class="text-sm text-slate-300 mb-8 leading-relaxed">เมื่อคุณมี Wallet ที่ปลอดภัยแล้ว ด่านต่อไปเราจะไปดูวิธีการทำงานของเหรียญในกระเป๋ากัน! (UTXO)</p>
+            <button onclick="closeCustomAlert()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-sm font-bold uppercase tracking-wide transition-colors shadow-lg">
+                ลุยกันต่อ!
+            </button>
+        </div>
+    </div>
+
+    <script src="./asset/js/self-custody.js"></script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signature</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', // Text Primary
+                            400: '#8B9BB4', // Text Secondary
+                            500: '#64748B', 
+                            700: '#1c2e4a', // Light Border
+                            800: '#162645',
+                            900: '#101a30', // Deep Navy Card Base
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: transparent; 
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Hacker Zone Pulse */
+        .pulse-border { animation: pulseBorder 1.5s infinite; }
+        @keyframes pulseBorder {
+            0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+        }
+
+        /* Custom Button */
+        .btn-gold-solid {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(230, 194, 122, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-gold-solid:hover {
+            background-color: #f5d693;
+            box-shadow: 0 0 25px var(--gold-glow-strong);
+            transform: translateY(-2px);
+        }
+
+        .btn-gold-outline {
+            background-color: transparent;
+            color: var(--gold-accent);
+            border: 1px solid var(--gold-accent);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(230, 194, 122, 0.1);
+        }
+        .btn-gold-outline:hover {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            box-shadow: 0 0 20px var(--gold-glow-strong);
+        }
+
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        /* Secret text blur */
+        .secret-blur { filter: blur(5px); transition: filter 0.3s ease; }
+        .secret-blur:hover { filter: blur(0px); }
+    </style>
+</head>
+<body class="text-slate-300 min-h-screen p-4 flex flex-col items-center py-6 transition-colors duration-500">
+
+    <div class="max-w-5xl w-full relative z-10">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold title-gold mt-5 mb-3">เทคนิคลายเซ็นอนุมัติธุรกรรม (Digital Signatures)</h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">ในโลกที่ไม่มีชื่อบัญชี ไม่มีรหัสผ่าน เราใช้สมการคณิตศาสตร์ที่เรียกว่า <b>Asymmetric Cryptography</b> เพื่อพิสูจน์ความเป็นเจ้าของเงินผ่าน "กุญแจคู่" (กุญแจส่วนตัว และ กุญแจสาธารณะ)</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+            
+            <div class="glass-panel rounded-xl p-6 shadow-2xl flex flex-col relative overflow-hidden pop-in" style="animation-delay: 0.1s;">
+                <div class="absolute top-0 right-0 w-40 h-40 bg-gold/10 rounded-full blur-[60px] pointer-events-none"></div>
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="bg-gold text-navy font-black px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(230,194,122,0.5)]">1</span> สร้างกระเป๋าเงินของคุณ
+                </h3>
+                
+                <p class="text-[13px] text-slate-400 mb-5 leading-relaxed">กดปุ่มด้านล่างเพื่อสุ่มสร้าง <b>Private Key</b> (ความลับห้ามบอกใคร) และระบบจะคำนวณ <b>Public Key</b> (เปรียบเสมือนเลขที่บัญชีที่บอกคนอื่นได้) ให้คุณโดยอัตโนมัติ</p>
+                
+                <button id="btn-generate" onclick="generateKeys()" class="btn-gold-outline font-bold py-3 px-4 rounded-xl transition-all mb-5 w-full flex items-center justify-center gap-2">
+                    <span class="text-lg">🎲</span> สุ่มสร้างคู่กุญแจ
+                </button>
+
+                <div id="keys-display" class="hidden space-y-4 opacity-0 transition-opacity duration-500">
+                    <div class="bg-rose-950/20 border border-rose-900/50 p-3 rounded-lg shadow-inner">
+                        <label class="text-[10px] text-rose-400 font-bold tracking-widest uppercase mb-1.5 block flex items-center gap-1"><span>🔑</span> กุญแจส่วนตัว (Private Key)</label>
+                        <div class="text-[9px] text-rose-300/70 mb-1">ห้ามบอกใครเด็ดขาด! เอาเมาส์ชี้เพื่อดู</div>
+                        <div id="private-key" class="text-xs bg-[#050A14] border border-rose-900/50 text-rose-400 font-mono p-2.5 rounded break-all secret-blur cursor-pointer select-all shadow-inner">...</div>
+                    </div>
+                    <div class="bg-cyan-950/20 border border-cyan-900/50 p-3 rounded-lg shadow-inner">
+                        <label class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase mb-1.5 block flex items-center gap-1"><span>🌐</span> กุญแจสาธารณะ (Public Key)</label>
+                        <div class="text-[9px] text-cyan-300/70 mb-1">เปรียบเสมือนเลขที่บัญชีรับเงิน</div>
+                        <div id="public-key" class="text-xs bg-[#050A14] border border-cyan-900/50 text-cyan-400 font-mono p-2.5 rounded break-all select-all shadow-inner">...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="step-2-panel" class="glass-panel rounded-xl p-6 shadow-2xl flex flex-col relative opacity-50 pointer-events-none transition-all duration-500 pop-in" style="animation-delay: 0.2s;">
+                <div class="absolute top-0 right-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-3">
+                    <span class="bg-cyan-500 text-navy font-black px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(34,211,238,0.5)]">2</span> เซ็นอนุมัติธุรกรรม
+                </h3>
+                
+                <p class="text-[13px] text-slate-400 mb-4 leading-relaxed">
+                    เขียนคำสั่งโอนเงิน จากนั้นใช้ <b>Private Key</b> ของคุณประทับ "ลายเซ็นดิจิทัล"
+                </p>
+
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-700/80 mb-5 shadow-inner text-[12px] text-slate-300 space-y-3">
+                    <div>
+                        <span class="text-cyan-400 font-bold uppercase tracking-widest text-[10px] block mb-1">💡 ลายเซ็นดิจิทัลสร้างจากอะไร?</span>
+                        ระบบจะนำ <b class="text-white bg-slate-800 px-1 rounded">1. ข้อมูลธุรกรรม</b> นำมารวมเข้ากับ <b class="text-rose-400 bg-rose-950/50 px-1 rounded">2. Private Key</b> แล้วนำไปเข้าสมการคณิตศาสตร์เพื่อสร้างตัวเลขชุดใหม่ขึ้นมา
+                    </div>
+                    <div class="border-t border-slate-700/50 pt-3">
+                        <span class="text-rose-400 font-bold uppercase tracking-widest text-[10px] block mb-1 flex items-center gap-1"><span>⚠️</span> กฎเหล็ก: เซ็นแล้วห้ามแก้!</span>
+                        เนื่องจาก <b>"ข้อมูลธุรกรรม"</b> ถูกนำไปผสมในสมการด้วย หากแฮกเกอร์แอบเปลี่ยนตัวเลขเงิน ลายเซ็นที่ประทับไปแล้วจะ <b class="text-rose-400">"หมดอายุและกลายเป็นโมฆะ"</b> ทันทีเมื่อถูกตรวจสอบ!
+                    </div>
+                </div>
+
+                <div class="mb-5 bg-slate-900/60 p-4 rounded-xl border border-slate-700/80 shadow-inner">
+                    <label class="text-[10px] text-slate-400 mb-2 block tracking-widest uppercase font-bold">ข้อมูลธุรกรรม (Transaction Data):</label>
+                    <textarea id="tx-data" rows="2" class="w-full bg-[#050A14] border border-slate-700 rounded-lg p-3 text-sm text-white font-mono focus:outline-none focus:border-cyan-500 transition-colors resize-none shadow-inner">โอนบิตคอยน์ให้ Satoshi จำนวน 10 BTC</textarea>
+                </div>
+
+                <button id="btn-sign" onclick="signTransaction()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all mb-5 flex items-center justify-center gap-2 hover:-translate-y-1">
+                    ✍️ ประทับลายเซ็นดิจิทัล
+                </button>
+
+                <div id="signature-display" class="hidden bg-gold/10 border border-gold/30 p-3 rounded-lg shadow-inner mt-auto">
+                    <label class="text-[10px] text-gold font-bold tracking-widest uppercase mb-1.5 block">📝 ลายเซ็นดิจิทัล (Digital Signature)</label>
+                    <div id="signature-output" class="text-[10px] bg-[#050A14] border border-gold/20 text-gold font-mono p-2.5 rounded break-all shadow-inner">...</div>
+                </div>
+            </div>
+
+            <div id="step-3-panel" class="glass-panel border-t-4 border-t-rose-500 rounded-xl p-6 md:p-8 shadow-[0_0_40px_rgba(0,0,0,0.8)] flex flex-col md:col-span-2 relative opacity-50 pointer-events-none transition-all duration-500 mt-4 pop-in" style="animation-delay: 0.3s;">
+                <div class="absolute inset-0 bg-rose-950/10 border border-rose-500/20 rounded-xl pointer-events-none"></div>
+                <div class="absolute top-0 right-1/2 translate-x-1/2 w-64 h-64 bg-rose-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+                
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-slate-700/80 pb-4 gap-4 relative z-10">
+                    <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-3">
+                        <span class="bg-rose-500 text-white font-black px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(225,29,72,0.5)]">3</span> การตรวจสอบของเครือข่าย (Nodes)
+                    </h3>
+                    <span class="bg-rose-950 border border-rose-500 text-rose-400 text-xs px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest flex items-center gap-2 pulse-border shrink-0">
+                        <span class="text-lg">🦹‍♂️</span> Hacker Zone
+                    </span>
+                </div>
+                
+                <p class="text-sm text-slate-300 mb-6 leading-relaxed relative z-10">
+                    ข้อมูลที่ถูกส่งขึ้นเครือข่ายจะมีแค่ <b>1. ธุรกรรม</b>, <b>2. ลายเซ็น</b> และ <b>3. Public Key</b> (ไม่มีการส่ง Private Key ออกไปเด็ดขาด)<br>
+                    <b class="text-rose-400 bg-rose-950/50 px-2 py-0.5 rounded">ภารกิจแฮกเกอร์:</b> ลองแอบแก้ตัวเลข 10 BTC เป็น <u class="text-white">100 BTC</u> ในกล่องด้านล่างนี้ แล้วกดปุ่มให้เครือข่ายตรวจสอบดูสิ!
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5 relative z-10">
+                    <div class="md:col-span-2 bg-[#050A14] p-4 rounded-xl border border-rose-500/50 shadow-[inset_0_0_15px_rgba(225,29,72,0.1)]">
+                        <label class="text-[10px] text-rose-400 font-bold tracking-widest uppercase mb-2 block flex items-center gap-1"><span>📝</span> 1. ธุรกรรม (แก้ไขได้เพื่อจำลองแฮกเกอร์):</label>
+                        <textarea id="network-tx-data" rows="2" class="w-full bg-slate-900 border border-rose-900/50 rounded-lg p-3 text-sm text-white font-mono focus:outline-none focus:border-rose-400 transition-colors resize-none"></textarea>
+                    </div>
+                    <div class="bg-[#050A14] p-4 rounded-xl border border-cyan-900/50 shadow-inner">
+                        <label class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase mb-2 block flex items-center gap-1"><span>🌐</span> 2. Public Key ผู้ส่ง:</label>
+                        <div id="network-pub-key" class="text-[10px] bg-slate-900 border border-slate-800 text-cyan-400/70 font-mono p-2.5 rounded break-all h-[52px] overflow-hidden shadow-inner"></div>
+                    </div>
+                </div>
+
+                <div class="mb-8 bg-[#050A14] p-4 rounded-xl border border-gold/30 shadow-inner relative z-10">
+                    <label class="text-[10px] text-gold font-bold tracking-widest uppercase mb-2 block">3. ลายเซ็นดิจิทัลที่แนบมา (จาก Step 2):</label>
+                    <div id="network-signature" class="text-[10px] bg-slate-900 border border-slate-800 text-gold/70 font-mono p-3 rounded break-all shadow-inner"></div>
+                </div>
+
+                <div class="flex flex-col md:flex-row items-center gap-6 relative z-10 bg-slate-900/50 p-5 rounded-xl border border-slate-700">
+                    <button id="btn-verify" onclick="verifySignature()" class="w-full md:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-sm shrink-0 hover:-translate-y-1">
+                        🔍 โหนดทำการตรวจสอบ (Verify)
+                    </button>
+                    <div id="verify-result" class="text-sm font-bold w-full text-center md:text-left px-4 min-h-[40px] flex items-center">
+                        <span class="text-slate-500 font-normal">รอการตรวจสอบ...</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // ฟังก์ชันจำลอง SHA-256 สำหรับใช้ทำการเข้ารหัส
+        function sha256(ascii) {
+            function rightRotate(value, amount) { return (value>>>amount) | (value<<(32 - amount)); };
+            var mathPow = Math.pow; var maxWord = mathPow(2, 32); var result = ''; var words = []; var asciiBitLength = ascii.length*8;
+            var hash = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225];
+            var k = [1116352408, 1899447441, 3049323471, 3921009573, 965070248, 237438962, 725511199, 76029189, 275056812, 206723606, 462214370, 462908921, 915227154, 915921829, 966050514, 2780633842, 3224354020, 2811436402, 3356061738, 2869850406, 3816654215, 2901353246, 3848245594, 3968257850, 4118042571, 3986872517, 4136657252, 4286441987, 4016767679, 4291888363, 11828352, 4294406256, 12615467, 34336214, 28243685, 34431872, 35649931, 35745512, 38555890, 45229641, 56346282, 53267571, 74768395, 60846513, 76229193, 85607371, 88523315, 96259463, 109594532, 110595371, 113333306, 119561081, 132640277, 145974051, 146974895, 149712814, 156828551, 169907765, 170908595, 173646524, 180762261, 193841465, 194842316, 197580225];
+            ascii += '\x80'; while (ascii.length%64 - 56) ascii += '\x00';
+            for (var i = 0; i < ascii.length; i++) words[i>>2] |= ascii.charCodeAt(i) << ((3 - i)%4)*8;
+            words[words.length] = ((asciiBitLength/maxWord)|0); words[words.length] = (asciiBitLength);
+            for (var j = 0; j < words.length;) {
+                var w = words.slice(j, j += 16); var oldHash = hash.slice(0);
+                for (var i = 0; i < 64; i++) {
+                    var w15 = w[i - 15], w2 = w[i - 2]; var a = hash[0], e = hash[4];
+                    var temp1 = hash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e&hash[5])^((~e)&hash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)))|0);
+                    var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+                    hash = [(temp1 + temp2)|0].concat(hash); hash[4] = (hash[4] + temp1)|0; hash.pop();
+                }
+                for (var i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i])|0;
+            }
+            for (var i = 0; i < 8; i++) for (var j = 3; j + 1; j--) { var b = (hash[i]>>(j*8))&255; result += ((b < 16) ? 0 : '') + b.toString(16); }
+            return result;
+        }
+
+        // ตัวแปรเก็บข้อมูล
+        let globalPrivateKey = "";
+        let globalPublicKey = "";
+        let globalSignature = "";
+        let originalMessage = "";
+
+        function generateKeys() {
+            // จำลองการสร้าง Private Key
+            let priv = "";
+            const chars = '0123456789abcdef';
+            for (let i = 0; i < 64; i++) priv += chars[Math.floor(Math.random() * chars.length)];
+            
+            // จำลองการสร้าง Public Key
+            const pub = "02" + sha256(priv).substring(0, 64); 
+
+            globalPrivateKey = priv;
+            globalPublicKey = pub;
+
+            document.getElementById('private-key').innerText = priv;
+            document.getElementById('public-key').innerText = pub;
+            
+            const keysDisplay = document.getElementById('keys-display');
+            keysDisplay.classList.remove('hidden');
+            setTimeout(() => keysDisplay.classList.remove('opacity-0'), 50);
+
+            // ปลดล็อก Step 2
+            const step2 = document.getElementById('step-2-panel');
+            step2.classList.remove('opacity-50', 'pointer-events-none');
+            
+            const btn = document.getElementById('btn-generate');
+            btn.innerHTML = `<span class="text-lg">🔄</span> สร้างกุญแจคู่ใหม่`;
+        }
+
+        function signTransaction() {
+            const txData = document.getElementById('tx-data').value;
+            originalMessage = txData;
+            
+            // จำลองการสร้าง Digital Signature 
+            const rawSignature = sha256(txData + globalPrivateKey);
+            globalSignature = "30440220" + rawSignature.substring(0, 64);
+
+            document.getElementById('signature-output').innerText = globalSignature;
+            
+            const sigDisplay = document.getElementById('signature-display');
+            sigDisplay.classList.remove('hidden');
+
+            // ส่งข้อมูลขึ้นเครือข่าย (ปลดล็อก Step 3)
+            document.getElementById('network-tx-data').value = txData;
+            document.getElementById('network-pub-key').innerText = globalPublicKey;
+            document.getElementById('network-signature').innerText = globalSignature;
+
+            const step3 = document.getElementById('step-3-panel');
+            step3.classList.remove('opacity-50', 'pointer-events-none');
+            
+            document.getElementById('verify-result').innerHTML = '<span class="text-slate-500 font-normal">รอการตรวจสอบ...</span>';
+        }
+
+        function verifySignature() {
+            const hackerMessage = document.getElementById('network-tx-data').value;
+            const resDiv = document.getElementById('verify-result');
+            const networkTxData = document.getElementById('network-tx-data');
+            
+            // โหนดตรวจสอบจำลอง
+            const expectedRawSig = sha256(hackerMessage + globalPrivateKey);
+            const expectedSig = "30440220" + expectedRawSig.substring(0, 64);
+
+            resDiv.classList.remove('text-emerald-400', 'text-rose-500');
+            resDiv.innerHTML = '<span class="text-gold animate-pulse flex items-center gap-2"><span>⚙️</span> กำลังตรวจสอบคณิตศาสตร์...</span>';
+            
+            networkTxData.classList.remove('border-rose-400');
+            networkTxData.classList.add('border-rose-900/50');
+
+            setTimeout(() => {
+                if (expectedSig === globalSignature) {
+                    resDiv.classList.add('text-emerald-400');
+                    resDiv.innerHTML = "<span class='text-lg'>✅</span> ลายเซ็นถูกต้อง! (ข้อความไม่ได้ถูกดัดแปลง)";
+                } else {
+                    resDiv.classList.add('text-rose-500');
+                    resDiv.innerHTML = "<span class='text-lg'>❌</span> ปฏิเสธธุรกรรม! ลายเซ็นไม่ตรงกับข้อความ (แฮกเกอร์!)";
+                    
+                    // กระตุกและไฮไลท์สีแดงให้รู้ว่าถูกจับได้
+                    networkTxData.classList.replace('border-rose-900/50', 'border-rose-500');
+                    networkTxData.classList.add('animate-[shake_0.4s_ease-in-out]');
+                    setTimeout(() => networkTxData.classList.remove('animate-[shake_0.4s_ease-in-out]'), 400);
+                }
+            }, 800);
+        }
+
+        // Custom Modals
+        function showNextChapterAlert() {
+            const modal = document.getElementById('custom-alert');
+            const box = document.getElementById('custom-alert-box');
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            box.classList.replace('scale-95', 'scale-100');
+        }
+
+        function closeCustomAlert() {
+            const modal = document.getElementById('custom-alert');
+            const box = document.getElementById('custom-alert-box');
+            modal.classList.replace('opacity-100', 'opacity-0');
+            modal.classList.add('pointer-events-none');
+            box.classList.replace('scale-100', 'scale-95');
+        }
+    </script>
+</body>
+</html>
