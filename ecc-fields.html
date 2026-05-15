@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ECC: Real vs Finite Field - The Bitcoin Rabbit Hole</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -47,8 +47,6 @@
             font-family: 'Prompt', sans-serif; 
             background-color: var(--bg-deep-navy); 
             color: var(--text-primary);
-            overflow: hidden;
-            height: 100vh;
         }
 
         .title-gold {
@@ -154,12 +152,11 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1c2e4a; border-radius: 10px; }
     </style>
 </head>
-<body class="p-4 flex flex-col h-screen overflow-hidden">
+<body class="p-4 flex flex-col min-h-[100dvh] lg:h-screen lg:overflow-hidden">
 
-    <!-- Header Navigation -->
-    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-extrabold title-gold">ECC Simulation</h1>
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 shrink-0">
+        <div class="text-center sm:text-left">
+            <h1 class="text-xl md:text-2xl font-extrabold title-gold">ECC Simulation</h1>
             <p class="text-[10px] text-slate-400 uppercase tracking-widest">Real Field vs Finite Field</p>
         </div>
         
@@ -183,25 +180,21 @@
         </div>
     </div>
 
-    <!-- Main Workspace -->
-    <div class="flex-grow grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6 min-h-0">
+    <div class="flex-grow flex flex-col lg:grid lg:grid-cols-[1fr_350px] gap-6 min-h-0">
         
-        <div id="canvas-container" class="relative shadow-2xl">
-            <canvas id="mainCanvas"></canvas>
+        <div id="canvas-container" class="relative shadow-2xl h-[45vh] min-h-[300px] lg:h-auto lg:min-h-0 shrink-0 lg:shrink">
+            <canvas id="mainCanvas" class="w-full h-full" style="touch-action: none;"></canvas>
             
             <div id="power-gauge-container">
                 <div id="power-gauge-fill"></div>
             </div>
 
-            <!-- Scene 1 Overlay -->
             <div id="instruction-overlay" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-opacity duration-500">
                 <p id="instruction-text" class="text-white/40 text-lg font-bold uppercase tracking-widest animate-pulse">กดค้างเพื่อแทงลูกสนุ๊ก G</p>
                 <p class="text-white/20 text-xs mt-2">สัมผัสความจริงของเส้นโค้ง Elliptic Curve</p>
             </div>
 
-            <!-- Scene 2: Truth Machine Overlays -->
             <div id="truth-machine-ui" class="absolute inset-0 pointer-events-none hidden">
-                <!-- Transaction Envelope -->
                 <div id="envelope" class="absolute top-10 left-10 w-32 h-20 bg-blue-500/20 border-2 border-blue-400 rounded-lg flex items-center justify-center backdrop-blur-md opacity-0 transition-all duration-1000">
                     <div class="text-[8px] text-blue-300 font-bold text-center">
                         <i class="fas fa-envelope-open-text text-xl mb-1"></i><br>
@@ -209,7 +202,6 @@
                     </div>
                 </div>
 
-                <!-- Hash Grinder -->
                 <div id="grinder" class="absolute top-10 left-1/2 -translate-x-1/2 w-20 h-20 flex flex-col items-center opacity-0 transition-opacity duration-500">
                     <div class="w-full h-full bg-slate-800 border-2 border-slate-600 rounded-full flex items-center justify-center animate-spin">
                         <i class="fas fa-cog text-slate-400"></i>
@@ -217,7 +209,6 @@
                     <div class="text-[9px] text-emerald-400 font-mono mt-1">u1, u2 Calculation</div>
                 </div>
 
-                <!-- Jump Tickets -->
                 <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-4">
                     <div id="ticket-u1" class="w-24 h-12 bg-blue-600/30 border-2 border-blue-400 rounded-md flex flex-col items-center justify-center opacity-0 transform translate-y-10 transition-all duration-700">
                         <span class="text-[7px] text-blue-300 uppercase">Ticket u1</span>
@@ -229,7 +220,6 @@
                     </div>
                 </div>
 
-                <!-- Verification Result (Lock) -->
                 <div id="verification-lock" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center opacity-0 scale-50 transition-all duration-1000">
                     <div class="w-24 h-24 rounded-full border-4 border-emerald-500 flex items-center justify-center bg-emerald-500/10 mb-4 shadow-[0_0_30px_rgba(16,185,129,0.4)]">
                         <i id="lock-icon" class="fas fa-lock text-4xl text-emerald-500"></i>
@@ -239,70 +229,8 @@
                     </div>
                 </div>
             </div>
-
-            <div id="finite-info-overlay" class="absolute inset-0 bg-navy/60 backdrop-blur-sm flex items-center justify-center hidden z-[150] p-6 transition-all duration-500 opacity-0">
-                <div class="max-w-lg bg-slate-900/90 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-[0_0_100px_rgba(16,185,129,0.2)] text-center relative overflow-hidden text-left">
-                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
-                    <div class="relative z-10 text-center">
-                        <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto mb-6 border border-emerald-500/30">
-                            <i class="fas fa-atom text-3xl animate-spin-slow"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-white mb-4 tracking-wide uppercase">ความจริงของสนามจำกัด</h2>
-                        <p class="text-slate-300 text-sm leading-relaxed mb-6">
-                            จุดเล็ก ๆ ที่คุณกำลังเห็นนี้ ในความเป็นจริงมีทั้งหมด
-                        </p>
-                        <div class="bg-navy/80 p-4 rounded-xl border border-slate-700 mb-6 group hover:border-emerald-500/50 transition-colors">
-                            <p class="text-[13px] text-emerald-400 font-mono break-all leading-tight tracking-tighter">
-                                115792089237316195423570985008687907853269984665640564039457584007908834671663
-                            </p>
-                        </div>
-                        <p class="text-slate-300 text-sm leading-relaxed mb-8">
-                            <span class="text-emerald-400 font-bold">ซึ่งเป็นจำนวนที่มหาศาลมาก</span><br>
-                            มากพอ ๆ กับจำนวนอะตอมในเอกภพที่มนุษย์สามารถมองเห็นได้
-                        </p>
-                        <button onclick="closeFiniteInfo()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-navy font-extrabold py-4 rounded-2xl transition-all uppercase text-xs tracking-[2px] shadow-lg shadow-emerald-900/20 active:scale-95">
-                            สำรวจสนามจำกัด (P=997)
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Error Modal: Real Field Issues -->
-            <div id="error-modal" class="absolute inset-0 bg-navy/90 backdrop-blur-md flex items-center justify-center hidden z-[100] p-6 text-center">
-                <div class="max-w-md bg-slate-900 border-2 border-red-500 rounded-2xl p-8 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
-                    <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4">
-                        <i class="fas fa-exclamation-circle text-3xl"></i>
-                    </div>
-                    <h2 class="text-xl font-bold text-white mb-4 uppercase tracking-wider">ปัญหาจุดสิ้นสุดที่ระยะอนันต์!</h2>
-                    <p class="text-slate-400 text-[11px] leading-relaxed mb-4">
-                        ในระบบจำนวนจริง (Real Field) เส้นตรงอาจขนานกับเส้นโค้งหรือพิกัดพุ่งออกไปไกลมหาศาลจนคอมพิวเตอร์คำนวณไม่ไหว
-                    </p>
-                    
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 mb-6 text-left shadow-inner">
-                        <p class="text-[10px] text-slate-300 leading-relaxed">
-                            นี่คือเหตุผลที่ต้องเปลี่ยนมาใช้ <b>Finite Field (สนามจำกัด)</b><br>
-                            ใน Simulation นี้ เราย่อสเกลมาใช้ <b>P = 997</b> เพื่อให้คุณเห็นภาพ<br><br>
-                            แต่ของจริง <b>Satoshi Nakamoto</b> เลือกใช้เส้นโค้ง <b>secp256k1</b> ที่มีสนามจำกัดขนาด <b>256-bit</b> ซึ่งมีค่า <b>P</b> ในเลขฐาน 10 ขนาดยักษ์ถึง:
-                        </p>
-                        <div class="bg-navy p-2 rounded mt-2 border border-slate-700 overflow-hidden">
-                            <p class="text-[10px] text-emerald-400 font-mono break-all leading-tight">
-                                115792089237316195423570985008687907853269984665640564039457584007908834671663
-                            </p>
-                        </div>
-                    </div>
-
-                    <ul class="text-left text-[11px] text-slate-300 space-y-3 mb-6">
-                        <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความแม่นยำ 100%:</b> ใช้เลขจำนวนเต็ม (Modular) เหมือนบล็อก Lego ที่ลงล็อกพอดี ไม่มีปัญหาปัดเศษทศนิยม</span></li>
-                        <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความปลอดภัยขั้นสุด:</b> พิกัดจะวนลูปอยู่ในตารางขนาด P × P เสมอ ซึ่งใหญ่พอที่จะไม่สามารถใช้คอมพิวเตอร์สุ่มเดา (Brute-force) ได้เลย</span></li>
-                    </ul>
-                    <button onclick="closeModal(); switchScene(2)" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all uppercase text-xs tracking-widest shadow-lg">
-    เราเปลี่ยนไปใช้ Finite Field กันเถอะ
-</button>
-                </div>
-            </div>
         </div>
 
-        <!-- Sidebar Info -->
         <div class="flex flex-col gap-4 overflow-y-auto pr-2">
             
             <div class="glass-panel rounded-xl p-5 border-t-2 border-t-gold shrink-0">
@@ -331,10 +259,8 @@
                 </div>
             </div>
 
-            <!-- Tools & Simulation (Only visible in Scene 2) -->
             <div id="side-panel-container" class="glass-panel rounded-xl p-5 border-t-2 border-t-blue-500 flex-grow overflow-hidden flex flex-col min-h-[450px] transition-all duration-500 relative">
                 
-                <!-- Panel Lock Overlay -->
                 <div id="panel-lock" class="absolute inset-0 bg-navy/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center transition-opacity duration-500">
                     <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4 border border-slate-700">
                         <i class="fas fa-lock text-2xl"></i>
@@ -349,7 +275,6 @@
                     💸 Transaction Simulation
                 </h3>
 
-                <!-- Transaction Simulation -->
                 <div id="panel-tx" class="space-y-4 flex-grow overflow-y-auto custom-scrollbar">
                     <div class="grid grid-cols-2 gap-3">
                         <div class="relative group">
@@ -379,7 +304,6 @@
                         </div>
                     </div>
 
-                    <!-- Signature Display (Internalized) -->
                     <div id="tx-envelope" class="hidden bg-emerald-950/20 border border-emerald-500/30 rounded-lg p-3 space-y-2">
                         <p class="text-[8px] text-emerald-400 font-bold uppercase tracking-widest"><i class="fas fa-stamp mr-1"></i> Transaction Envelope</p>
                         <div class="flex justify-between font-mono text-[9px]">
@@ -406,7 +330,6 @@
                     </div>
                 </div>
 
-                <!-- Real Field Instructions (Visible only in Scene 1) -->
                 <div id="panel-real-info" class="hidden flex-grow flex flex-col justify-center items-center text-center p-4">
                     <div class="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center text-gold mb-4 border border-gold/20">
                         <i class="fas fa-info-circle text-2xl"></i>
@@ -436,7 +359,68 @@
             </button>
         </div>
     </div>
-    <div id="welcome-modal" class="absolute inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[300] p-4 text-left transition-opacity duration-500">
+
+    <div id="finite-info-overlay" class="fixed inset-0 bg-navy/60 backdrop-blur-sm flex items-center justify-center hidden z-[1000] p-6 transition-all duration-500 opacity-0">
+        <div class="max-w-lg bg-slate-900/90 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-[0_0_100px_rgba(16,185,129,0.2)] text-center relative overflow-hidden text-left">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
+            <div class="relative z-10 text-center">
+                <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto mb-6 border border-emerald-500/30">
+                    <i class="fas fa-atom text-3xl animate-spin-slow"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide uppercase">ความจริงของสนามจำกัด</h2>
+                <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                    จุดเล็ก ๆ ที่คุณกำลังเห็นนี้ ในความเป็นจริงมีทั้งหมด
+                </p>
+                <div class="bg-navy/80 p-4 rounded-xl border border-slate-700 mb-6 group hover:border-emerald-500/50 transition-colors">
+                    <p class="text-[13px] text-emerald-400 font-mono break-all leading-tight tracking-tighter">
+                        115792089237316195423570985008687907853269984665640564039457584007908834671663
+                    </p>
+                </div>
+                <p class="text-slate-300 text-sm leading-relaxed mb-8">
+                    <span class="text-emerald-400 font-bold">ซึ่งเป็นจำนวนที่มหาศาลมาก</span><br>
+                    มากพอ ๆ กับจำนวนอะตอมในเอกภพที่มนุษย์สามารถมองเห็นได้
+                </p>
+                <button onclick="closeFiniteInfo()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-navy font-extrabold py-4 rounded-2xl transition-all uppercase text-xs tracking-[2px] shadow-lg shadow-emerald-900/20 active:scale-95">
+                    สำรวจสนามจำกัด (P=997)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="error-modal" class="fixed inset-0 bg-navy/90 backdrop-blur-md flex items-center justify-center hidden z-[1000] p-6 text-center">
+        <div class="max-w-md bg-slate-900 border-2 border-red-500 rounded-2xl p-8 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+            <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4">
+                <i class="fas fa-exclamation-circle text-3xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white mb-4 uppercase tracking-wider">ปัญหาจุดสิ้นสุดที่ระยะอนันต์!</h2>
+            <p class="text-slate-400 text-[11px] leading-relaxed mb-4">
+                ในระบบจำนวนจริง (Real Field) เส้นตรงอาจขนานกับเส้นโค้งหรือพิกัดพุ่งออกไปไกลมหาศาลจนคอมพิวเตอร์คำนวณไม่ไหว
+            </p>
+            
+            <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 mb-6 text-left shadow-inner">
+                <p class="text-[10px] text-slate-300 leading-relaxed">
+                    นี่คือเหตุผลที่ต้องเปลี่ยนมาใช้ <b>Finite Field (สนามจำกัด)</b><br>
+                    ใน Simulation นี้ เราย่อสเกลมาใช้ <b>P = 997</b> เพื่อให้คุณเห็นภาพ<br><br>
+                    แต่ของจริง <b>Satoshi Nakamoto</b> เลือกใช้เส้นโค้ง <b>secp256k1</b> ที่มีสนามจำกัดขนาด <b>256-bit</b> ซึ่งมีค่า <b>P</b> ในเลขฐาน 10 ขนาดยักษ์ถึง:
+                </p>
+                <div class="bg-navy p-2 rounded mt-2 border border-slate-700 overflow-hidden">
+                    <p class="text-[10px] text-emerald-400 font-mono break-all leading-tight">
+                        115792089237316195423570985008687907853269984665640564039457584007908834671663
+                    </p>
+                </div>
+            </div>
+
+            <ul class="text-left text-[11px] text-slate-300 space-y-3 mb-6">
+                <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความแม่นยำ 100%:</b> ใช้เลขจำนวนเต็ม (Modular) เหมือนบล็อก Lego ที่ลงล็อกพอดี ไม่มีปัญหาปัดเศษทศนิยม</span></li>
+                <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความปลอดภัยขั้นสุด:</b> พิกัดจะวนลูปอยู่ในตารางขนาด P × P เสมอ ซึ่งใหญ่พอที่จะไม่สามารถใช้คอมพิวเตอร์สุ่มเดา (Brute-force) ได้เลย</span></li>
+            </ul>
+            <button onclick="closeModal(); switchScene(2)" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all uppercase text-xs tracking-widest shadow-lg">
+                เราเปลี่ยนไปใช้ Finite Field กันเถอะ
+            </button>
+        </div>
+    </div>
+    
+    <div id="welcome-modal" class="fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[300] p-4 text-left transition-opacity duration-500">
         <div class="max-w-2xl w-full bg-slate-900 border-2 border-gold/50 rounded-3xl p-6 md:p-8 shadow-[0_0_80px_rgba(230,194,122,0.2)] flex flex-col transform scale-100 transition-transform duration-500" id="welcome-modal-content">
             
             <div class="text-center mb-6 relative">

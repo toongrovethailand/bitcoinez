@@ -10,20 +10,38 @@ function setupEditableInputs() {
         btnSend.onclick = promptConfirmSend; // ดักจับปุ่มให้โชว์ Popup ก่อนส่งเสมอ
     }
     
-    // คืนค่ากล่อง Input ให้แก้ไขได้อย่างอิสระ ไม่ด่าผู้ใช้แล้ว (เพราะเราจะไปให้แอบแก้ตอน Popup แทน)
     if(privInput) {
         privInput.removeAttribute('readonly');
         privInput.classList.remove('cursor-default', 'filter', 'blur-[5px]', 'hover:blur-0');
-        privInput.oninput = autoUpdatePublicKey;
+        
+        // [แก้ไขจุดที่ 1] เมื่อมีการพิมพ์แก้ Private Key ให้ล้างลายเซ็นเก่าทิ้ง 
+        // เพื่อบังคับให้ระบบสร้างลายเซ็นใหม่จากคีย์ปลอมนี้
+        privInput.addEventListener('input', () => {
+            internalSig.r = 0;
+            internalSig.s = 0;
+            document.getElementById('display-sig-r').innerText = "?";
+            document.getElementById('display-sig-s').innerText = "?";
+            document.getElementById('tx-envelope').classList.add('hidden');
+            document.getElementById('tx-status').classList.add('hidden');
+        });
     }
 }
 
 function autoUpdatePublicKey() {
+    const pubXInput = document.getElementById('tx-pub-x');
+    const pubYInput = document.getElementById('tx-pub-y');
+    
+    // [แก้ไขจุดที่ 2] ล็อก Public Key อย่างเด็ดขาด!
+    // ถ้าช่อง Public Key มีค่าจากการยิงบอลครั้งแรกแล้ว จะไม่ยอมคำนวณใหม่เด็ดขาดจนกว่าจะกด Reset
+    if (pubXInput.value !== '' && pubYInput.value !== '') {
+        return; 
+    }
+
     const dStr = document.getElementById('input-privkey').value;
     let d = parseInt(dStr);
     if (isNaN(d) || d < 1) {
-        document.getElementById('tx-pub-x').value = '';
-        document.getElementById('tx-pub-y').value = '';
+        pubXInput.value = '';
+        pubYInput.value = '';
         return;
     }
     
@@ -31,8 +49,8 @@ function autoUpdatePublicKey() {
     const K = eccMultiplyModular(d, G_FINITE, P);
     
     if (K) {
-        document.getElementById('tx-pub-x').value = K.x;
-        document.getElementById('tx-pub-y').value = K.y;
+        pubXInput.value = K.x;
+        pubYInput.value = K.y;
     }
 }
 
@@ -49,6 +67,20 @@ function unlockTransactionPanel(steps) {
             setTimeout(() => lock.classList.add('hidden'), 500);
         }
         privKeyInput.value = steps;
+
+        // [แก้ไขจุดที่ 3] ถ้ายิงบอลใหม่ ถือว่าเป็นการเปลี่ยนคีย์ ต้องล้างลายเซ็นเก่าทิ้งเช่นกัน
+        internalSig.r = 0;
+        internalSig.s = 0;
+        const sigR = document.getElementById('display-sig-r');
+        const sigS = document.getElementById('display-sig-s');
+        if(sigR) sigR.innerText = "?";
+        if(sigS) sigS.innerText = "?";
+        const envelope = document.getElementById('tx-envelope');
+        if(envelope) envelope.classList.add('hidden');
+        const txStatus = document.getElementById('tx-status');
+        if(txStatus) txStatus.classList.add('hidden');
+        
+        // อัปเดต Public Key (ฟังก์ชันนี้จะทำงานแค่ครั้งแรกครั้งเดียว เพราะเราเขียนตัวล็อกไว้แล้ว)
         autoUpdatePublicKey(); 
         
         if(btnSend) {
@@ -146,7 +178,7 @@ function promptConfirmSend() {
 
     const modal = document.createElement('div');
     modal.id = 'confirm-send-modal';
-    modal.className = "absolute inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[200] p-4 text-left transition-opacity duration-300 opacity-0";
+    modal.className = "fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[1000] p-4 text-left transition-opacity duration-300 opacity-0";
 
     modal.innerHTML = `
         <div class="max-w-md w-full bg-slate-900 border-2 border-red-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.2)] transform scale-95 transition-all duration-300" id="confirm-modal-content">
@@ -191,7 +223,8 @@ function promptConfirmSend() {
             </div>
         </div>
     `;
-    document.getElementById('canvas-container').appendChild(modal);
+    
+    document.body.appendChild(modal);
 
     requestAnimationFrame(() => {
         modal.classList.remove('opacity-0');
@@ -292,7 +325,7 @@ async function verifyTransaction(interceptedMsg, interceptedPubX, interceptedPub
         originalZ: internalSig.z
     };
 
-    resetTruthUI(); // จาก ecc-controller.js
+    resetTruthUI(); 
     document.getElementById('u1-val').innerText = u1;
     document.getElementById('u2-val').innerText = u2;
 
@@ -356,7 +389,7 @@ function startSequentialVerificationAnimation(u1, u2, targetR, isForged, mathDat
                 return;
             }
         }
-        updateUI(); // จาก ecc-controller.js
+        updateUI(); 
         requestAnimationFrame(frame);
     }
     frame();
@@ -436,7 +469,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
 
     const modal = document.createElement('div');
     modal.id = 'verify-explain-modal';
-    modal.className = "absolute inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[200] p-4 text-left transition-opacity duration-500 opacity-0";
+    modal.className = "fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[1000] p-4 text-left transition-opacity duration-500 opacity-0";
 
     let title, borderColor, icon, page1Content, page2Content;
 
@@ -528,16 +561,21 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
     } else {
         borderColor = "border-red-500";
         icon = "<i class='fas fa-shield-alt text-red-500 text-5xl mb-2'></i>";
-        title = "INVALID SIGNATURE (FORGERY)";
+        title = "INVALID SIGNATURE (REJECTED)";
 
-        let errorHighlight = math.errorType === 'MODIFIED_MSG' 
-            ? `ข้อความถูกเปลี่ยน! Hash (<span class="text-purple-400">z</span>) จึงเปลี่ยนไปเป็น <span class="text-purple-400 font-bold">${math.z}</span>` 
-            : `Public Key <span class="text-yellow-400">(K)</span> ถูกแอบแก้ไขกลางทาง ไม่ตรงกับกุญแจคู่ของมัน`;
+        let errorHighlight;
+        if (math.errorType === 'MODIFIED_MSG') {
+            errorHighlight = `ข้อความถูกเปลี่ยน! Hash (<span class="text-purple-400">z</span>) จึงเปลี่ยนไปเป็น <span class="text-purple-400 font-bold">${math.z}</span>`;
+        } else if (math.errorType === 'MODIFIED_PUBKEY') {
+            errorHighlight = `Public Key <span class="text-yellow-400">(K)</span> ถูกแอบแก้ไขกลางทาง ไม่ตรงกับกุญแจคู่ของมัน`;
+        } else {
+            errorHighlight = `ตรวจสอบพบ <b>Private Key ปลอม!</b> ลายเซ็นนี้ไม่ได้ถูกสร้างจากเจ้าของ Public Key ตัวจริงที่ล็อกไว้ในระบบ`;
+        }
 
         page1Content = `
             <div class="space-y-3 text-[11px] text-slate-300 leading-relaxed max-h-[65vh] overflow-y-auto custom-scrollbar pr-3">
                 <p class="text-center font-bold text-red-400 mb-2">หน้า 1/2: ความผิดปกติที่ Node ตรวจพบ</p>
-                <p>Node ได้รับข้อมูลและพยายามตรวจสอบ แต่พบว่า <b>ข้อมูลถูกแอบแก้ไขระหว่างทาง</b> (Man-in-the-Middle Attack)</p>
+                <p>Node ได้รับข้อมูลและพยายามตรวจสอบ แต่พบว่า <b>ข้อมูลไม่สอดคล้องกัน</b> (อาจเกิดจาก Private Key ปลอม หรือโดนแฮ็กกลางทาง)</p>
 
                 <div class="bg-slate-800 p-4 rounded-lg font-mono space-y-3 border border-slate-700 shadow-inner">
                     <div>
@@ -563,7 +601,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
         page2Content = `
             <div class="space-y-3 text-[11px] text-slate-300 leading-relaxed max-h-[65vh] overflow-y-auto custom-scrollbar pr-3">
                 <p class="text-center font-bold text-red-400 mb-2">หน้า 2/2: ทำไมสมการถึงพังทลาย?</p>
-                <p>มาดูความวิบัติของสมการ เมื่อนำข้อมูลที่ถูกดัดแปลงมาคำนวณหาระยะการกระโดด:</p>
+                <p>มาดูความวิบัติของสมการ เมื่อนำข้อมูลที่ผิดเพี้ยนมาคำนวณหาระยะการกระโดด:</p>
 
                 <div class="bg-slate-800 p-4 rounded-lg font-mono space-y-3 border border-slate-700 shadow-inner">
 
@@ -623,7 +661,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
         </div>
     `;
 
-    document.getElementById('canvas-container').appendChild(modal);
+    document.body.appendChild(modal);
 
     requestAnimationFrame(() => {
         modal.classList.remove('opacity-0');

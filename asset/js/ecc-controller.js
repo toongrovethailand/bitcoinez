@@ -74,7 +74,8 @@ function resetSim() {
         targetCamScale = 50;
     } else {
         gPoint = { ...G_FINITE };
-        targetCamScale = 1.5; 
+        // คำนวณ Scale ให้เห็นครบ 100% ตามขนาดหน้าจอจริงเสมอ (เผื่อขอบ 100px)
+        targetCamScale = Math.min(canvas.width, canvas.height) / (P + 100); 
         targetCamOffset = { x: 0, y: 0 };
         resetTruthUI();
         unlockTransactionPanel(0);
@@ -114,7 +115,7 @@ function shoot() {
     if (power < 5 || isMoving || showResults) return;
     isVerifying = false; 
     isMoving = true;
-    isManualCam = false;
+    isManualCam = false; // ยกเลิกการซูมมือ เพื่อให้กล้องกลับไปโฟกัสที่จุดกำหนด
     k = 0;
     shootStartTime = Date.now();
     
@@ -136,37 +137,109 @@ function shoot() {
 function finishShot() { isMoving = false; showResults = true; updateUI(); }
 function showInfinityError() { isMoving = false; document.getElementById('error-modal').classList.remove('hidden'); }
 
-// --- Event Listeners & Interactions ---
-canvas.addEventListener('mousedown', (e) => {
+// --- Event Listeners & Interactions (Mouse + Touch Support) ---
+
+let initialPinchDistance = null;
+let initialCamScale = 1;
+
+function handleInputStart(e) {
+    if (e.target === canvas && e.type === 'touchstart') e.preventDefault(); 
     if (isMoving || isVerifying) return; 
-    
-    if (currentScene === 1 && showResults) {
-        resetSim();
+
+    if (e.type === 'touchstart') {
+        if (e.touches.length === 2) {
+            isAiming = false;
+            isPanning = true;
+            isManualCam = true;
+            initialPinchDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            initialCamScale = targetCamScale;
+            lastMousePos = {
+                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+            };
+            return;
+        }
+        if (e.touches.length === 1) {
+            if (currentScene === 1 && showResults) {
+                resetSim();
+                isAiming = true; showResults = false; power = 0;
+                return;
+            } else if (showResults) return;
+            isAiming = true; showResults = false; power = 0;
+        }
+    } else {
+        if (currentScene === 1 && showResults) {
+            resetSim();
+            if (e.button === 0) { isAiming = true; showResults = false; power = 0; }
+            return;
+        } else if (showResults) return;
+
         if (e.button === 0) { isAiming = true; showResults = false; power = 0; }
-        return;
-    } else if (showResults) {
-        return; 
+        else { isPanning = true; isManualCam = true; lastMousePos = { x: e.clientX, y: e.clientY }; }
     }
+}
 
-    if (e.button === 0) { isAiming = true; showResults = false; power = 0; }
-    else { isPanning = true; isManualCam = true; lastMousePos = { x: e.clientX, y: e.clientY }; }
-});
+function handleInputMove(e) {
+    if (e.target === canvas && e.type === 'touchmove') e.preventDefault(); 
+    
+    if (e.type === 'touchmove') {
+        if (e.touches.length === 2 && isPanning) {
+            const currentDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const zoomFactor = currentDistance / initialPinchDistance;
+            targetCamScale = initialCamScale * zoomFactor;
+            targetCamScale = Math.min(Math.max(targetCamScale, 0.1), 1000);
 
-window.addEventListener('mousemove', (e) => {
-    if (isPanning) {
-        let dx = (e.clientX - lastMousePos.x) / camScale;
-        let dy = (e.clientY - lastMousePos.y) / camScale;
-        targetCamOffset.x -= dx;
-        targetCamOffset.y += dy;
-        lastMousePos = { x: e.clientX, y: e.clientY };
+            const centerPos = {
+                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+            };
+            let dx = (centerPos.x - lastMousePos.x) / camScale;
+            let dy = (centerPos.y - lastMousePos.y) / camScale;
+            targetCamOffset.x -= dx;
+            targetCamOffset.y += dy;
+            lastMousePos = centerPos;
+            return;
+        }
+        if (e.touches.length === 1 && isAiming && currentScene === 1) calculateRealTrajectory();
+    } else {
+        if (isPanning) {
+            let dx = (e.clientX - lastMousePos.x) / camScale;
+            let dy = (e.clientY - lastMousePos.y) / camScale;
+            targetCamOffset.x -= dx;
+            targetCamOffset.y += dy;
+            lastMousePos = { x: e.clientX, y: e.clientY };
+        }
+        if (isAiming && currentScene === 1) calculateRealTrajectory();
     }
-    if (isAiming && currentScene === 1) calculateRealTrajectory();
-});
+}
 
-window.addEventListener('mouseup', () => {
-    if (isAiming) { isAiming = false; shoot(); }
-    isPanning = false;
-});
+function handleInputEnd(e) {
+    if (e.type === 'touchend' || e.type === 'touchcancel') {
+        if (isAiming) { isAiming = false; shoot(); }
+        if (e.touches.length === 0) {
+            isPanning = false;
+            initialPinchDistance = null;
+        }
+    } else {
+        if (isAiming) { isAiming = false; shoot(); }
+        isPanning = false;
+    }
+}
+
+canvas.addEventListener('mousedown', handleInputStart);
+window.addEventListener('mousemove', handleInputMove, { passive: false });
+window.addEventListener('mouseup', handleInputEnd);
+
+canvas.addEventListener('touchstart', handleInputStart, { passive: false });
+window.addEventListener('touchmove', handleInputMove, { passive: false });
+window.addEventListener('touchend', handleInputEnd);
+canvas.addEventListener('touchcancel', handleInputEnd);
 
 canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -178,18 +251,34 @@ canvas.addEventListener('wheel', (e) => {
 // --- Core Rendering Loop ---
 function updateCamera() {
     let tS, tO;
-    if (isMoving) { 
-        tS = currentScene === 1 ? 80 : (camScale > 2 ? camScale : 2); 
-        tO = { x: ball.x, y: ball.y }; 
-    }
-    else if (!isManualCam) { 
-        if (currentScene === 1) {
-            tS = 50; tO = { x: (gPoint.x + ball.x) / 2, y: (gPoint.y + ball.y) / 2 }; 
-        } else {
-            tS = 0.8; tO = { x: 0, y: 0 };
+    
+    if (currentScene === 2) {
+        // [ระบบใหม่] โหมด Finite Field: ซูมให้เห็นภาพรวม 100% เสมอ ไม่เลื่อนตามลูกบอล
+        let fitScale = Math.min(canvas.width, canvas.height) / (P + 100);
+        
+        if (!isManualCam) {
+            targetCamScale = fitScale;
+            targetCamOffset = { x: 0, y: 0 };
+        }
+        tS = targetCamScale;
+        tO = targetCamOffset;
+    } else {
+        // [ระบบเดิม] โหมด Real Field: เลื่อนกล้องและซูมตามลูกบอลเวลาวิ่ง
+        if (isMoving) { 
+            tS = 80; 
+            tO = { x: ball.x, y: ball.y }; 
+        }
+        else if (!isManualCam) { 
+            tS = 50; 
+            tO = { x: (gPoint.x + ball.x) / 2, y: (gPoint.y + ball.y) / 2 }; 
+        }
+        else { 
+            tS = targetCamScale; 
+            tO = targetCamOffset; 
         }
     }
-    else { tS = targetCamScale; tO = targetCamOffset; }
+    
+    // Easing Effect เพื่อให้กล้องเคลื่อนที่อย่างนุ่มนวล
     camScale += (tS - camScale) * 0.1;
     camOffset.x += (tO.x - camOffset.x) * 0.1;
     camOffset.y += (tO.y - camOffset.y) * 0.1;
@@ -248,6 +337,7 @@ function draw() {
 setupEditableInputs(); 
 switchScene(1);
 draw();
+
 // =============================================================
 // Welcome Modal Logic (The Story of ECDSA)
 // =============================================================
