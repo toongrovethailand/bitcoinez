@@ -137,9 +137,7 @@ function drawFiniteScene() {
     finitePoints.forEach(pt => {
         let p = worldToScreen(pt.x - halfP, pt.y - halfP);
         if (p.x > -50 && p.x < canvas.width + 50 && p.y > -50 && p.y < canvas.height + 50) {
-            // [แก้ไข] ปรับขนาดของจุดอัตโนมัติ: ถ้าจอกว้างก็ใช้ 2 ถ้าจอมือถือเล็กๆ จะลดเหลือ 1 ไม่ให้ซ้อนทับกัน
-            let radius = camScale > 10 ? 4 : (camScale < 0.8 ? 1 : 2);
-            ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(p.x, p.y, camScale > 10 ? 4 : 2, 0, Math.PI*2); ctx.fill();
         }
     });
 
