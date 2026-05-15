@@ -146,7 +146,7 @@ function promptConfirmSend() {
 
     const modal = document.createElement('div');
     modal.id = 'confirm-send-modal';
-    modal.className = "absolute inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[200] p-4 text-left transition-opacity duration-300 opacity-0";
+    modal.className = "fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[1000] p-4 text-left transition-opacity duration-300 opacity-0";
 
     modal.innerHTML = `
         <div class="max-w-md w-full bg-slate-900 border-2 border-red-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.2)] transform scale-95 transition-all duration-300" id="confirm-modal-content">
@@ -191,7 +191,7 @@ function promptConfirmSend() {
             </div>
         </div>
     `;
-    document.getElementById('canvas-container').appendChild(modal);
+    document.body.appendChild(modal);
 
     requestAnimationFrame(() => {
         modal.classList.remove('opacity-0');
@@ -436,7 +436,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
 
     const modal = document.createElement('div');
     modal.id = 'verify-explain-modal';
-    modal.className = "absolute inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[200] p-4 text-left transition-opacity duration-500 opacity-0";
+    modal.className = "fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[1000] p-4 text-left transition-opacity duration-500 opacity-0";
 
     let title, borderColor, icon, page1Content, page2Content;
 
@@ -623,7 +623,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
         </div>
     `;
 
-    document.getElementById('canvas-container').appendChild(modal);
+    document.body.appendChild(modal);
 
     requestAnimationFrame(() => {
         modal.classList.remove('opacity-0');
