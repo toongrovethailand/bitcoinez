@@ -229,66 +229,6 @@
                     </div>
                 </div>
             </div>
-
-            <div id="finite-info-overlay" class="absolute inset-0 bg-navy/60 backdrop-blur-sm flex items-center justify-center hidden z-[150] p-6 transition-all duration-500 opacity-0">
-                <div class="max-w-lg bg-slate-900/90 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-[0_0_100px_rgba(16,185,129,0.2)] text-center relative overflow-hidden text-left">
-                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
-                    <div class="relative z-10 text-center">
-                        <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto mb-6 border border-emerald-500/30">
-                            <i class="fas fa-atom text-3xl animate-spin-slow"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-white mb-4 tracking-wide uppercase">ความจริงของสนามจำกัด</h2>
-                        <p class="text-slate-300 text-sm leading-relaxed mb-6">
-                            จุดเล็ก ๆ ที่คุณกำลังเห็นนี้ ในความเป็นจริงมีทั้งหมด
-                        </p>
-                        <div class="bg-navy/80 p-4 rounded-xl border border-slate-700 mb-6 group hover:border-emerald-500/50 transition-colors">
-                            <p class="text-[13px] text-emerald-400 font-mono break-all leading-tight tracking-tighter">
-                                115792089237316195423570985008687907853269984665640564039457584007908834671663
-                            </p>
-                        </div>
-                        <p class="text-slate-300 text-sm leading-relaxed mb-8">
-                            <span class="text-emerald-400 font-bold">ซึ่งเป็นจำนวนที่มหาศาลมาก</span><br>
-                            มากพอ ๆ กับจำนวนอะตอมในเอกภพที่มนุษย์สามารถมองเห็นได้
-                        </p>
-                        <button onclick="closeFiniteInfo()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-navy font-extrabold py-4 rounded-2xl transition-all uppercase text-xs tracking-[2px] shadow-lg shadow-emerald-900/20 active:scale-95">
-                            สำรวจสนามจำกัด (P=997)
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="error-modal" class="absolute inset-0 bg-navy/90 backdrop-blur-md flex items-center justify-center hidden z-[100] p-6 text-center">
-                <div class="max-w-md bg-slate-900 border-2 border-red-500 rounded-2xl p-8 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
-                    <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4">
-                        <i class="fas fa-exclamation-circle text-3xl"></i>
-                    </div>
-                    <h2 class="text-xl font-bold text-white mb-4 uppercase tracking-wider">ปัญหาจุดสิ้นสุดที่ระยะอนันต์!</h2>
-                    <p class="text-slate-400 text-[11px] leading-relaxed mb-4">
-                        ในระบบจำนวนจริง (Real Field) เส้นตรงอาจขนานกับเส้นโค้งหรือพิกัดพุ่งออกไปไกลมหาศาลจนคอมพิวเตอร์คำนวณไม่ไหว
-                    </p>
-                    
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 mb-6 text-left shadow-inner">
-                        <p class="text-[10px] text-slate-300 leading-relaxed">
-                            นี่คือเหตุผลที่ต้องเปลี่ยนมาใช้ <b>Finite Field (สนามจำกัด)</b><br>
-                            ใน Simulation นี้ เราย่อสเกลมาใช้ <b>P = 997</b> เพื่อให้คุณเห็นภาพ<br><br>
-                            แต่ของจริง <b>Satoshi Nakamoto</b> เลือกใช้เส้นโค้ง <b>secp256k1</b> ที่มีสนามจำกัดขนาด <b>256-bit</b> ซึ่งมีค่า <b>P</b> ในเลขฐาน 10 ขนาดยักษ์ถึง:
-                        </p>
-                        <div class="bg-navy p-2 rounded mt-2 border border-slate-700 overflow-hidden">
-                            <p class="text-[10px] text-emerald-400 font-mono break-all leading-tight">
-                                115792089237316195423570985008687907853269984665640564039457584007908834671663
-                            </p>
-                        </div>
-                    </div>
-
-                    <ul class="text-left text-[11px] text-slate-300 space-y-3 mb-6">
-                        <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความแม่นยำ 100%:</b> ใช้เลขจำนวนเต็ม (Modular) เหมือนบล็อก Lego ที่ลงล็อกพอดี ไม่มีปัญหาปัดเศษทศนิยม</span></li>
-                        <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความปลอดภัยขั้นสุด:</b> พิกัดจะวนลูปอยู่ในตารางขนาด P × P เสมอ ซึ่งใหญ่พอที่จะไม่สามารถใช้คอมพิวเตอร์สุ่มเดา (Brute-force) ได้เลย</span></li>
-                    </ul>
-                    <button onclick="closeModal(); switchScene(2)" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all uppercase text-xs tracking-widest shadow-lg">
-                        เราเปลี่ยนไปใช้ Finite Field กันเถอะ
-                    </button>
-                </div>
-            </div>
         </div>
 
         <div class="flex flex-col gap-4 overflow-y-auto pr-2">
@@ -416,6 +356,66 @@
 
             <button onclick="window.location.href='index.html'" class="text-slate-500 hover:text-gold transition-colors text-[10px] font-bold uppercase tracking-widest text-center py-2">
                 ← Exit to Menu
+            </button>
+        </div>
+    </div>
+
+    <div id="finite-info-overlay" class="fixed inset-0 bg-navy/60 backdrop-blur-sm flex items-center justify-center hidden z-[1000] p-6 transition-all duration-500 opacity-0">
+        <div class="max-w-lg bg-slate-900/90 border-2 border-emerald-500/50 rounded-3xl p-8 shadow-[0_0_100px_rgba(16,185,129,0.2)] text-center relative overflow-hidden text-left">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
+            <div class="relative z-10 text-center">
+                <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto mb-6 border border-emerald-500/30">
+                    <i class="fas fa-atom text-3xl animate-spin-slow"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white mb-4 tracking-wide uppercase">ความจริงของสนามจำกัด</h2>
+                <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                    จุดเล็ก ๆ ที่คุณกำลังเห็นนี้ ในความเป็นจริงมีทั้งหมด
+                </p>
+                <div class="bg-navy/80 p-4 rounded-xl border border-slate-700 mb-6 group hover:border-emerald-500/50 transition-colors">
+                    <p class="text-[13px] text-emerald-400 font-mono break-all leading-tight tracking-tighter">
+                        115792089237316195423570985008687907853269984665640564039457584007908834671663
+                    </p>
+                </div>
+                <p class="text-slate-300 text-sm leading-relaxed mb-8">
+                    <span class="text-emerald-400 font-bold">ซึ่งเป็นจำนวนที่มหาศาลมาก</span><br>
+                    มากพอ ๆ กับจำนวนอะตอมในเอกภพที่มนุษย์สามารถมองเห็นได้
+                </p>
+                <button onclick="closeFiniteInfo()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-navy font-extrabold py-4 rounded-2xl transition-all uppercase text-xs tracking-[2px] shadow-lg shadow-emerald-900/20 active:scale-95">
+                    สำรวจสนามจำกัด (P=997)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="error-modal" class="fixed inset-0 bg-navy/90 backdrop-blur-md flex items-center justify-center hidden z-[1000] p-6 text-center">
+        <div class="max-w-md bg-slate-900 border-2 border-red-500 rounded-2xl p-8 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+            <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4">
+                <i class="fas fa-exclamation-circle text-3xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white mb-4 uppercase tracking-wider">ปัญหาจุดสิ้นสุดที่ระยะอนันต์!</h2>
+            <p class="text-slate-400 text-[11px] leading-relaxed mb-4">
+                ในระบบจำนวนจริง (Real Field) เส้นตรงอาจขนานกับเส้นโค้งหรือพิกัดพุ่งออกไปไกลมหาศาลจนคอมพิวเตอร์คำนวณไม่ไหว
+            </p>
+            
+            <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 mb-6 text-left shadow-inner">
+                <p class="text-[10px] text-slate-300 leading-relaxed">
+                    นี่คือเหตุผลที่ต้องเปลี่ยนมาใช้ <b>Finite Field (สนามจำกัด)</b><br>
+                    ใน Simulation นี้ เราย่อสเกลมาใช้ <b>P = 997</b> เพื่อให้คุณเห็นภาพ<br><br>
+                    แต่ของจริง <b>Satoshi Nakamoto</b> เลือกใช้เส้นโค้ง <b>secp256k1</b> ที่มีสนามจำกัดขนาด <b>256-bit</b> ซึ่งมีค่า <b>P</b> ในเลขฐาน 10 ขนาดยักษ์ถึง:
+                </p>
+                <div class="bg-navy p-2 rounded mt-2 border border-slate-700 overflow-hidden">
+                    <p class="text-[10px] text-emerald-400 font-mono break-all leading-tight">
+                        115792089237316195423570985008687907853269984665640564039457584007908834671663
+                    </p>
+                </div>
+            </div>
+
+            <ul class="text-left text-[11px] text-slate-300 space-y-3 mb-6">
+                <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความแม่นยำ 100%:</b> ใช้เลขจำนวนเต็ม (Modular) เหมือนบล็อก Lego ที่ลงล็อกพอดี ไม่มีปัญหาปัดเศษทศนิยม</span></li>
+                <li class="flex gap-3"><span class="text-emerald-500">✔</span> <span><b>ความปลอดภัยขั้นสุด:</b> พิกัดจะวนลูปอยู่ในตารางขนาด P × P เสมอ ซึ่งใหญ่พอที่จะไม่สามารถใช้คอมพิวเตอร์สุ่มเดา (Brute-force) ได้เลย</span></li>
+            </ul>
+            <button onclick="closeModal(); switchScene(2)" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-all uppercase text-xs tracking-widest shadow-lg">
+                เราเปลี่ยนไปใช้ Finite Field กันเถอะ
             </button>
         </div>
     </div>

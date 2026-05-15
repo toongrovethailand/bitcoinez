@@ -146,6 +146,7 @@ function promptConfirmSend() {
 
     const modal = document.createElement('div');
     modal.id = 'confirm-send-modal';
+    // แก้จาก absolute inset-0 z-[200] เป็น fixed inset-0 z-[1000]
     modal.className = "fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[1000] p-4 text-left transition-opacity duration-300 opacity-0";
 
     modal.innerHTML = `
@@ -191,6 +192,7 @@ function promptConfirmSend() {
             </div>
         </div>
     `;
+    // แก้จาก appendChild ใน canvas-container เป็น document.body
     document.body.appendChild(modal);
 
     requestAnimationFrame(() => {
@@ -436,6 +438,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
 
     const modal = document.createElement('div');
     modal.id = 'verify-explain-modal';
+    // แก้จาก absolute inset-0 z-[200] เป็น fixed inset-0 z-[1000]
     modal.className = "fixed inset-0 bg-navy/95 backdrop-blur-md flex items-center justify-center z-[1000] p-4 text-left transition-opacity duration-500 opacity-0";
 
     let title, borderColor, icon, page1Content, page2Content;
@@ -623,6 +626,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
         </div>
     `;
 
+    // แก้จาก appendChild ใน canvas-container เป็น document.body
     document.body.appendChild(modal);
 
     requestAnimationFrame(() => {

@@ -74,7 +74,8 @@ function resetSim() {
         targetCamScale = 50;
     } else {
         gPoint = { ...G_FINITE };
-        targetCamScale = 1.5; 
+        // คำนวณ Scale ให้เห็นครบ 100% ตามขนาดหน้าจอจริงเสมอ (เผื่อขอบ 100px)
+        targetCamScale = Math.min(canvas.width, canvas.height) / (P + 100); 
         targetCamOffset = { x: 0, y: 0 };
         resetTruthUI();
         unlockTransactionPanel(0);
@@ -114,7 +115,7 @@ function shoot() {
     if (power < 5 || isMoving || showResults) return;
     isVerifying = false; 
     isMoving = true;
-    isManualCam = false;
+    isManualCam = false; // ยกเลิกการซูมมือ เพื่อให้กล้องกลับไปโฟกัสที่จุดกำหนด
     k = 0;
     shootStartTime = Date.now();
     
@@ -250,18 +251,34 @@ canvas.addEventListener('wheel', (e) => {
 // --- Core Rendering Loop ---
 function updateCamera() {
     let tS, tO;
-    if (isMoving) { 
-        tS = currentScene === 1 ? 80 : (camScale > 2 ? camScale : 2); 
-        tO = { x: ball.x, y: ball.y }; 
-    }
-    else if (!isManualCam) { 
-        if (currentScene === 1) {
-            tS = 50; tO = { x: (gPoint.x + ball.x) / 2, y: (gPoint.y + ball.y) / 2 }; 
-        } else {
-            tS = 0.8; tO = { x: 0, y: 0 };
+    
+    if (currentScene === 2) {
+        // [ระบบใหม่] โหมด Finite Field: ซูมให้เห็นภาพรวม 100% เสมอ ไม่เลื่อนตามลูกบอล
+        let fitScale = Math.min(canvas.width, canvas.height) / (P + 100);
+        
+        if (!isManualCam) {
+            targetCamScale = fitScale;
+            targetCamOffset = { x: 0, y: 0 };
+        }
+        tS = targetCamScale;
+        tO = targetCamOffset;
+    } else {
+        // [ระบบเดิม] โหมด Real Field: เลื่อนกล้องและซูมตามลูกบอลเวลาวิ่ง
+        if (isMoving) { 
+            tS = 80; 
+            tO = { x: ball.x, y: ball.y }; 
+        }
+        else if (!isManualCam) { 
+            tS = 50; 
+            tO = { x: (gPoint.x + ball.x) / 2, y: (gPoint.y + ball.y) / 2 }; 
+        }
+        else { 
+            tS = targetCamScale; 
+            tO = targetCamOffset; 
         }
     }
-    else { tS = targetCamScale; tO = targetCamOffset; }
+    
+    // Easing Effect เพื่อให้กล้องเคลื่อนที่อย่างนุ่มนวล
     camScale += (tS - camScale) * 0.1;
     camOffset.x += (tO.x - camOffset.x) * 0.1;
     camOffset.y += (tO.y - camOffset.y) * 0.1;
