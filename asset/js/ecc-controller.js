@@ -71,7 +71,8 @@ function resetSim() {
     
     if (currentScene === 1) {
         gPoint = { x: 2, y: Math.sqrt(15) }; 
-        targetCamScale = 50;
+        // [แก้ไข] ปรับลด Scale ตอนเริ่มต้นของ Real Field เพื่อให้ซูมออก ดูกว้างขึ้น
+        targetCamScale = 25; 
     } else {
         gPoint = { ...G_FINITE };
         // คำนวณ Scale ให้เห็นครบ 100% ตามขนาดหน้าจอจริงเสมอ (เผื่อขอบ 100px)
@@ -263,13 +264,13 @@ function updateCamera() {
         tS = targetCamScale;
         tO = targetCamOffset;
     } else {
-        // [ระบบเดิม] โหมด Real Field: เลื่อนกล้องและซูมตามลูกบอลเวลาวิ่ง
+        // [ระบบเดิม] โหมด Real Field: เลื่อนกล้องและซูมตามลูกบอลเวลาวิ่ง (ปรับให้ซูมออกกว้างขึ้น)
         if (isMoving) { 
-            tS = 80; 
+            tS = 35; // [แก้ไข] ตอนลูกวิ่ง จะไม่ซูมลึกแล้ว ถอยออกมากว้างขึ้น (เดิม 80)
             tO = { x: ball.x, y: ball.y }; 
         }
         else if (!isManualCam) { 
-            tS = 50; 
+            tS = 25; // [แก้ไข] ตอนยังไม่วิ่งหรืออยู่เฉยๆ จะซูมออกกว้างขึ้น (เดิม 50)
             tO = { x: (gPoint.x + ball.x) / 2, y: (gPoint.y + ball.y) / 2 }; 
         }
         else { 
