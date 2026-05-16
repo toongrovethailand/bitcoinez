@@ -124,7 +124,7 @@ function shoot() {
         calculateRealTrajectory();
         if (trajectory.length > 0) startRealAnimation(); else isMoving = false;
     } else {
-        const targetK = Math.min(MAX_K_FINITE, Math.max(1, Math.floor(power * 8)));
+        const targetK = Math.min(MAX_K_FINITE, Math.max(1, Math.floor(power * 4)));
         let cur = { ...G_FINITE };
         trajectory = [{ x: cur.x - P/2, y: cur.y - P/2 }];
         for(let i=1; i<targetK; i++) {
