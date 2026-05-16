@@ -32,7 +32,7 @@ let shootStartTime = 0;
 
 // ปรับจำนวนครั้งสูงสุดเป็น 20
 const MAX_K_REAL = 20;
-const MAX_K_FINITE = 820;
+const MAX_K_FINITE = 420;
 
 let camScale = 50;
 let targetCamScale = 50;
