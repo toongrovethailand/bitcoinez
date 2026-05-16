@@ -124,7 +124,7 @@ function shoot() {
         calculateRealTrajectory();
         if (trajectory.length > 0) startRealAnimation(); else isMoving = false;
     } else {
-        const targetK = Math.min(MAX_K_FINITE, Math.max(1, Math.floor(power / 1)));
+        const targetK = Math.min(MAX_K_FINITE, Math.max(1, Math.floor(power * 8)));
         let cur = { ...G_FINITE };
         trajectory = [{ x: cur.x - P/2, y: cur.y - P/2 }];
         for(let i=1; i<targetK; i++) {
@@ -327,7 +327,7 @@ function draw() {
     }
 
     if (isAiming) { 
-        power = Math.min(100, power + 2.4); // 889, power + 2.4
+        power = Math.min(100, power + 2.4); 
         const powerFill = document.getElementById('power-gauge-fill');
         if (powerFill) powerFill.style.height = `${power}%`; 
     }
