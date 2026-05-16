@@ -327,7 +327,7 @@ function draw() {
     }
 
     if (isAiming) { 
-        power = Math.min(100, power + 2.4); 
+        power = Math.min(889, power + 3.4); // 889, power + 2.4
         const powerFill = document.getElementById('power-gauge-fill');
         if (powerFill) powerFill.style.height = `${power}%`; 
     }
