@@ -32,7 +32,7 @@ let shootStartTime = 0;
 
 // ปรับจำนวนครั้งสูงสุดเป็น 20
 const MAX_K_REAL = 20;
-const MAX_K_FINITE = 100;
+const MAX_K_FINITE = 889;
 
 let camScale = 50;
 let targetCamScale = 50;
@@ -113,7 +113,7 @@ function calculateRealTrajectory() {
 }
 
 function startRealAnimation() {
-    let step = 0, progress = 0, baseSpeed = 0.4, hitCounted = false;
+    let step = 0, progress = 0, baseSpeed = 0.6, hitCounted = false;
     function frame() {
         if (!isMoving || currentScene !== 1) return;
         if (Date.now() - shootStartTime > 8000) { showInfinityError(); return; }
