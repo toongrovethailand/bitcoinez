@@ -113,7 +113,7 @@ function calculateRealTrajectory() {
 }
 
 function startRealAnimation() {
-    let step = 0, progress = 0, baseSpeed = 0.6, hitCounted = false;
+    let step = 0, progress = 0, baseSpeed = 0.9, hitCounted = false;
     function frame() {
         if (!isMoving || currentScene !== 1) return;
         if (Date.now() - shootStartTime > 8000) { showInfinityError(); return; }
