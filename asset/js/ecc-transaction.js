@@ -3,27 +3,31 @@ let internalSig = { r: 0, s: 0, z: 0, msg: '', pubX: 0, pubY: 0, d: 0, ke: 0 };
 
 function setupEditableInputs() {
     const privInput = document.getElementById('input-privkey');
+    const msgInput = document.getElementById('tx-message'); 
     const btnSend = document.getElementById('btn-send');
     
     if (btnSend) {
         btnSend.innerHTML = "2. กดส่ง (SEND)";
-        btnSend.onclick = promptConfirmSend; // ดักจับปุ่มให้โชว์ Popup ก่อนส่งเสมอ
+        btnSend.onclick = promptConfirmSend;
     }
+
+    const invalidateSignature = () => {
+        internalSig.r = 0;
+        internalSig.s = 0;
+        document.getElementById('display-sig-r').innerText = "?";
+        document.getElementById('display-sig-s').innerText = "?";
+        document.getElementById('tx-envelope').classList.add('hidden');
+        document.getElementById('tx-status').classList.add('hidden');
+    };
     
     if(privInput) {
         privInput.removeAttribute('readonly');
         privInput.classList.remove('cursor-default', 'filter', 'blur-[5px]', 'hover:blur-0');
-        
-        // [แก้ไขจุดที่ 1] เมื่อมีการพิมพ์แก้ Private Key ให้ล้างลายเซ็นเก่าทิ้ง 
-        // เพื่อบังคับให้ระบบสร้างลายเซ็นใหม่จากคีย์ปลอมนี้
-        privInput.addEventListener('input', () => {
-            internalSig.r = 0;
-            internalSig.s = 0;
-            document.getElementById('display-sig-r').innerText = "?";
-            document.getElementById('display-sig-s').innerText = "?";
-            document.getElementById('tx-envelope').classList.add('hidden');
-            document.getElementById('tx-status').classList.add('hidden');
-        });
+        privInput.addEventListener('input', invalidateSignature);
+    }
+
+    if(msgInput) {
+        msgInput.addEventListener('input', invalidateSignature);
     }
 }
 
@@ -31,14 +35,12 @@ function autoUpdatePublicKey() {
     const pubXInput = document.getElementById('tx-pub-x');
     const pubYInput = document.getElementById('tx-pub-y');
     
-    // [แก้ไขจุดที่ 2] ล็อก Public Key อย่างเด็ดขาด!
-    // ถ้าช่อง Public Key มีค่าจากการยิงบอลครั้งแรกแล้ว จะไม่ยอมคำนวณใหม่เด็ดขาดจนกว่าจะกด Reset
     if (pubXInput.value !== '' && pubYInput.value !== '') {
         return; 
     }
 
     const dStr = document.getElementById('input-privkey').value;
-    let d = parseInt(dStr);
+    let d = parseInt(dStr, 10);
     if (isNaN(d) || d < 1) {
         pubXInput.value = '';
         pubYInput.value = '';
@@ -68,7 +70,6 @@ function unlockTransactionPanel(steps) {
         }
         privKeyInput.value = steps;
 
-        // [แก้ไขจุดที่ 3] ถ้ายิงบอลใหม่ ถือว่าเป็นการเปลี่ยนคีย์ ต้องล้างลายเซ็นเก่าทิ้งเช่นกัน
         internalSig.r = 0;
         internalSig.s = 0;
         const sigR = document.getElementById('display-sig-r');
@@ -80,7 +81,6 @@ function unlockTransactionPanel(steps) {
         const txStatus = document.getElementById('tx-status');
         if(txStatus) txStatus.classList.add('hidden');
         
-        // อัปเดต Public Key (ฟังก์ชันนี้จะทำงานแค่ครั้งแรกครั้งเดียว เพราะเราเขียนตัวล็อกไว้แล้ว)
         autoUpdatePublicKey(); 
         
         if(btnSend) {
@@ -107,9 +107,9 @@ function unlockTransactionPanel(steps) {
 
 function signTransaction() {
     const message = document.getElementById('tx-message').value;
-    const dRaw = parseInt(document.getElementById('input-privkey').value);
-    const pubX = parseInt(document.getElementById('tx-pub-x').value);
-    const pubY = parseInt(document.getElementById('tx-pub-y').value);
+    const dRaw = parseInt(document.getElementById('input-privkey').value, 10);
+    const pubX = parseInt(document.getElementById('tx-pub-x').value, 10);
+    const pubY = parseInt(document.getElementById('tx-pub-y').value, 10);
     const n = SCALAR_ORDER;
     
     if (isNaN(dRaw) || isNaN(pubX)) { alert("กรุณาใส่ Private Key ให้ถูกต้องครับ"); return; }
@@ -138,7 +138,6 @@ function signTransaction() {
 
     if (attempts >= 500) { alert("Signature failed. Try another shot!"); return; }
 
-    // เซฟข้อมูลที่ถูก Sign ไว้เป็นฐาน
     internalSig = { r, s, z, msg: message, pubX, pubY, d, ke: k_e };
     
     document.getElementById('display-sig-r').innerText = r;
@@ -158,16 +157,12 @@ function signTransaction() {
     }
 }
 
-// -------------------------------------------------------------
-// หน้าต่าง Popup แบบ Intercept Mode (แอบแก้ข้อมูลกลางทางได้)
-// -------------------------------------------------------------
 function promptConfirmSend() {
     if (isVerifying || isMoving) return;
 
     const r = internalSig.r;
     const s = internalSig.s;
 
-    // ถ้ายังไม่ Sign ให้เด้ง FAILED เลย
     if (r === 0 || s === 0) {
         showExplanationModal(false, true, 0, 'N/A', { errorType: 'NO_SIGNATURE' });
         return;
@@ -243,13 +238,10 @@ function closeConfirmModal() {
     }
 }
 
-// -------------------------------------------------------------
-// เริ่มกระบวนการ Verify โดยดึงข้อมูลที่ถูก Intercept ส่งไป
-// -------------------------------------------------------------
 function executeVerification() {
     const interceptedMsg = document.getElementById('intercept-msg').value;
-    const interceptedPubX = parseInt(document.getElementById('intercept-pubx').value) || 0;
-    const interceptedPubY = parseInt(document.getElementById('intercept-puby').value) || 0;
+    const interceptedPubX = parseInt(document.getElementById('intercept-pubx').value, 10) || 0;
+    const interceptedPubY = parseInt(document.getElementById('intercept-puby').value, 10) || 0;
 
     closeConfirmModal();
     verifyTransaction(interceptedMsg, interceptedPubX, interceptedPubY);
@@ -259,11 +251,16 @@ async function verifyTransaction(interceptedMsg, interceptedPubX, interceptedPub
     if (isVerifying) return;
     isVerifying = true;
 
+    verificationResult = null;
+    mergeProgress = 0;
+    calculatedRPoint = null;
+    expectedXPoint = null;
+    currentPubKey = null; 
+
     const r = internalSig.r;
     const s = internalSig.s;
     const n = SCALAR_ORDER;
 
-    // ข้อมูลที่โหนดได้รับ (อาจถูกดัดแปลงมา)
     const currentMsg = interceptedMsg;
     const currentPubX = interceptedPubX;
     const currentPubY = interceptedPubY;
@@ -271,7 +268,7 @@ async function verifyTransaction(interceptedMsg, interceptedPubX, interceptedPub
     let z = 0;
     for(let i=0; i<currentMsg.length; i++) z = (z + currentMsg.charCodeAt(i)) % n;
     if (z === 0) z = 1;
-
+    currentPubKey = { x: currentPubX, y: currentPubY };
     const panel = document.getElementById('verification-panel');
     const log = document.getElementById('step-log');
     panel.classList.remove('hidden');
@@ -283,6 +280,8 @@ async function verifyTransaction(interceptedMsg, interceptedPubX, interceptedPub
         if(isError) entry.className = "text-red-400 font-bold bg-red-900/30 p-1 border-l-2 border-red-500 mt-1";
         log.appendChild(entry);
         log.scrollTop = log.scrollHeight;
+        
+        ECCAudio.type(); // <-- เล่นเสียงตอนเพิ่ม Log
     };
 
     addLog("--- NODE VERIFYING ---");
@@ -291,7 +290,6 @@ async function verifyTransaction(interceptedMsg, interceptedPubX, interceptedPub
     let isForged = false;
     let errorType = null;
 
-    // เทียบข้อมูลที่โหนดได้รับ กับข้อมูลที่ Sign จริงๆ ว่ามีใครแอบแก้ไหม
     if (currentMsg !== internalSig.msg) {
         addLog(`🚨 ตรวจพบ Message ถูกแก้ไขระหว่างทาง! Hash(z) เปลี่ยนไป`, true);
         isForged = true;
@@ -348,116 +346,6 @@ async function verifyTransaction(interceptedMsg, interceptedPubX, interceptedPub
     }
 
     startSequentialVerificationAnimation(u1, u2, r, isForged, mathData);
-}
-
-function startSequentialVerificationAnimation(u1, u2, targetR, isForged, mathData) {
-    let step1 = 0, step2 = 0, phase = 1;
-
-    ball = trajectory.length > 0 ? { ...trajectory[0] } : { x: -9999, y: -9999 };
-    ball2 = { x: -9999, y: -9999 };
-    ballU1 = { x: -9999, y: -9999 };
-    ballU2 = { x: -9999, y: -9999 };
-
-    function frame() {
-        if (!isMoving) return;
-
-        if (phase === 1) {
-            if (trajectory.length === 0) {
-                phase = 2;
-            } else if (step1 < trajectory.length - 1) {
-                step1 = Math.min(step1 + Math.ceil(trajectory.length / 45), trajectory.length - 1);
-                ball.x = trajectory[step1].x;
-                ball.y = trajectory[step1].y;
-            } else {
-                ballU1 = { ...trajectory[trajectory.length - 1] };
-                phase = 2;
-                if (trajectory2.length > 0) ball2 = { ...trajectory2[0] };
-            }
-        } else if (phase === 2) {
-            if (trajectory2.length === 0) {
-                isMoving = false;
-                startMergeAnimation(targetR, isForged, mathData);
-                return;
-            } else if (step2 < trajectory2.length - 1) {
-                step2 = Math.min(step2 + Math.ceil(trajectory2.length / 45), trajectory2.length - 1);
-                ball2.x = trajectory2[step2].x;
-                ball2.y = trajectory2[step2].y;
-            } else {
-                ballU2 = { ...trajectory2[trajectory2.length - 1] };
-                isMoving = false;
-                startMergeAnimation(targetR, isForged, mathData);
-                return;
-            }
-        }
-        updateUI(); 
-        requestAnimationFrame(frame);
-    }
-    frame();
-}
-
-async function startMergeAnimation(targetR, isForged, mathData) {
-    isMoving = true;
-    await sleep(800);
-
-    let p1 = (ballU1 && ballU1.x > -9000) ? { x: ballU1.x + P/2, y: ballU1.y + P/2 } : null;
-    let p2 = (ballU2 && ballU2.x > -9000) ? { x: ballU2.x + P/2, y: ballU2.y + P/2 } : null;
-
-    const res = eccAddModular(p1, p2, P);
-    if (res) {
-        ball.x = res.x - P/2;
-        ball.y = res.y - P/2;
-    } else {
-        ball.x = -9999;
-        ball.y = -9999;
-    }
-
-    isMoving = false; showResults = true; updateUI();
-
-    const isCorrect = res && (res.x % SCALAR_ORDER === targetR % SCALAR_ORDER);
-    const lock = document.getElementById('verification-lock');
-    const lockIcon = document.getElementById('lock-icon');
-    const lockText = lock.querySelector('div:last-child');
-    lock.classList.remove('hidden');
-
-    setTimeout(() => {
-        lock.style.opacity = '1'; lock.style.transform = 'translate(-50%, -50%) scale(1)';
-        const log = document.getElementById('step-log');
-        const entry = document.createElement('div');
-        entry.className = "mt-2 border-t border-slate-500/30 pt-2 text-[9px] leading-relaxed";
-
-        if (isCorrect && !isForged) {
-            lockIcon.className = 'fas fa-lock-open text-4xl text-emerald-500 animate-bounce';
-            lockText.className = 'bg-emerald-500 text-navy px-4 py-1 rounded-full font-bold text-xs uppercase tracking-widest shadow-lg';
-            lockText.innerText = `X = r (${res.x} = ${targetR}) VERIFIED`;
-
-            entry.classList.add("text-emerald-400");
-            entry.innerHTML = "<b>💡 ไขสมการสำเร็จ!</b> ดูหน้าต่างสรุปผลเพื่อดูการหักล้างของตัวแปร";
-            log.appendChild(entry);
-        } else {
-            lockIcon.className = 'fas fa-times-circle text-4xl text-red-500 animate-pulse';
-            lockText.className = 'bg-red-500 text-white px-4 py-1 rounded-full font-bold text-xs uppercase tracking-widest shadow-lg';
-            lockText.innerText = `X != r (${res ? res.x : 'INF'} != ${targetR}) FAILED`;
-
-            entry.classList.add("text-red-400");
-            entry.innerHTML = "<b>❌ ไขสมการล้มเหลว!</b> ดูหน้าต่างสรุปผลเพื่อดูสาเหตุการถูกดัดแปลง";
-            log.appendChild(entry);
-        }
-        isVerifying = false;
-
-        const btnSend = document.getElementById('btn-send');
-        if (btnSend) {
-            btnSend.innerHTML = "ตรวจสอบอีกครั้ง (VERIFY)";
-        }
-
-        setTimeout(() => {
-            showExplanationModal(isCorrect, isForged, targetR, res ? res.x : 'INF', mathData);
-        }, 1200);
-
-    }, 500);
-
-    const status = document.getElementById('tx-status');
-    status.innerText = (isCorrect && !isForged) ? "Status: VERIFIED!" : "Status: INVALID! (SIGNATURE REJECTED)";
-    status.className = `p-2 rounded text-[9px] font-bold text-center uppercase tracking-widest block border mt-2 ${(isCorrect && !isForged) ? 'bg-emerald-900/50 text-emerald-400 border-emerald-500' : 'bg-red-900/50 text-red-400 border-red-500'}`;
 }
 
 // -------------------------------------------------------------
@@ -553,7 +441,7 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
                 </div>
 
                 <p class="text-emerald-300 mt-2 bg-emerald-900/20 p-3 rounded-lg border border-emerald-500/30">
-                    จุด R ที่เด้งไปตกคือ <b>X: ${resX}</b> ซึ่ง <u class="font-bold">ตรงกับ</u> ค่า <span class="text-orange-400">r (${targetR})</span> ที่แนบมา!<br>
+                    จุด R ที่เด้งไปตกคือ <b>X: ${resX}</b> ซึ่ง <u class="font-bold">ตรงกับ</u> แกน Target X <span class="text-orange-400">r (${targetR})</span> ที่แนบมาพอดีเป๊ะ!<br>
                     ยืนยันได้ 100% ว่า <b>คนเซ็นมี Private Key ตัวจริงแน่นอน!</b>
                 </p>
             </div>
@@ -617,14 +505,12 @@ function showExplanationModal(isCorrect, isForged, targetR, resX, math) {
                     <div>
                         <p class="text-blue-400 font-bold">// 4. จุด R เด้งไปตกมั่วพิกัด</p>
                         <p class="text-white mt-1 text-center bg-slate-900 p-2 rounded">R = <span class="text-cyan-400">U₁</span>G + <span class="text-yellow-400">U₂</span>K</p>
-                        <p class="text-slate-400 mt-2">เนื่องจากข้อมูลไม่สัมพันธ์กัน สมการนี้จึงไม่สามารถตัดตัวแปรเพื่อวนกลับมาหาจุดเริ่มต้นเดิมได้</p>
-                        <p class="text-red-400 font-bold text-center mt-2 bg-red-900/30 p-2 rounded">จุด R กระโดดไปตกพิกัดมั่ว!</p>
+                        <p class="text-slate-400 mt-2">เนื่องจากข้อมูลไม่สัมพันธ์กัน จุด U1 และ U2 จะวิ่งไปบรรจบกันที่จุด R แห่งใหม่ที่ <b>พิกัด X เด้งกระเด็นไปไกลจากเป้าหมาย (Target X) ที่ระบุไว้ในลายเซ็นอย่างสิ้นเชิง!</b></p>
                     </div>
                 </div>
 
                 <p class="text-red-300 mt-2 bg-red-900/20 p-3 rounded-lg border border-red-500/30">
-                    จุด R ที่ตกคือ <b>X: ${resX}</b> ซึ่ง <u class="font-bold">ไม่ตรงกับ</u> ลายเซ็น <span class="text-orange-400">r (${targetR})</span><br>
-                    ยืนยันได้ 100% ว่า <b>ธุรกรรมนี้เป็นโมฆะ (Invalid)</b> ป้องกันการแฮ็กได้สำเร็จ!
+                    เมื่อพิกัด <b>R.x ไม่เท่ากับ Target X (r)</b> ยืนยันได้ 100% ว่า <b>ธุรกรรมนี้เป็นโมฆะ (Invalid)</b> ป้องกันการแฮ็กได้สำเร็จ!
                 </p>
             </div>
         `;

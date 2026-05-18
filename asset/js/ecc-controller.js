@@ -1,10 +1,14 @@
 // --- General UI & Scene Management ---
+let verificationResult = null; // สถานะการตรวจสอบ success/fail
+let mergeProgress = 0; // ตัวแปรสำหรับทำ Animation วาดเส้น
+let calculatedRPoint = null; // เก็บพิกัดจุด R ที่คำนวณได้จากสมการจริงๆ
+let expectedXPoint = null;   // เก็บพิกัดเป้าหมาย Target X อ้างอิง
+let currentPubKey = null; // เก็บพิกัดจุด Public Key
 
 function showFiniteInfo() {
     const overlay = document.getElementById('finite-info-overlay');
     if (overlay) {
         overlay.classList.remove('hidden');
-        // ใช้ setTimeout เล็กน้อยเพื่อให้ CSS Transition (Fade In) ทำงาน
         setTimeout(() => {
             overlay.classList.remove('opacity-0');
         }, 10);
@@ -23,7 +27,7 @@ window.closeFiniteInfo = function() {
 
 function switchScene(num) {
     currentScene = num;
-    document.querySelectorAll('.scene-btn').forEach(btn => btn.classList.toggle('active', parseInt(btn.id.split('-').pop()) === num));
+    document.querySelectorAll('.scene-btn').forEach(btn => btn.classList.toggle('active', parseInt(btn.id.split('-').pop(), 10) === num));
     
     document.getElementById('scene-title').innerText = num === 1 ? 'Real Field Billiards' : 'Node\'s Truth Machine';
     document.getElementById('scene-icon').innerText = num === 1 ? '🎱' : '🧱';
@@ -46,8 +50,6 @@ function switchScene(num) {
         sideTitle.innerText = "💸 Transaction Simulation";
         sideContainer.className = "glass-panel rounded-xl p-5 border-t-2 border-t-blue-500 flex-grow overflow-hidden flex flex-col min-h-[450px]";
         unlockTransactionPanel(0); 
-        
-        // เรียกใช้ Popup เมื่อเข้าสู่ Finite Field
         showFiniteInfo();
     }
     closeModal();
@@ -69,13 +71,17 @@ function resetSim() {
     ballU2 = { x: -9999, y: -9999 };
     internalSig = { r: 0, s: 0, z: 0, msg: '', pubX: 0, pubY: 0, d: 0, ke: 0 };
     
+    verificationResult = null;
+    mergeProgress = 0;
+    calculatedRPoint = null;
+    expectedXPoint = null;
+    currentPubKey = null; 
+    
     if (currentScene === 1) {
         gPoint = { x: 2, y: Math.sqrt(15) }; 
-        // [แก้ไข] ปรับลด Scale ตอนเริ่มต้นของ Real Field เพื่อให้ซูมออก ดูกว้างขึ้น
         targetCamScale = 25; 
     } else {
         gPoint = { ...G_FINITE };
-        // คำนวณ Scale ให้เห็นครบ 100% ตามขนาดหน้าจอจริงเสมอ (เผื่อขอบ 100px)
         targetCamScale = Math.min(canvas.width, canvas.height) / (P + 100); 
         targetCamOffset = { x: 0, y: 0 };
         resetTruthUI();
@@ -116,9 +122,12 @@ function shoot() {
     if (power < 5 || isMoving || showResults) return;
     isVerifying = false; 
     isMoving = true;
-    isManualCam = false; // ยกเลิกการซูมมือ เพื่อให้กล้องกลับไปโฟกัสที่จุดกำหนด
+    isManualCam = false; 
     k = 0;
     shootStartTime = Date.now();
+    
+    updateUI(); 
+    ECCAudio.shoot(); // <-- เล่นเสียงยิง
     
     if (currentScene === 1) {
         calculateRealTrajectory();
@@ -139,7 +148,6 @@ function finishShot() { isMoving = false; showResults = true; updateUI(); }
 function showInfinityError() { isMoving = false; document.getElementById('error-modal').classList.remove('hidden'); }
 
 // --- Event Listeners & Interactions (Mouse + Touch Support) ---
-
 let initialPinchDistance = null;
 let initialCamScale = 1;
 
@@ -254,7 +262,6 @@ function updateCamera() {
     let tS, tO;
     
     if (currentScene === 2) {
-        // [ระบบใหม่] โหมด Finite Field: ซูมให้เห็นภาพรวม 100% เสมอ ไม่เลื่อนตามลูกบอล
         let fitScale = Math.min(canvas.width, canvas.height) / (P + 100);
         
         if (!isManualCam) {
@@ -264,13 +271,12 @@ function updateCamera() {
         tS = targetCamScale;
         tO = targetCamOffset;
     } else {
-        // [ระบบเดิม] โหมด Real Field: เลื่อนกล้องและซูมตามลูกบอลเวลาวิ่ง (ปรับให้ซูมออกกว้างขึ้น)
         if (isMoving) { 
-            tS = 35; // [แก้ไข] ตอนลูกวิ่ง จะไม่ซูมลึกแล้ว ถอยออกมากว้างขึ้น (เดิม 80)
+            tS = 35; 
             tO = { x: ball.x, y: ball.y }; 
         }
         else if (!isManualCam) { 
-            tS = 25; // [แก้ไข] ตอนยังไม่วิ่งหรืออยู่เฉยๆ จะซูมออกกว้างขึ้น (เดิม 50)
+            tS = 25; 
             tO = { x: (gPoint.x + ball.x) / 2, y: (gPoint.y + ball.y) / 2 }; 
         }
         else { 
@@ -279,7 +285,6 @@ function updateCamera() {
         }
     }
     
-    // Easing Effect เพื่อให้กล้องเคลื่อนที่อย่างนุ่มนวล
     camScale += (tS - camScale) * 0.1;
     camOffset.x += (tO.x - camOffset.x) * 0.1;
     camOffset.y += (tO.y - camOffset.y) * 0.1;
@@ -289,6 +294,8 @@ function updateUI() {
     const kElem = document.getElementById('k-count');
     const pElem = document.getElementById('p-coords');
     const powerFill = document.getElementById('power-gauge-fill');
+    const instructionOverlay = document.getElementById('instruction-overlay');
+    const instructionText = document.getElementById('instruction-text');
 
     if (kElem) kElem.innerText = k;
     if (pElem) {
@@ -297,6 +304,21 @@ function updateUI() {
         pElem.innerText = (isMoving || k === 0) ? "---" : `(${dx}, ${dy})`;
     }
     if (powerFill) powerFill.style.height = `${power}%`;
+
+    if (instructionOverlay && instructionText) {
+        if (isVerifying || showResults) {
+            instructionOverlay.classList.add('opacity-0');
+        } else {
+            instructionOverlay.classList.remove('opacity-0');
+            if (isMoving) {
+                instructionText.innerText = "กำลังค้นหาพิกัด Public Key...";
+                instructionText.className = "text-blue-400 text-lg font-bold uppercase tracking-widest animate-pulse drop-shadow-[0_0_10px_rgba(96,165,250,0.5)]";
+            } else {
+                instructionText.innerText = "กดค้างเพื่อยิงบอล";
+                instructionText.className = "text-white/40 text-lg font-bold uppercase tracking-widest animate-pulse";
+            }
+        }
+    }
 }
 
 function draw() {
@@ -343,9 +365,7 @@ draw();
 // Welcome Modal Logic (The Story of ECDSA)
 // =============================================================
 
-// เรียกใช้ทันทีเมื่อโหลดหน้าเว็บเสร็จ
 document.addEventListener('DOMContentLoaded', () => {
-    // โชว์หน้าต่าง Welcome
     const welcomeModal = document.getElementById('welcome-modal');
     if(welcomeModal) {
         welcomeModal.classList.remove('hidden');
@@ -381,7 +401,7 @@ window.closeWelcomeModal = function() {
         
         setTimeout(() => {
             modal.classList.add('hidden');
-            modal.remove(); // ลบออกจาก DOM ไปเลยเพื่อไม่ให้รก
+            modal.remove(); 
         }, 500);
     }
 };

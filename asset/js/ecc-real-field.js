@@ -18,19 +18,17 @@ let ballU1 = { x: -9999, y: -9999 };
 let ballU2 = { x: -9999, y: -9999 }; 
 
 const P = 997; 
-let SCALAR_ORDER = 0; // จะถูกคำนวณอัตโนมัติ
-const a_coeff = 0; // secp256k1 (Bitcoin)
-const b_coeff = 7; // secp256k1 (Bitcoin)
-let G_FINITE = { x: 0, y: 0 }; // จะถูกหาอัตโนมัติใน Finite Field
+let SCALAR_ORDER = 0; 
+const a_coeff = 0; 
+const b_coeff = 7; 
+let G_FINITE = { x: 0, y: 0 }; 
 
-// จุดเริ่มต้นบน Real Field สำหรับสมการ y^2 = x^3 + 7 (x=2, y=sqrt(15))
 let gPoint = { x: 2, y: Math.sqrt(15) }; 
 let k = 0;
 let trajectory = [];
 let trajectory2 = [];
 let shootStartTime = 0;
 
-// ปรับจำนวนครั้งสูงสุดเป็น 20
 const MAX_K_REAL = 20;
 const MAX_K_FINITE = 420;
 
@@ -100,12 +98,10 @@ function eccAddReal(P1, P2) {
 
 function calculateRealTrajectory() {
     trajectory = [];
-    // หาร 5 เพื่อให้หลอดเต็ม 100% ได้ 20 ครั้งพอดี
     let targetK = Math.min(MAX_K_REAL, Math.max(1, Math.floor(power / 5)));
     let currentP = { ...gPoint };
     for (let i = 0; i < targetK; i++) {
         let nextP = (i === 0) ? eccAddReal(currentP, currentP) : eccAddReal(currentP, gPoint);
-        // ปลดลิมิตแกน x เป็น 10 ล้าน เพื่อให้กระโดดครบ 20 ครั้ง
         if (!nextP || Math.abs(nextP.x) > 10000000) break;
         trajectory.push({ fromX: currentP.x, fromY: currentP.y, toX: nextP.x, toY: nextP.y, hitX: nextP.intersectX, hitY: nextP.intersectY, m: nextP.m });
         currentP = { x: nextP.x, y: nextP.y };
@@ -145,7 +141,6 @@ function drawRealScene() {
         let pRoot = worldToScreen(rootX, 0);
         ctx.moveTo(pRoot.x, pRoot.y); 
         
-        // วาดเส้นโค้งไกลขึ้น (ทะลุ 10 ล้าน) โดยเพิ่มระยะ step ให้คำนวณไวขึ้นเมื่อค่า x เยอะขึ้น เพื่อไม่ให้คอมกระตุก
         for (let x = rootX + 0.01; x < 15000000; x += (x < 20 ? 0.1 : x * 0.1)) {
             let y = getCurveY(x); 
             if (y !== null) { 
@@ -166,7 +161,7 @@ function drawRealScene() {
         if (!isMoving && !showResults) return;
         if (isMoving && i > k-1) return;
         ctx.strokeStyle = colors.guideSeek; ctx.lineWidth = 1;
-        let xS = -20, xE = 150; // เส้น Guide 
+        let xS = -20, xE = 150; 
         let pS = worldToScreen(xS, t.fromY + t.m * (xS - t.fromX)), pE = worldToScreen(xE, t.fromY + t.m * (xE - t.fromX));
         ctx.beginPath(); ctx.moveTo(pS.x, pS.y); ctx.lineTo(pE.x, pE.y); ctx.stroke();
         if (i < k || (i === k-1 && isMoving)) {
