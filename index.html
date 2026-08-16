@@ -169,7 +169,7 @@
                 <div class="card-badge badge-new">✨ มาใหม่</div>
                 <h3>PenLock เข้ารหัส Seed Phrase</h3>
                 <p>V.Paper ออกแบบมาเพื่อป้องกันแฮกเกอร์ 100% จึงต้อง "ทำด้วยมือบนกระดาษ" โดยการหั่นคำเป็นทีละอักษร แล้วใช้ "วงล้อเข้ารหัส" หมุนเทียบแทนการคิดเลข </p>
-                <button class="btn" onclick="openModal('penlockpaper.html')">Launch Simulation</button>
+                <button class="btn" id="penlockpaper" onclick="openModal('penlockpaper.html')">Launch Simulation</button>
             </div>
             <div class="card reveal">
                 <div class="card-badge badge-new">  ✨ มาใหม่</div>
@@ -343,6 +343,42 @@
                 alert("ไม่สามารถคัดลอกได้ กรุณาคัดลอกด้วยตนเอง");
             });
         }
+
+        function handleUrlHash() {
+    // 1. ดึงชื่อ Hash จาก URL (เช่น #penlockpaper -> penlockpaper)
+    const hash = window.location.hash.replace('#', '');
+    if (!hash) return;
+
+    // 2. ค้นหาปุ่มที่มี id ตรงกับ Hash
+    const targetBtn = document.getElementById(hash);
+    
+    if (targetBtn) {
+        // 3. หากการ์ดนั้นถูกซ่อนอยู่ ให้เปิดการ์ดทั้งหมดในกลุ่มนั้นขึ้นมาก่อน
+        const parentCard = targetBtn.closest('.card');
+        if (parentCard && parentCard.classList.contains('hidden-card')) {
+            const grid = parentCard.closest('.card-grid');
+            if (grid) {
+                grid.querySelectorAll('.hidden-card').forEach(card => {
+                    card.classList.remove('hidden-card');
+                });
+                
+                // เปลี่ยนข้อความปุ่ม "แสดงเพิ่มเติม" เป็น "แสดงน้อยลง"
+                const showMoreBtn = grid.nextElementSibling?.querySelector('button');
+                if (showMoreBtn) showMoreBtn.textContent = 'แสดงน้อยลง';
+            }
+        }
+
+        // 4. เลื่อนหน้าไปยังตำแหน่งปุ่มและสั่งเปิด Modal
+        setTimeout(() => {
+            targetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetBtn.click();
+        }, 300);
+    }
+}
+
+// สั่งให้ทำงานเมื่อโหลดหน้าเว็บเสร็จ และเมื่อมีการเปลี่ยน Hash บน URL
+window.addEventListener('load', handleUrlHash);
+window.addEventListener('hashchange', handleUrlHash);
     </script>
 </body>
 </html>
