@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PenLock Wheel Interactive Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 300: '#FFFFFF', 400: '#8B9BB4', 500: '#64748B', 700: '#1c2e4a', 800: '#162645', 900: '#101a30' },
+                        gold: { DEFAULT: '#E6C27A', dark: '#C5A059' },
+                        navy: { DEFAULT: '#050A14' }
+                    },
+                    fontFamily: { sans: ['Prompt', 'sans-serif'], mono: ['Fira Code', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root { --bg-deep-navy: #050A14; --gold-accent: #E6C27A; --text-primary: #FFFFFF; }
+        body { font-family: 'Prompt', sans-serif; background-color: var(--bg-deep-navy); background-image: radial-gradient(circle at 50% 0%, #162645 0%, var(--bg-deep-navy) 60%); background-attachment: fixed; color: var(--text-primary); overflow-x: hidden; }
+        .glass-panel { background: rgba(16, 26, 48, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); border-top: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+        input[type="text"] { background: #050A14 !important; color: #ffffff !important; border: 1px solid #1c2e4a !important; transition: all 0.3s ease; }
+        input[type="text"]:focus { border-color: var(--gold-accent) !important; outline: none; }
+        .btn-gold-solid { background-color: var(--gold-accent); color: var(--bg-deep-navy); transition: all 0.3s ease; text-transform: uppercase; font-weight: 700; }
+        .btn-gold-solid:hover:not(:disabled) { background-color: #f5d693; transform: translateY(-2px); }
+        .btn-gold-outline { background-color: transparent; color: var(--gold-accent); border: 1px solid var(--gold-accent); transition: all 0.3s ease; text-transform: uppercase; font-weight: 700; }
+        .btn-gold-outline:hover:not(:disabled) { background-color: var(--gold-accent); color: var(--bg-deep-navy); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; } ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+        
+        /* Wheel CSS */
+        .wheel-container { position: relative; width: 340px; height: 340px; border-radius: 50%; border: 4px solid #1c2e4a; margin: 0 auto; box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.5); background: #0a1122; }
+        .wheel-inner { width: 100%; height: 100%; position: absolute; border-radius: 50%; transition: transform 0.2s linear; z-index: 2; }
+        .wheel-ruler { position: absolute; top: 50px; left: 50px; width: 232px; height: 232px; border-radius: 50%; border: 2px dashed #1c2e4a; z-index: 1; pointer-events: none; background: #050A14; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); }
+        
+        .wheel-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid var(--gold-accent); z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transition: border-top-color 0.3s; }
+        
+        .wheel-char { position: absolute; left: calc(50% - 15px); top: 8px; width: 30px; text-align: center; transform-origin: 15px 158px; font-family: 'Fira Code', monospace; color: #8B9BB4; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; }
+        .char-val { font-size: 16px; font-weight: bold; }
+        .char-idx { font-size: 10px; opacity: 0.5; margin-top: -2px; }
+        
+        .wheel-char.active .char-val { color: var(--gold-accent); text-shadow: 0 0 10px var(--gold-accent); font-size: 24px; font-weight: 900; }
+        .wheel-char.active .char-idx { color: var(--gold-accent); opacity: 1; font-size: 12px; font-weight: bold; }
+
+        .ruler-num { position: absolute; left: calc(50% - 10px); top: 2px; width: 20px; text-align: center; transform-origin: 10px 114px; font-family: 'Fira Code', monospace; font-size: 9px; color: #34d399; opacity: 0.5; transition: all 0.3s; }
+        
+        .math-log-box { font-family: 'Fira Code', monospace; font-size: 13px; background: rgba(16, 26, 48, 0.5); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 8px; padding: 16px; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 6px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .math-log-box.rec-mode { border-color: rgba(52, 211, 153, 0.3); background: rgba(6, 78, 59, 0.1); }
+
+        .char-slot { width: 30px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #1c2e4a; border-radius: 6px; font-family: monospace; font-weight: bold; color: #fff; background: #050A14; transition: all 0.3s; margin: 0 2px; }
+        .char-slot.active { border-color: var(--gold-accent); box-shadow: 0 0 10px rgba(230, 194, 122, 0.4); transform: scale(1.1); color: var(--gold-accent); }
+        .char-slot.done { border-color: #34d399; color: #34d399; }
+        
+        .fade-in { animation: fadeIn 0.4s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Sliders */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%; background: var(--gold-accent); cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px rgba(230,194,122,0.5); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: #1c2e4a; border-radius: 4px; border: 1px solid #050A14; }
+        .accent-cyan::-webkit-slider-thumb { background: #22d3ee; box-shadow: 0 0 10px rgba(34,211,238,0.5); }
+        .accent-emerald::-webkit-slider-thumb { background: #34d399; box-shadow: 0 0 10px rgba(52,211,153,0.5); }
+    </style>
+</head>
+<body class="p-4 md:p-8 font-sans antialiased">
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-3 title-gold mt-4">PenLock <span class="text-white">Wheel Simulator</span></h1>
+            <p class="text-slate-400 text-sm md:text-base">เรียนรู้วิธีการทำงานบนกระดาษของจริง ผ่านการหมุนวงล้อเข้ารหัส "ทีละตัวอักษร"</p>
+        </header>
+
+
+
+        <!-- Step 1: Generate -->
+        <div class="glass-panel rounded-xl p-6 mb-6" id="step1">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="bg-gold text-navy w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shrink-0">1</div>
+                <h2 class="text-xl font-bold text-white">สร้าง Seed Phrase 12 คำ</h2>
+            </div>
+            <div class="text-center py-6 bg-slate-900/60 rounded-xl border border-slate-700">
+                <button id="btn-generate" class="btn-gold-solid px-6 py-3 rounded-lg text-sm shadow-[0_0_15px_rgba(230,194,122,0.3)]">🎲 สุ่ม Seed Phrase จำลอง</button>
+            </div>
+            <div id="seed-grid" class="grid grid-cols-3 md:grid-cols-4 gap-3 hidden mt-6 pt-6 border-t border-slate-700/80"></div>
+            <div id="step1-next" class="mt-6 text-right hidden">
+                <button onclick="goToStep2()" class="btn-gold-outline px-6 py-2 rounded-lg text-sm">ไปหมุนวงล้อเข้ารหัส ➔</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Split -->
+        <div class="glass-panel rounded-xl p-6 mb-6 hidden" id="step2">
+            <div class="flex items-center gap-4 mb-6 border-b border-slate-700/80 pb-4">
+                <div class="bg-cyan-500 text-navy w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shrink-0">2</div>
+                <div>
+                    <h2 class="text-xl font-bold text-white">กระบวนการเข้ารหัสบนกระดาษ (Interactive Split)</h2>
+                    <p class="text-xs text-slate-400 mt-1">ใช้สไลเดอร์เพื่อหมุนวงล้อนำตัวอักษรที่ตรงกับ "ไม้บรรทัดวงใน" มาไว้ที่ลูกศร</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                <!-- Wheel Area -->
+                <div class="flex flex-col items-center justify-center bg-[#050A14] p-6 rounded-xl border border-slate-700 shadow-inner">
+                    <div class="w-full text-center mb-4">
+                        <span class="text-xs font-bold text-cyan-400 bg-cyan-900/40 px-3 py-1 rounded-full border border-cyan-500/30">
+                            ไม้บรรทัดวนซ้าย (ลบค่า/ถอยหลัง)
+                        </span>
+                    </div>
+                    <div class="wheel-container mb-6">
+                        <div class="wheel-pointer !border-t-cyan-400"></div>
+                        <div id="split-wheel" class="wheel-inner"></div>
+                    </div>
+                    
+                    <div class="w-full text-center">
+                        <div class="text-xs text-slate-400 mb-2 uppercase tracking-widest font-bold">กำลังเข้ารหัสคำที่ <span id="split-word-idx" class="text-gold text-lg">1</span>/12</div>
+                        <div id="split-word-display" class="flex justify-center flex-wrap gap-y-2 mb-4"></div>
+                        
+                        <!-- Interactive Controls -->
+                        <div id="split-action-area" class="w-full bg-slate-900/80 p-4 rounded-xl border border-slate-700 shadow-lg">
+                            <div id="split-math-log" class="math-log-box w-full text-slate-300 mb-4">
+                                <!-- Instruction goes here -->
+                            </div>
+                            
+                            <!-- Wheel Controls -->
+                            <div class="flex items-center gap-3 mb-4 w-full">
+                                <button onclick="moveWheelSplitBtn(-1)" class="bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 rounded-lg border border-slate-600 shadow-sm shrink-0">◀</button>
+                                <div class="flex-1 flex flex-col gap-1 items-center relative">
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-widest">จอยสติ๊กหมุนวงล้ออิสระ</span>
+                                    <input type="range" id="slider-split" min="-50" max="50" value="0" class="w-full accent-cyan" oninput="onSliderInputSplit(this.value)">
+                                </div>
+                                <button onclick="moveWheelSplitBtn(1)" class="bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 rounded-lg border border-slate-600 shadow-sm shrink-0">▶</button>
+                            </div>
+                            
+                            <div class="flex gap-4 items-center">
+                                <div class="bg-navy px-4 py-2 rounded-lg text-cyan-400 font-mono font-bold border border-cyan-500/30 w-24 shrink-0 shadow-inner flex-col justify-center">
+                                    <div class="text-[9px] text-slate-500 leading-none">กำลังชี้ที่:</div>
+                                    <div class="text-lg leading-none mt-1" id="current-wheel-char-split">-</div>
+                                </div>
+                                <button id="btn-confirm-pos-split" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all text-sm tracking-wide">
+                                    ✅ ยืนยันตำแหน่ง
+                                </button>
+                            </div>
+                            <div id="split-feedback" class="mt-3 text-center text-sm font-bold min-h-[20px]"></div>
+                        </div>
+
+                        <!-- Auto Button - Always visible -->
+                        <div id="split-auto-box" class="mt-6 pt-6 border-t border-slate-700 fade-in w-full">
+                            <button id="btn-split-auto" class="w-full bg-slate-800 border border-slate-600 hover:bg-slate-700 text-cyan-400 font-bold py-3 rounded-lg transition-all text-sm shadow-md">
+                                ⏩ ให้ระบบคำนวณที่เหลืออัตโนมัติ (Auto-Complete)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Papers Area -->
+                <div class="flex flex-col gap-4">
+                    <h3 class="text-sm font-bold text-white mb-2">กระดาษ Share ที่จดได้:</h3>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 h-[140px] flex flex-col shadow-inner">
+                        <div class="text-xs font-bold text-amber-500 mb-2 flex justify-between"><span>Share 1 (X, Y)</span> <span id="s1-count">0/192</span></div>
+                        <div id="paper-share-1" class="font-mono text-[10px] md:text-xs text-slate-300 overflow-y-auto break-all tracking-[0.2em] leading-relaxed custom-scrollbar flex-1"></div>
+                    </div>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 h-[140px] flex flex-col shadow-inner">
+                        <div class="text-xs font-bold text-amber-500 mb-2 flex justify-between"><span>Share 2 (Y, Z)</span> <span id="s2-count">0/192</span></div>
+                        <div id="paper-share-2" class="font-mono text-[10px] md:text-xs text-slate-300 overflow-y-auto break-all tracking-[0.2em] leading-relaxed custom-scrollbar flex-1"></div>
+                    </div>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 h-[140px] flex flex-col shadow-inner">
+                        <div class="text-xs font-bold text-amber-500 mb-2 flex justify-between"><span>Share 3 (Z, X)</span> <span id="s3-count">0/192</span></div>
+                        <div id="paper-share-3" class="font-mono text-[10px] md:text-xs text-slate-300 overflow-y-auto break-all tracking-[0.2em] leading-relaxed custom-scrollbar flex-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="step2-next" class="text-right border-t border-slate-700/80 pt-6 hidden">
+                <button onclick="goToStep3()" class="bg-slate-800 border border-slate-600 hover:text-emerald-400 text-white px-8 py-3 rounded-lg font-bold transition-all text-sm shadow-lg">
+                    ไปขั้นตอนประกอบร่าง (Recovery) ➔
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Recovery -->
+        <div class="glass-panel rounded-xl p-6 mb-8 hidden" id="step3">
+            <div class="flex items-center gap-4 mb-6 border-b border-slate-700/80 pb-4">
+                <div class="bg-emerald-500 text-navy w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shrink-0">3</div>
+                <div>
+                    <h2 class="text-xl font-bold text-white">ถอดรหัสกู้คืน (Interactive Recovery)</h2>
+                    <p class="text-xs text-slate-400 mt-1">นำกระดาษ Share 2 ใบมาดูข้อมูล X, Y, Z เพื่อหมุนวงล้อไปข้างหน้าเพื่อถอดรหัส</p>
+                </div>
+            </div>
+
+            <div id="recovery-setup" class="flex flex-col md:flex-row gap-4 mb-6 bg-slate-900/60 p-5 rounded-xl border border-slate-700 shadow-inner">
+                <select id="rec-share1" class="bg-[#050A14] text-white p-3 rounded-lg border border-slate-700 flex-1 outline-none font-mono text-sm focus:border-emerald-500">
+                    <option value="1">หยิบกระดาษ Share 1</option><option value="2">หยิบกระดาษ Share 2</option><option value="3">หยิบกระดาษ Share 3</option>
+                </select>
+                <span class="text-xl font-bold self-center text-slate-600">+</span>
+                <select id="rec-share2" class="bg-[#050A14] text-white p-3 rounded-lg border border-slate-700 flex-1 outline-none font-mono text-sm focus:border-emerald-500">
+                    <option value="1">หยิบกระดาษ Share 1</option><option value="2" selected>หยิบกระดาษ Share 2</option><option value="3">หยิบกระดาษ Share 3</option>
+                </select>
+                <button id="btn-start-recover" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-lg transition-all text-sm shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    เริ่มการถอดรหัส!
+                </button>
+            </div>
+
+            <div id="recovery-workspace" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Wheel Area -->
+                <div class="flex flex-col items-center bg-[#050A14] p-6 rounded-xl border border-slate-700 shadow-inner">
+                    <div class="w-full text-center mb-4">
+                        <span class="text-xs font-bold text-emerald-400 bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-500/30">
+                            ไม้บรรทัดวนขวา (บวกค่า/เดินหน้า)
+                        </span>
+                    </div>
+                    <div class="wheel-container mb-6 border-emerald-800">
+                        <div class="wheel-pointer !border-t-emerald-400"></div>
+                        <div id="rec-wheel" class="wheel-inner"></div>
+                    </div>
+                    
+                    <div class="w-full text-center">
+                        <div class="text-xs text-slate-400 mb-2 uppercase tracking-widest font-bold">กำลังถอดรหัสคำที่ <span id="rec-word-idx" class="text-emerald-400 text-lg">1</span>/12</div>
+                        <div id="rec-word-display" class="flex justify-center flex-wrap gap-y-2 mb-4"></div>
+                        
+                        <!-- Interactive Controls -->
+                        <div id="rec-action-area" class="w-full bg-slate-900/80 p-4 rounded-xl border border-slate-700 shadow-lg">
+                            <div id="rec-math-log" class="math-log-box rec-mode w-full text-slate-300 mb-4">
+                                <!-- Instruction goes here -->
+                            </div>
+                            
+                            <!-- Wheel Controls -->
+                            <div class="flex items-center gap-3 mb-4 w-full">
+                                <button onclick="moveWheelRecBtn(-1)" class="bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 rounded-lg border border-slate-600 shadow-sm shrink-0">◀</button>
+                                <div class="flex-1 flex flex-col gap-1 items-center relative">
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-widest">จอยสติ๊กหมุนวงล้ออิสระ</span>
+                                    <input type="range" id="slider-rec" min="-50" max="50" value="0" class="w-full accent-emerald" oninput="onSliderInputRec(this.value)">
+                                </div>
+                                <button onclick="moveWheelRecBtn(1)" class="bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 rounded-lg border border-slate-600 shadow-sm shrink-0">▶</button>
+                            </div>
+                            
+                            <div class="flex gap-4 items-center">
+                                <div class="bg-navy px-4 py-2 rounded-lg text-emerald-400 font-mono font-bold border border-emerald-500/30 w-24 shrink-0 shadow-inner flex-col justify-center">
+                                    <div class="text-[9px] text-slate-500 leading-none">กำลังชี้ที่:</div>
+                                    <div class="text-lg leading-none mt-1" id="current-wheel-char-rec">-</div>
+                                </div>
+                                <button id="btn-confirm-pos-rec" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all text-sm tracking-wide">
+                                    ✅ ยืนยันตำแหน่ง
+                                </button>
+                            </div>
+                            <div id="rec-feedback" class="mt-3 text-center text-sm font-bold min-h-[20px]"></div>
+                        </div>
+
+                        <!-- Auto Button - Always visible -->
+                        <div id="rec-auto-box" class="mt-6 pt-6 border-t border-slate-700 fade-in w-full">
+                            <button id="btn-rec-auto" class="w-full bg-slate-800 border border-slate-600 hover:bg-slate-700 text-emerald-400 font-bold py-3 rounded-lg transition-all text-sm shadow-md">
+                                ⏩ ให้ระบบถอดรหัสที่เหลืออัตโนมัติ (Auto-Complete)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="flex flex-col">
+                    <h3 class="text-sm font-bold text-white mb-4">Seed Phrase ที่ได้กลับมา:</h3>
+                    <div id="final-seed-summary" class="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 content-start"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ALPHABET = "abcdefghijklmnopqrstuvwxyz=-#_ *";
+        const PAD_CHAR = "=";
+        const PAD_LEN = 8;
+        
+        let wordlist = [];
+        let originalSeed = []; 
+        let paddedWords = [];
+        let sharesData = { 1: [], 2: [], 3: [] }; 
+        
+        // Wheel States
+        const wheelStates = {
+            'split-wheel': { index: 0, rotation: 0 },
+            'rec-wheel': { index: 0, rotation: 0 }
+        };
+        const STEP_ANGLE = 360 / 32;
+
+        // Slider States
+        let lastSliderSplit = 0;
+        let lastSliderRec = 0;
+
+        // Split Game State
+        let spWordIdx = 0, spCharIdx = 0;
+        let spMiniStep = 0; // 0=Find S, 1=Spin -X, 2=Spin -Y
+        let spTargetIdx = 0;
+        let curS, curX, curY, curZ;
+
+        // Rec Game State
+        let recWordIdx = 0, recCharIdx = 0;
+        let recMiniStep = 0; // 0=Find A, 1=Spin +B, 2=Spin +C
+        let recTargetIdx = 0;
+        let curRecA, curRecB, curRecC, curRecS;
+        let recRecoveredWords = [];
+
+        async function init() {
+            try {
+                const res = await fetch('https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt');
+                const text = await res.text();
+                wordlist = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+            } catch(e) { alert('Failed to load Wordlist'); }
+            
+            buildWheel('split-wheel', true); // Reverse ruler
+            buildWheel('rec-wheel', false);  // Normal ruler
+        }
+        init();
+
+        function buildWheel(containerId, isReverseRuler = false) {
+            const inner = document.getElementById(containerId);
+            inner.innerHTML = '';
+            for(let i=0; i<32; i++) {
+                const el = document.createElement('div');
+                el.className = 'wheel-char';
+                el.id = `${containerId}-char-${i}`;
+                el.style.transform = `rotate(${i * STEP_ANGLE}deg)`;
+                el.innerHTML = `<span class="char-val">${ALPHABET[i]}</span><span class="char-idx">${i}</span>`;
+                inner.appendChild(el);
+            }
+            
+            const parent = inner.parentElement;
+            if (!parent.querySelector('.wheel-ruler')) {
+                const ruler = document.createElement('div');
+                ruler.className = 'wheel-ruler';
+                for(let i=0; i<32; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'ruler-num';
+                    el.style.transform = `rotate(${i * STEP_ANGLE}deg)`;
+                    let displayNum = isReverseRuler ? (i === 0 ? 0 : 32 - i) : i;
+                    el.innerHTML = `<div class="w-[1.5px] h-1.5 bg-emerald-700/50 mx-auto mb-0.5"></div>${displayNum}`;
+                    ruler.appendChild(el);
+                }
+                parent.appendChild(ruler);
+            }
+            document.getElementById(`${containerId}-char-0`).classList.add('active');
+        }
+
+        // Helper to center sliders back to 0 for the next interaction
+        function recenterSlider(mode) {
+            if(mode === 'split') {
+                document.getElementById('slider-split').value = 0;
+                lastSliderSplit = 0;
+            } else {
+                document.getElementById('slider-rec').value = 0;
+                lastSliderRec = 0;
+            }
+        }
+
+        // Relative Slider Move for Split
+        function onSliderInputSplit(val) {
+            let currentVal = parseInt(val);
+            let diff = currentVal - lastSliderSplit;
+            lastSliderSplit = currentVal;
+            
+            const state = wheelStates['split-wheel'];
+            state.index = (state.index + diff + 3200) % 32;
+            state.rotation -= diff * STEP_ANGLE; // Drag right (diff > 0) spins counter-clockwise to higher index
+            
+            document.getElementById('split-wheel').style.transform = `rotate(${state.rotation}deg)`;
+            for(let i=0; i<32; i++) document.getElementById(`split-wheel-char-${i}`).classList.remove('active');
+            document.getElementById(`split-wheel-char-${state.index}`).classList.add('active');
+            
+            document.getElementById('current-wheel-char-split').innerText = `'${ALPHABET[state.index]}'`;
+            document.getElementById('split-feedback').innerText = ''; 
+        }
+
+        function moveWheelSplitBtn(step) {
+            let newVal = lastSliderSplit + step;
+            document.getElementById('slider-split').value = newVal;
+            onSliderInputSplit(newVal);
+        }
+
+        // Absolute Snap without messing up relative slider
+        function snapToChar(wheelId, targetIdx) {
+            const state = wheelStates[wheelId];
+            let diff = targetIdx - state.index;
+            if (diff > 16) diff -= 32;
+            if (diff < -16) diff += 32;
+            
+            state.index = targetIdx;
+            state.rotation -= diff * STEP_ANGLE;
+            
+            document.getElementById(wheelId).style.transform = `rotate(${state.rotation}deg)`;
+            for(let i=0; i<32; i++) document.getElementById(`${wheelId}-char-${i}`).classList.remove('active');
+            document.getElementById(`${wheelId}-char-${state.index}`).classList.add('active');
+            
+            if (wheelId === 'split-wheel') document.getElementById('current-wheel-char-split').innerText = `'${ALPHABET[state.index]}'`;
+            if (wheelId === 'rec-wheel') document.getElementById('current-wheel-char-rec').innerText = `'${ALPHABET[state.index]}'`;
+        }
+
+        document.getElementById('btn-generate').addEventListener('click', () => {
+            if(wordlist.length === 0) return;
+            originalSeed = []; paddedWords = []; sharesData = { 1: [], 2: [], 3: [] };
+            const grid = document.getElementById('seed-grid');
+            grid.innerHTML = '';
+            for(let i=0; i<12; i++) {
+                const idx = Math.floor(Math.random() * 2048);
+                const word = wordlist[idx];
+                originalSeed.push(word);
+                paddedWords.push(word.padEnd(PAD_LEN, PAD_CHAR).substring(0, PAD_LEN));
+                
+                const div = document.createElement('div');
+                div.className = 'bg-[#050A14] border border-slate-700 p-2 rounded-lg text-center font-mono text-sm font-bold text-white shadow-inner';
+                div.innerText = `${i+1}. ${word}`;
+                grid.appendChild(div);
+            }
+            grid.classList.remove('hidden');
+            document.getElementById('step1-next').classList.remove('hidden');
+        });
+
+        // ------------------------------------------------------------
+        // SPLIT INTERACTIVE LOGIC
+        // ------------------------------------------------------------
+        function goToStep2() {
+            document.getElementById('step2').classList.remove('hidden');
+            document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+            spWordIdx = 0; spCharIdx = 0; sharesData = { 1: [], 2: [], 3: [] };
+            
+            snapToChar('split-wheel', 0);
+            document.getElementById('split-math-log').innerHTML = "กดปุ่มด้านบนเพื่อเริ่มการเข้ารหัสทีละขั้นตอน...";
+            
+            updateSplitWordDisplay();
+            updatePapers();
+            startSplitMiniGame();
+        }
+
+        function startSplitMiniGame() {
+            if(spWordIdx >= 12) return;
+            
+            const char = paddedWords[spWordIdx][spCharIdx];
+            curS = ALPHABET.indexOf(char);
+            curX = Math.floor(Math.random() * 32);
+            curY = Math.floor(Math.random() * 32);
+            curZ = (curS - curX - curY + 64) % 32;
+            
+            spMiniStep = 0;
+            spTargetIdx = curS;
+            renderSplitTaskUI();
+        }
+
+        function renderSplitTaskUI() {
+            recenterSlider('split'); 
+            const log = document.getElementById('split-math-log');
+            if(spMiniStep === 0) {
+                log.innerHTML = `<span class="text-white"><b>ภารกิจ 1/3:</b> หมุนวงล้อให้ลูกศรชี้ที่อักษรตั้งต้น<br><b class="text-gold text-lg">S = '${ALPHABET[curS]}'</b></span>`;
+            } else if (spMiniStep === 1) {
+                const destX_char = ALPHABET[(curS - curX + 32) % 32];
+                log.innerHTML = `<span class="text-cyan-400"><b>ภารกิจ 2/3:</b> สุ่มได้ตัวแปร <b class="text-white">X = '${ALPHABET[curX]}'</b> (มีค่า = ${curX}) <br>➔ ให้ดูที่ <b>เลข ${curX} บนไม้บรรทัดสีเขียว</b> จะตรงกับอักษร <b>'${destX_char}'</b><br>ให้หมุนวงล้อนำอักษรนั้นมาไว้ที่ลูกศร</span>`;
+                spTargetIdx = (curS - curX + 32) % 32;
+            } else if (spMiniStep === 2) {
+                const destZ_char = ALPHABET[curZ];
+                log.innerHTML = `<span class="text-cyan-400"><b>ภารกิจ 3/3:</b> สุ่มได้ตัวแปร <b class="text-white">Y = '${ALPHABET[curY]}'</b> (มีค่า = ${curY}) <br>➔ ให้ดูที่ <b>เลข ${curY} บนไม้บรรทัดสีเขียว</b> จะตรงกับอักษร <b>'${destZ_char}'</b><br>ให้หมุนวงล้อนำอักษรนั้นมาไว้ที่ลูกศรเพื่อหาค่า <b>Z</b></span>`;
+                spTargetIdx = curZ;
+            }
+        }
+
+        document.getElementById('btn-confirm-pos-split').addEventListener('click', () => {
+            const feedback = document.getElementById('split-feedback');
+            const currentIdx = wheelStates['split-wheel'].index;
+
+            if (currentIdx === spTargetIdx) {
+                feedback.innerHTML = '<span class="text-emerald-400 text-lg">✅ ถูกต้อง!</span>';
+                
+                setTimeout(() => {
+                    feedback.innerHTML = '';
+                    if(spMiniStep === 0) {
+                        spMiniStep = 1; renderSplitTaskUI();
+                    } else if(spMiniStep === 1) {
+                        spMiniStep = 2; renderSplitTaskUI();
+                    } else if(spMiniStep === 2) {
+                        // Finished 1 character
+                        sharesData[1].push(ALPHABET[curX], ALPHABET[curY]);
+                        sharesData[2].push(ALPHABET[curY], ALPHABET[curZ]);
+                        sharesData[3].push(ALPHABET[curZ], ALPHABET[curX]);
+
+                        spCharIdx++;
+                        if(spCharIdx >= PAD_LEN) {
+                            spWordIdx++; spCharIdx = 0;
+                        }
+                        
+                        updateSplitWordDisplay();
+                        updatePapers();
+
+                        if(spWordIdx < 12) {
+                            startSplitMiniGame();
+                        } else {
+                            document.getElementById('split-action-area').innerHTML = '<div class="text-emerald-400 font-bold p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30 text-center">✅ เข้ารหัสครบทั้ง 12 คำ (96 อักษร) แล้ว!</div>';
+                            document.getElementById('split-auto-box').classList.add('hidden');
+                            document.getElementById('step2-next').classList.remove('hidden');
+                        }
+                    }
+                }, 600);
+            } else {
+                feedback.innerHTML = `<span class="text-rose-400">❌ ผิดครับ! ดูที่เลขไม้บรรทัดสีเขียวให้ดีๆ นะ (เป้าหมายคืออักษร '${ALPHABET[spTargetIdx]}')</span>`;
+            }
+        });
+
+        document.getElementById('btn-split-auto').addEventListener('click', () => {
+            while(spWordIdx < 12) {
+                const char = paddedWords[spWordIdx][spCharIdx];
+                const s = ALPHABET.indexOf(char);
+                const x = Math.floor(Math.random() * 32);
+                const y = Math.floor(Math.random() * 32);
+                const z = (s - x - y + 64) % 32;
+
+                sharesData[1].push(ALPHABET[x], ALPHABET[y]);
+                sharesData[2].push(ALPHABET[y], ALPHABET[z]);
+                sharesData[3].push(ALPHABET[z], ALPHABET[x]);
+
+                spCharIdx++;
+                if(spCharIdx >= PAD_LEN) { spWordIdx++; spCharIdx = 0; }
+            }
+            snapToChar('split-wheel', 0);
+            updatePapers();
+            
+            document.getElementById('split-action-area').innerHTML = '<div class="text-emerald-400 font-bold p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30 text-center">✅ เข้ารหัสครบทั้ง 12 คำแบบอัตโนมัติแล้ว!</div>';
+            document.getElementById('split-auto-box').classList.add('hidden');
+            document.getElementById('split-word-display').innerHTML = '';
+            document.getElementById('step2-next').classList.remove('hidden');
+        });
+
+        function updateSplitWordDisplay() {
+            if(spWordIdx >= 12) return;
+            document.getElementById('split-word-idx').innerText = spWordIdx + 1;
+            const container = document.getElementById('split-word-display');
+            container.innerHTML = '';
+            const word = paddedWords[spWordIdx];
+            for(let i=0; i<PAD_LEN; i++) {
+                const span = document.createElement('span');
+                span.className = `char-slot ${i < spCharIdx ? 'done' : (i === spCharIdx ? 'active' : '')}`;
+                span.innerText = word[i];
+                container.appendChild(span);
+            }
+        }
+
+        function updatePapers() {
+            for(let i=1; i<=3; i++) {
+                const paper = document.getElementById(`paper-share-${i}`);
+                let str = "";
+                for(let k=0; k<sharesData[i].length; k+=16) {
+                    str += sharesData[i].slice(k, k+16).join('') + " ";
+                }
+                paper.innerText = str;
+                document.getElementById(`s${i}-count`).innerText = `${sharesData[i].length}/192`;
+                paper.scrollTop = paper.scrollHeight;
+            }
+        }
+
+        // ------------------------------------------------------------
+        // RECOVERY INTERACTIVE LOGIC
+        // ------------------------------------------------------------
+        function goToStep3() {
+            document.getElementById('step3').classList.remove('hidden');
+            document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Relative Slider Move for Recovery
+        function onSliderInputRec(val) {
+            let currentVal = parseInt(val);
+            let diff = currentVal - lastSliderRec;
+            lastSliderRec = currentVal;
+            
+            const state = wheelStates['rec-wheel'];
+            state.index = (state.index + diff + 3200) % 32;
+            state.rotation -= diff * STEP_ANGLE;
+            
+            document.getElementById('rec-wheel').style.transform = `rotate(${state.rotation}deg)`;
+            for(let i=0; i<32; i++) document.getElementById(`rec-wheel-char-${i}`).classList.remove('active');
+            document.getElementById(`rec-wheel-char-${state.index}`).classList.add('active');
+            
+            document.getElementById('current-wheel-char-rec').innerText = `'${ALPHABET[state.index]}'`;
+            document.getElementById('rec-feedback').innerText = ''; 
+        }
+
+        function moveWheelRecBtn(step) {
+            let newVal = lastSliderRec + step;
+            document.getElementById('slider-rec').value = newVal;
+            onSliderInputRec(newVal);
+        }
+
+        document.getElementById('btn-start-recover').addEventListener('click', () => {
+            const s1 = parseInt(document.getElementById('rec-share1').value);
+            const s2 = parseInt(document.getElementById('rec-share2').value);
+            if(s1 === s2) return alert('ต้องเลือก Share ที่ไม่ซ้ำกัน!');
+            
+            document.getElementById('recovery-setup').classList.add('hidden');
+            document.getElementById('recovery-workspace').classList.remove('hidden');
+            
+            recWordIdx = 0; recCharIdx = 0; recRecoveredWords = [];
+            for(let i=0; i<12; i++) recRecoveredWords.push("");
+            
+            snapToChar('rec-wheel', 0);
+            
+            updateRecWordDisplay();
+            startRecMiniGame();
+        });
+
+        function extractXYZ(s1Num, s2Num, index) {
+            let rA, rB, rC;
+            const extract = (shNum, dataArr) => {
+                if(shNum === 1) { rA = dataArr[index*2]; rB = dataArr[index*2+1]; }
+                if(shNum === 2) { rB = dataArr[index*2]; rC = dataArr[index*2+1]; }
+                if(shNum === 3) { rC = dataArr[index*2]; rA = dataArr[index*2+1]; }
+            };
+            extract(s1Num, sharesData[s1Num]);
+            extract(s2Num, sharesData[s2Num]);
+            return { rA, rB, rC };
+        }
+
+        function startRecMiniGame() {
+            if(recWordIdx >= 12) return;
+            
+            const s1Num = parseInt(document.getElementById('rec-share1').value);
+            const s2Num = parseInt(document.getElementById('rec-share2').value);
+            const absoluteCharIdx = (recWordIdx * PAD_LEN) + recCharIdx;
+            
+            const { rA, rB, rC } = extractXYZ(s1Num, s2Num, absoluteCharIdx);
+            
+            curRecA = ALPHABET.indexOf(rA);
+            curRecB = ALPHABET.indexOf(rB);
+            curRecC = ALPHABET.indexOf(rC);
+            curRecS = (curRecA + curRecB + curRecC) % 32;
+            
+            recMiniStep = 0;
+            recTargetIdx = curRecA;
+            renderRecTaskUI();
+        }
+
+        function renderRecTaskUI() {
+            recenterSlider('rec');
+            const log = document.getElementById('rec-math-log');
+            if(recMiniStep === 0) {
+                log.innerHTML = `<span class="text-white"><b>ภารกิจ 1/3:</b> หมุนวงล้อให้ลูกศรชี้ที่ตัวแปรแรกที่อ่านได้กระดาษ <br><b class="text-emerald-400 text-lg">A = '${ALPHABET[curRecA]}'</b></span>`;
+            } else if (recMiniStep === 1) {
+                const destB_char = ALPHABET[(curRecA + curRecB) % 32];
+                log.innerHTML = `<span class="text-emerald-400"><b>ภารกิจ 2/3:</b> อ่านตัวแปรที่สอง <b class="text-white">B = '${ALPHABET[curRecB]}'</b> (มีค่า = ${curRecB}) <br>➔ ให้ดูที่ <b>เลข ${curRecB} บนไม้บรรทัดสีเขียว</b> จะตรงกับอักษร <b>'${destB_char}'</b><br>ให้หมุนวงล้อนำอักษรนั้นมาไว้ที่ลูกศร</span>`;
+                recTargetIdx = (curRecA + curRecB) % 32;
+            } else if (recMiniStep === 2) {
+                const destS_char = ALPHABET[curRecS];
+                log.innerHTML = `<span class="text-emerald-400"><b>ภารกิจ 3/3:</b> อ่านตัวแปรที่สาม <b class="text-white">C = '${ALPHABET[curRecC]}'</b> (มีค่า = ${curRecC}) <br>➔ ให้ดูที่ <b>เลข ${curRecC} บนไม้บรรทัดสีเขียว</b> จะตรงกับอักษร <b>'${destS_char}'</b><br>ให้หมุนวงล้อนำอักษรนั้นมาไว้ที่ลูกศรเพื่อหาค่า <b>S</b></span>`;
+                recTargetIdx = curRecS;
+            }
+        }
+
+        document.getElementById('btn-confirm-pos-rec').addEventListener('click', () => {
+            const feedback = document.getElementById('rec-feedback');
+            const currentIdx = wheelStates['rec-wheel'].index;
+
+            if (currentIdx === recTargetIdx) {
+                feedback.innerHTML = '<span class="text-emerald-400 text-lg">✅ ถูกต้อง!</span>';
+                
+                setTimeout(() => {
+                    feedback.innerHTML = '';
+                    if(recMiniStep === 0) {
+                        recMiniStep = 1; renderRecTaskUI();
+                    } else if(recMiniStep === 1) {
+                        recMiniStep = 2; renderRecTaskUI();
+                    } else if(recMiniStep === 2) {
+                        // Success for this char
+                        recRecoveredWords[recWordIdx] += ALPHABET[curRecS];
+                        recCharIdx++;
+                        
+                        if(recCharIdx >= PAD_LEN) {
+                            renderFinalWord(recWordIdx);
+                            recWordIdx++;
+                            recCharIdx = 0;
+                        }
+                        
+                        if(recWordIdx < 12) {
+                            updateRecWordDisplay();
+                            startRecMiniGame();
+                        } else {
+                            finishRecovery();
+                        }
+                    }
+                }, 600);
+            } else {
+                feedback.innerHTML = `<span class="text-rose-400">❌ ผิดครับ! ดูที่เลขไม้บรรทัดสีเขียวให้ดีๆ นะ (เป้าหมายคืออักษร '${ALPHABET[recTargetIdx]}')</span>`;
+            }
+        });
+
+        document.getElementById('btn-rec-auto').addEventListener('click', () => {
+            const s1Num = parseInt(document.getElementById('rec-share1').value);
+            const s2Num = parseInt(document.getElementById('rec-share2').value);
+            
+            while(recWordIdx < 12) {
+                const absoluteCharIdx = (recWordIdx * PAD_LEN) + recCharIdx;
+                const { rA, rB, rC } = extractXYZ(s1Num, s2Num, absoluteCharIdx);
+                const s_idx = (ALPHABET.indexOf(rA) + ALPHABET.indexOf(rB) + ALPHABET.indexOf(rC)) % 32;
+                recRecoveredWords[recWordIdx] += ALPHABET[s_idx];
+                
+                recCharIdx++;
+                if(recCharIdx >= PAD_LEN) {
+                    renderFinalWord(recWordIdx);
+                    recWordIdx++;
+                    recCharIdx = 0;
+                }
+            }
+            finishRecovery();
+        });
+
+        function updateRecWordDisplay() {
+            if(recWordIdx >= 12) return;
+            document.getElementById('rec-word-idx').innerText = recWordIdx + 1;
+            const container = document.getElementById('rec-word-display');
+            container.innerHTML = '';
+            const recoveredSoFar = recRecoveredWords[recWordIdx];
+            
+            for(let i=0; i<PAD_LEN; i++) {
+                const span = document.createElement('span');
+                if(i < recCharIdx) {
+                    span.className = 'char-slot done';
+                    span.innerText = recoveredSoFar[i];
+                } else if(i === recCharIdx) {
+                    span.className = 'char-slot active !border-emerald-400 !text-emerald-400 !shadow-[0_0_10px_rgba(52,211,153,0.4)]';
+                    span.innerText = '?';
+                } else {
+                    span.className = 'char-slot';
+                    span.innerText = '';
+                }
+                container.appendChild(span);
+            }
+        }
+
+        function renderFinalWord(wordIdx) {
+            const cleanWord = recRecoveredWords[wordIdx].replace(/=+$/, '');
+            const div = document.createElement('div');
+            div.className = 'bg-[#050A14] border border-emerald-500/50 p-2 rounded-lg text-center font-mono text-sm font-bold text-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.2)] fade-in';
+            div.innerText = `${wordIdx+1}. ${cleanWord}`;
+            document.getElementById('final-seed-summary').appendChild(div);
+        }
+
+        function finishRecovery() {
+            document.getElementById('rec-action-area').innerHTML = '<div class="text-white font-bold text-lg text-center w-full bg-emerald-900/40 border border-emerald-500/50 p-6 rounded-xl">🎉 ประกอบร่าง Seed Phrase ครบ 12 คำสำเร็จ!</div>';
+            document.getElementById('rec-auto-box').classList.add('hidden');
+            document.getElementById('rec-word-display').innerHTML = '';
+            snapToChar('rec-wheel', 0); 
+        }
+    </script>
+</body>
+</html>

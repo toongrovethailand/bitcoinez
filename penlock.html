@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PenLock Full Interactive Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            300: '#FFFFFF', 
+                            400: '#8B9BB4', 
+                            500: '#64748B', 
+                            700: '#1c2e4a', 
+                            800: '#162645',
+                            900: '#101a30', 
+                        },
+                        gold: {
+                            DEFAULT: '#E6C27A',
+                            dark: '#C5A059'
+                        },
+                        navy: {
+                            DEFAULT: '#050A14'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg-deep-navy: #050A14;         
+            --gold-accent: #E6C27A;          
+            --gold-glow: rgba(230, 194, 122, 0.4); 
+            --gold-glow-strong: rgba(230, 194, 122, 0.7);
+            --text-primary: #FFFFFF;
+        }
+
+        body { 
+            font-family: 'Prompt', sans-serif; 
+            background-color: var(--bg-deep-navy); 
+            background-image: radial-gradient(circle at 50% 0%, #162645 0%, var(--bg-deep-navy) 60%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        .title-gold {
+            background: linear-gradient(135deg, #FFF 0%, var(--gold-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(230, 194, 122, 0.2));
+            letter-spacing: 1px;
+        }
+
+        .glass-panel { 
+            background: rgba(16, 26, 48, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        input[type="text"] {
+            background: #050A14 !important; 
+            color: #ffffff !important;
+            border: 1px solid #1c2e4a !important;
+            transition: all 0.3s ease;
+        }
+        input[type="text"]:focus {
+            border-color: var(--gold-accent) !important;
+            box-shadow: 0 0 0 2px rgba(230, 194, 122, 0.2);
+            outline: none;
+        }
+
+        /* Custom Button */
+        .btn-gold-solid {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(230, 194, 122, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .btn-gold-solid:hover:not(:disabled) {
+            background-color: #f5d693;
+            box-shadow: 0 0 25px var(--gold-glow-strong);
+            transform: translateY(-2px);
+        }
+        .btn-gold-outline {
+            background-color: transparent;
+            color: var(--gold-accent);
+            border: 1px solid var(--gold-accent);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(230, 194, 122, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .btn-gold-outline:hover:not(:disabled) {
+            background-color: var(--gold-accent);
+            color: var(--bg-deep-navy);
+            box-shadow: 0 0 20px var(--gold-glow-strong);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-accent); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+
+        /* General Hidden */
+        .hidden { display: none !important; }
+
+        .word-box { 
+            background-color: #050A14; 
+            border: 1px solid #1c2e4a; 
+            padding: 0.5rem; 
+            border-radius: 0.5rem; 
+            text-align: center; 
+            transition: all 0.3s ease; 
+        }
+        .word-box:hover { border-color: var(--gold-accent); box-shadow: 0 0 10px rgba(230, 194, 122, 0.2); }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 10, 20, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: #101a30;
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            border-top: 1px solid rgba(34, 211, 238, 0.5);
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(20px) scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0) scale(1);
+        }
+        
+        .math-block {
+            background: #050A14;
+            border: 1px solid #1c2e4a;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-family: 'Fira Code', monospace;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-10 font-sans antialiased">
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 title-gold mt-6">PenLock <span class="text-white">Simulation</span></h1>
+            <p class="text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed">จำลองการสร้าง Seed &rarr; PenLock Split &rarr; Recovery</p>
+        </header>
+
+        <!-- SECURITY WARNING -->
+        <div class="bg-rose-950/40 border border-rose-500/50 rounded-xl p-5 mb-6 shadow-[0_0_15px_rgba(225,29,72,0.15)] flex items-start gap-4">
+            <div class="text-3xl mt-1 shrink-0 drop-shadow-[0_0_10px_rgba(225,29,72,0.5)]">⚠️</div>
+            <div>
+                <h3 class="text-rose-400 font-bold uppercase tracking-widest mb-1 text-sm md:text-base">คำเตือนด้านความปลอดภัย (Security Warning)</h3>
+                <p class="text-slate-300 text-xs md:text-sm leading-relaxed">
+                    เว็บไซต์นี้จัดทำขึ้นเป็นเพียง <strong>แบบจำลอง (Simulation)</strong> เพื่อการศึกษาและทำความเข้าใจตรรกะเบื้องหลังเท่านั้น <span class="text-rose-400 font-bold border-b border-rose-500 pb-0.5">ห้ามกรอก Seed Phrase ของจริงที่คุณใช้เก็บสินทรัพย์ลงในเว็บไซต์นี้เด็ดขาด!</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- EXPLANATION: SIMULATION VS REAL PENLOCK -->
+        <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 md:p-6 mb-10 shadow-inner">
+            <h3 class="text-gold font-bold flex items-center gap-2 mb-4 text-sm md:text-base tracking-wide">
+                <span>💡</span> ทำไมการจำลองนี้ถึงต่างจากภาพคู่มือวงล้อของ PenLock?
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div class="bg-[#050A14] p-4 rounded-lg border border-slate-800 shadow-inner">
+                    <h4 class="text-cyan-400 font-bold mb-2 text-xs md:text-sm flex items-center gap-2">
+                        <span>💻</span> แบบจำลองบนเว็บนี้ (Computer-Optimized)
+                    </h4>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        ใช้คอมพิวเตอร์คำนวณคณิตศาสตร์ (Modulo 2048) กับ <strong>"คำศัพท์ทั้งคำ"</strong> (Index 0-2047) ในครั้งเดียว เพื่อลดความซับซ้อนและให้คุณเห็นภาพรวมของการทำงาน 2-of-3 Secret Sharing ได้ทันที
+                    </p>
+                </div>
+                <div class="bg-[#050A14] p-4 rounded-lg border border-slate-800 shadow-inner">
+                    <h4 class="text-emerald-400 font-bold mb-2 text-xs md:text-sm flex items-center gap-2">
+                        <span>📝</span> คู่มือ PenLock จริง (Paper-Optimized)
+                    </h4>
+                    <p class="text-slate-400 text-xs leading-relaxed">
+                        ออกแบบมาเพื่อป้องกันแฮกเกอร์ 100% จึงต้อง <strong>"ทำด้วยมือบนกระดาษ"</strong> โดยการหั่นคำเป็นทีละอักษร แล้วใช้ <strong>"วงล้อเข้ารหัส"</strong> หมุนเทียบแทนการคิดเลข เพื่อให้มนุษย์ทำได้โดยไม่ต้องพึ่งพาคอมพิวเตอร์เลย
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1: Generate -->
+        <div class="glass-panel rounded-xl p-6 md:p-8 mb-8 shadow-[0_0_40px_rgba(0,0,0,0.8)]" id="step1">
+            <div class="flex items-center gap-4 md:gap-5 mb-6">
+                <div class="bg-gold text-navy w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center font-black text-lg md:text-xl shadow-[0_0_15px_rgba(230,194,122,0.4)] shrink-0">1</div>
+                <h2 class="text-xl md:text-2xl font-bold text-white">สร้างหรือกรอก Seed Phrase</h2>
+            </div>
+            
+            <!-- Options (Length & Mode) -->
+            <div class="flex flex-col md:flex-row gap-6 mb-6 p-5 bg-slate-900/60 rounded-xl border border-slate-700 shadow-inner">
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold text-gold uppercase tracking-widest mb-3">จำนวนคำ (Seed Length)</h3>
+                    <div class="flex gap-6">
+                        <label class="cursor-pointer flex items-center space-x-2 group">
+                            <input type="radio" name="seed-length" value="12" checked class="w-4 h-4 cursor-pointer accent-gold">
+                            <span class="text-slate-300 group-hover:text-gold transition">12 คำ</span>
+                        </label>
+                        <label class="cursor-pointer flex items-center space-x-2 group">
+                            <input type="radio" name="seed-length" value="24" class="w-4 h-4 cursor-pointer accent-gold">
+                            <span class="text-slate-300 group-hover:text-gold transition">24 คำ</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex-1 border-t md:border-t-0 md:border-l border-slate-700/80 pt-4 md:pt-0 md:pl-6">
+                    <h3 class="text-xs font-bold text-gold uppercase tracking-widest mb-3">วิธีสร้าง (Method)</h3>
+                    <div class="flex gap-6">
+                        <label class="cursor-pointer flex items-center space-x-2 group">
+                            <input type="radio" name="seed-mode" value="random" checked class="w-4 h-4 cursor-pointer accent-gold">
+                            <span class="text-slate-300 group-hover:text-gold transition">สุ่มอัตโนมัติ</span>
+                        </label>
+                        <label class="cursor-pointer flex items-center space-x-2 group">
+                            <input type="radio" name="seed-mode" value="manual" class="w-4 h-4 cursor-pointer accent-gold">
+                            <span class="text-slate-300 group-hover:text-gold transition">กรอกเอง</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Random Mode -->
+            <div id="mode-random" class="mb-4 text-center py-8 bg-slate-900/60 rounded-xl border border-slate-700 shadow-inner">
+                <p class="text-slate-400 mb-6 text-sm">คอมพิวเตอร์จะสุ่ม Entropy และคำนวณ Checksum ตามมาตรฐาน BIP39 อย่างถูกต้อง</p>
+                <button id="btn-generate" class="btn-gold-solid px-8 py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 mx-auto text-sm">
+                    <span>🎲</span> สุ่ม Seed Phrase ใหม่
+                </button>
+            </div>
+
+            <!-- Manual Mode -->
+            <div id="mode-manual" class="mb-4 hidden p-6 bg-slate-900/60 rounded-xl border border-slate-700 shadow-inner">
+                <div class="flex items-start gap-3 mb-4">
+                    <div class="text-gold text-base md:text-lg mt-0.5 shrink-0">💡</div>
+                    <p class="text-slate-400 text-sm">กรอกคำศัพท์ในแต่ละช่อง (สามารถ Paste วางข้อความยาวๆ ในช่องแรก ระบบจะกระจายคำให้เอง)</p>
+                </div>
+                
+                <div id="manual-inputs-container" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+                    <!-- Inputs will be generated by JS -->
+                </div>
+
+                <div id="manual-error" class="text-rose-400 text-sm mb-4 hidden bg-rose-950/40 p-4 rounded-xl border border-rose-500/30 flex items-center gap-2 shadow-inner">
+                    <span class="text-lg">⚠️</span>
+                    <span id="manual-error-text"></span>
+                </div>
+                <div id="manual-success" class="text-emerald-400 text-sm mb-4 hidden bg-emerald-950/40 p-4 rounded-xl border border-emerald-500/30 flex items-center gap-2 shadow-inner">
+                    <span class="text-lg">✅</span>
+                    <span id="manual-success-text"></span>
+                </div>
+                
+                <button id="btn-manual-confirm" class="w-full md:w-auto bg-slate-800 hover:bg-slate-700 border border-slate-600 px-6 py-3.5 rounded-xl font-bold transition-all shadow-lg text-slate-300 hover:text-gold flex items-center justify-center gap-2 text-sm uppercase tracking-wider">
+                    <span>ตรวจสอบ Checksum & ยืนยัน</span>
+                    <div id="loading-spinner" class="hidden w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+                </button>
+            </div>
+            
+            <div id="seed-grid" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 hidden mt-8 pt-8 border-t border-slate-700/80"></div>
+            
+            <div id="step1-next" class="mt-8 text-right hidden">
+                <button id="btn-go-step2" class="btn-gold-outline px-8 py-3.5 rounded-xl text-sm flex items-center gap-2 ml-auto">
+                    ไปขั้นตอนต่อไป (PenLock) ➔
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Split -->
+        <div class="glass-panel rounded-xl p-6 md:p-8 mb-8 shadow-[0_0_40px_rgba(0,0,0,0.8)] hidden" id="step2">
+            <div class="flex items-center gap-4 md:gap-5 mb-6">
+                <div class="bg-cyan-500 text-navy w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center font-black text-lg md:text-xl shadow-[0_0_15px_rgba(34,211,238,0.4)] shrink-0">2</div>
+                <h2 class="text-xl md:text-2xl font-bold text-white">กระบวนการ PenLock (2-of-3 Split)</h2>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 md:p-5 mb-6 text-xs md:text-sm text-slate-300 leading-relaxed shadow-inner">
+                <div class="flex items-start gap-3">
+                    <div class="text-cyan-400 text-base md:text-lg mt-0.5 shrink-0">🔐</div>
+                    <div>
+                        ระบบจะนำดัชนี (S) ของแต่ละคำมาเข้าสมการ Modulo เพื่อแตกเป็นตัวแปร <strong class="text-cyan-400">A, B, C</strong> และกระจายลง Share 3 ใบ
+                    </div>
+                </div>
+            </div>
+            
+            <button id="btn-split" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-8 py-4 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all uppercase tracking-widest text-sm hover:-translate-y-1 mb-8">
+                คำนวณ PenLock (แยกเป็น 3 Share)
+            </button>
+            
+            <div id="split-result" class="hidden">
+                <div class="flex items-center gap-2 mb-4 border-b border-slate-700/80 pb-4">
+                    <h3 class="text-lg font-bold text-white">ผลลัพธ์: กระดาษ Share ทั้ง 3 ใบ</h3>
+                </div>
+                <p class="text-xs text-slate-400 mb-6 bg-[#050A14] p-3 rounded-lg border border-slate-700/50 shadow-inner inline-block">
+                    💡 แต่ละใบจะเก็บคำศัพท์ตามจำนวน 2 เท่าของ Seed เดิม (12 คำ &rarr; 24 คำ / 24 คำ &rarr; 48 คำ) พร้อมระบุที่มาของคำนั้นๆ
+                </p>
+                <p class="text-xs text-cyan-400 mb-6 ml-2 inline-block cursor-pointer hover:underline" onclick="showMathExplanation(0)">
+                    [ดูวิธีคิดแบบละเอียด (คณิตศาสตร์ Modulo)]
+                </p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Share 1 -->
+                    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700 flex flex-col h-[600px] shadow-inner relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-500"></div>
+                        <h4 class="font-bold text-white mb-4 shrink-0 flex items-center justify-between">
+                            <span class="text-cyan-400">Share 1</span>
+                            <span class="text-[10px] uppercase tracking-widest bg-[#050A14] border border-slate-700 px-2 py-1 rounded text-slate-300">เก็บ A, B</span>
+                        </h4>
+                        <div id="share1-grid" class="grid grid-cols-2 gap-2 text-xs text-slate-400 font-mono overflow-y-auto pr-2 pb-2 content-start flex-1 custom-scrollbar"></div>
+                    </div>
+                    <!-- Share 2 -->
+                    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700 flex flex-col h-[600px] shadow-inner relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-500"></div>
+                        <h4 class="font-bold text-white mb-4 shrink-0 flex items-center justify-between">
+                            <span class="text-cyan-400">Share 2</span>
+                            <span class="text-[10px] uppercase tracking-widest bg-[#050A14] border border-slate-700 px-2 py-1 rounded text-slate-300">เก็บ B, C</span>
+                        </h4>
+                        <div id="share2-grid" class="grid grid-cols-2 gap-2 text-xs text-slate-400 font-mono overflow-y-auto pr-2 pb-2 content-start flex-1 custom-scrollbar"></div>
+                    </div>
+                    <!-- Share 3 -->
+                    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700 flex flex-col h-[600px] shadow-inner relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-500"></div>
+                        <h4 class="font-bold text-white mb-4 shrink-0 flex items-center justify-between">
+                            <span class="text-cyan-400">Share 3</span>
+                            <span class="text-[10px] uppercase tracking-widest bg-[#050A14] border border-slate-700 px-2 py-1 rounded text-slate-300">เก็บ C, A</span>
+                        </h4>
+                        <div id="share3-grid" class="grid grid-cols-2 gap-2 text-xs text-slate-400 font-mono overflow-y-auto pr-2 pb-2 content-start flex-1 custom-scrollbar"></div>
+                    </div>
+                </div>
+                
+                <div class="text-right border-t border-slate-700/80 pt-6">
+                    <button id="btn-go-step3" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg text-sm uppercase tracking-wider flex items-center gap-2 ml-auto hover:text-cyan-400">
+                        ไปขั้นตอนต่อไป (Recovery) ➔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Recovery -->
+        <div class="glass-panel rounded-xl p-6 md:p-8 mb-8 shadow-[0_0_40px_rgba(0,0,0,0.8)] hidden" id="step3">
+            <div class="flex items-center gap-4 md:gap-5 mb-6">
+                <div class="bg-rose-500 text-white w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center font-black text-lg md:text-xl shadow-[0_0_15px_rgba(225,29,72,0.4)] shrink-0">3</div>
+                <h2 class="text-xl md:text-2xl font-bold text-white">การกู้คืน (Recovery)</h2>
+            </div>
+            
+            <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 md:p-5 mb-8 text-xs md:text-sm text-slate-300 leading-relaxed shadow-inner">
+                <div class="flex items-start gap-3">
+                    <div class="text-rose-400 text-base md:text-lg mt-0.5 shrink-0">✂️</div>
+                    <div>
+                        จำลองเหตุการณ์ฉุกเฉิน: นำกระดาษ Share 2 ใบมาต่อกัน ระบบจะถอดสมการเพื่อดึงตัวแปร <strong class="text-rose-400">A, B, C</strong> กลับมาและแปลงเป็นคำศัพท์เดิม
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-4 mb-8 bg-slate-900/60 p-6 rounded-xl border border-slate-700 shadow-inner">
+                <select id="rec-share1" class="bg-[#050A14] text-white p-4 rounded-xl border border-slate-700 flex-1 outline-none focus:border-rose-500 transition appearance-none cursor-pointer text-center font-bold text-sm md:text-base font-mono">
+                    <option value="1">Share 1</option>
+                    <option value="2">Share 2</option>
+                    <option value="3">Share 3</option>
+                </select>
+                <span class="text-3xl font-bold self-center text-slate-600">+</span>
+                <select id="rec-share2" class="bg-[#050A14] text-white p-4 rounded-xl border border-slate-700 flex-1 outline-none focus:border-rose-500 transition appearance-none cursor-pointer text-center font-bold text-sm md:text-base font-mono">
+                    <option value="1">Share 1</option>
+                    <option value="2" selected>Share 2</option>
+                    <option value="3">Share 3</option>
+                </select>
+                <button id="btn-recover" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-8 py-4 rounded-xl shadow-[0_0_15px_rgba(225,29,72,0.3)] transition-all uppercase tracking-widest text-sm md:ml-4 hover:-translate-y-1">
+                    ถอดรหัสกู้คืน Seed!
+                </button>
+            </div>
+
+            <div id="recovery-result" class="hidden">
+                <h3 class="text-sm font-bold text-gold uppercase tracking-widest mb-4 border-b border-slate-700/80 pb-2">กระบวนการถอดรหัสทีละคำ (Recovery Process)</h3>
+                
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-[#050A14] mb-10 max-h-[450px] overflow-y-auto shadow-inner custom-scrollbar">
+                    <table class="w-full text-left text-sm border-collapse whitespace-nowrap">
+                        <thead class="bg-slate-900 sticky top-0 z-10 shadow-md">
+                            <tr>
+                                <th class="p-4 border-b border-r border-slate-700 text-center text-slate-500 text-[10px] uppercase tracking-widest w-16">คำที่</th>
+                                <th class="p-4 border-b border-r border-slate-700 text-slate-500 text-[10px] uppercase tracking-widest">ตัวแปรที่พบใน Share (A,B,C)</th>
+                                <th class="p-4 border-b border-r border-slate-700 text-slate-500 text-[10px] uppercase tracking-widest font-mono">สมการ S = (A+B+C) mod 2048</th>
+                                <th class="p-4 border-b border-slate-700 text-rose-400 text-[10px] uppercase tracking-widest text-center">คำศัพท์ที่ได้</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recovery-table-body" class="font-mono text-xs md:text-sm text-slate-300">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- เพิ่มส่วนสรุป Seed ที่ได้ -->
+                <div class="p-6 md:p-8 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl relative shadow-inner">
+                    
+                    <div class="text-center mb-8 relative z-10">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 mb-4 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-extrabold text-white mb-2 tracking-widest uppercase">กู้คืน Seed Phrase สำเร็จ!</h3>
+                        <p class="text-emerald-400 text-sm font-bold">ข้อมูลครบถ้วน และ Checksum ถูกต้องตามมาตรฐาน</p>
+                    </div>
+                    
+                    <!-- ตารางสรุป Seed เหมือนตอนสร้าง -->
+                    <div id="final-seed-summary" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 relative z-10">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Math Explanation -->
+    <div id="math-modal" class="modal-overlay">
+        <div class="modal-content relative p-6 md:p-8">
+            <button onclick="closeMathModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center">
+                &times;
+            </button>
+            
+            <h2 class="text-2xl font-bold text-cyan-400 mb-2 flex items-center gap-3">
+                <span>🧮</span> วิธีคิดคณิตศาสตร์เบื้องหลัง
+            </h2>
+            <p class="text-slate-400 text-sm mb-6 border-b border-slate-700/50 pb-4">เจาะลึกสมการ Modulo 2048 ของคำที่เลือก (2-of-3 Secret Sharing)</p>
+            
+            <div id="math-modal-content" class="text-sm text-slate-300 leading-relaxed">
+                <!-- Content will be injected by JS -->
+            </div>
+            
+            <div class="mt-8 text-center border-t border-slate-700/50 pt-6">
+                <button onclick="closeMathModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg text-sm">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let wordlist = [];
+        let originalSeed = []; // { word, index }
+        let sharesData = { 1: [], 2: [], 3: [] }; // Stores { val, varName, seedIndex }
+        let currentLength = 12;
+
+        // 1. โหลด Wordlist
+        async function init() {
+            try {
+                const res = await fetch('https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt');
+                const text = await res.text();
+                wordlist = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                generateManualInputs(currentLength);
+            } catch(e) {
+                alert('Failed to load BIP39 Wordlist');
+            }
+        }
+        init();
+
+        // ----- UI Events -----
+        document.getElementsByName('seed-length').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                currentLength = parseInt(e.target.value);
+                generateManualInputs(currentLength);
+                resetSimulation();
+            });
+        });
+
+        document.getElementsByName('seed-mode').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'random') {
+                    document.getElementById('mode-random').classList.remove('hidden');
+                    document.getElementById('mode-manual').classList.add('hidden');
+                } else {
+                    document.getElementById('mode-random').classList.add('hidden');
+                    document.getElementById('mode-manual').classList.remove('hidden');
+                }
+                resetSimulation();
+            });
+        });
+
+        function resetSimulation() {
+            document.getElementById('seed-grid').classList.add('hidden');
+            document.getElementById('step1-next').classList.add('hidden');
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step3').classList.add('hidden');
+            document.getElementById('split-result').classList.add('hidden');
+            document.getElementById('recovery-result').classList.add('hidden');
+            document.getElementById('manual-error').classList.add('hidden');
+            document.getElementById('manual-success').classList.add('hidden');
+        }
+
+        // ----- Manual Inputs Setup -----
+        function generateManualInputs(length) {
+            const container = document.getElementById('manual-inputs-container');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < length; i++) {
+                const inputWrap = document.createElement('div');
+                inputWrap.className = 'relative flex flex-col';
+                
+                const label = document.createElement('span');
+                label.className = 'absolute -top-2 left-2 bg-[#050A14] px-1.5 text-[10px] text-slate-500 font-bold z-10 border border-slate-800 rounded';
+                label.innerText = (i + 1).toString();
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `manual-word-${i}`;
+                input.className = 'w-full bg-[#050A14] text-white p-2 pt-3 rounded-xl border border-slate-700 outline-none focus:border-gold text-sm font-mono manual-input transition shadow-inner';
+                
+                // จัดการ Paste Event (วาง 12 หรือ 24 คำทีเดียว)
+                if (i === 0) {
+                    input.addEventListener('paste', (e) => {
+                        e.preventDefault();
+                        const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                        const words = pasteText.toLowerCase().trim().split(/\s+/);
+                        
+                        const inputs = document.querySelectorAll('.manual-input');
+                        for(let j=0; j<Math.min(words.length, inputs.length); j++) {
+                            inputs[j].value = words[j];
+                        }
+                    });
+                }
+                
+                inputWrap.appendChild(label);
+                inputWrap.appendChild(input);
+                container.appendChild(inputWrap);
+            }
+        }
+
+        // ----- BIP39 Core Functions -----
+
+        // เช็คความถูกต้องของ Checksum
+        async function validateBIP39(wordsArray) {
+            const indices = wordsArray.map(w => wordlist.indexOf(w));
+            if (indices.includes(-1)) return { valid: false, error: "มีคำที่สะกดผิด หรือไม่ได้อยู่ในพจนานุกรม BIP39" };
+
+            const bits = indices.map(idx => idx.toString(2).padStart(11, '0')).join('');
+            const entropyBitLen = wordsArray.length === 12 ? 128 : 256;
+            const entropyBits = bits.slice(0, entropyBitLen);
+            const checksumBits = bits.slice(entropyBitLen);
+
+            const entropyBytes = new Uint8Array(entropyBitLen / 8);
+            for (let i = 0; i < entropyBytes.length; i++) {
+                entropyBytes[i] = parseInt(entropyBits.slice(i * 8, i * 8 + 8), 2);
+            }
+
+            const hashBuffer = await crypto.subtle.digest('SHA-256', entropyBytes);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashBits = hashArray.map(b => b.toString(2).padStart(8, '0')).join('');
+            const expectedChecksum = hashBits.slice(0, checksumBits.length);
+
+            if (checksumBits === expectedChecksum) {
+                return { valid: true, indices };
+            } else {
+                return { valid: false, error: "โครงสร้าง Checksum ของ Seed Phrase ไม่ถูกต้อง (ไม่ใช่ Seed ที่ถูกต้องตามมาตรฐาน)" };
+            }
+        }
+
+        // สร้าง Seed อัตโนมัติ (Entropy -> Checksum -> Words)
+        async function generateValidSeed(length) {
+            const entropyBytes = new Uint8Array(length === 12 ? 16 : 32);
+            crypto.getRandomValues(entropyBytes);
+
+            const hashBuffer = await crypto.subtle.digest('SHA-256', entropyBytes);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashBits = hashArray.map(b => b.toString(2).padStart(8, '0')).join('');
+
+            let entropyBits = '';
+            for (let i = 0; i < entropyBytes.length; i++) {
+                entropyBits += entropyBytes[i].toString(2).padStart(8, '0');
+            }
+
+            const checksumLen = length === 12 ? 4 : 8;
+            const fullBits = entropyBits + hashBits.slice(0, checksumLen);
+
+            const result = [];
+            for (let i = 0; i < length; i++) {
+                const idx = parseInt(fullBits.slice(i * 11, i * 11 + 11), 2);
+                result.push({ word: wordlist[idx], index: idx });
+            }
+            return result;
+        }
+
+        // ----- Render Grid -----
+        function renderSeedGrid() {
+            const grid = document.getElementById('seed-grid');
+            grid.innerHTML = '';
+            originalSeed.forEach((item, i) => {
+                const div = document.createElement('div');
+                div.className = 'word-box relative font-mono shadow-inner cursor-pointer';
+                div.onclick = () => showMathExplanation(i);
+                div.innerHTML = `
+                    <div class="absolute top-1 left-2 text-[10px] text-slate-500 font-bold">${i+1}</div>
+                    <div class="font-bold text-white text-md mt-2 tracking-wide">${item.word}</div>
+                    <div class="text-[10px] text-gold mt-1 opacity-80">S = ${item.index}</div>
+                    <div class="absolute -top-2 -right-2 bg-slate-800 text-[10px] w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">?</div>
+                `;
+                div.classList.add('group');
+                grid.appendChild(div);
+            });
+            grid.classList.remove('hidden');
+            document.getElementById('step1-next').classList.remove('hidden');
+        }
+
+        // ----- Modal Logic -----
+        function showMathExplanation(seedIdx) {
+            if (sharesData[1].length === 0) {
+                alert('กรุณากดคำนวณ PenLock ก่อนเพื่อดูวิธีคิดตัวแปร');
+                return;
+            }
+            
+            const seedWord = originalSeed[seedIdx].word;
+            const S = originalSeed[seedIdx].index;
+            
+            // ดึงค่า A, B, C จาก sharesData ที่เก็บไว้
+            // sharesData[1] เก็บ A, B (index 0, 1 สำหรับคำแรก)
+            const A = sharesData[1][seedIdx * 2].val;
+            const B = sharesData[1][seedIdx * 2 + 1].val;
+            const C = sharesData[2][seedIdx * 2 + 1].val;
+            
+            const wordA = wordlist[A];
+            const wordB = wordlist[B];
+            const wordC = wordlist[C];
+
+            const html = `
+                <div class="mb-6">
+                    <h3 class="text-white font-bold mb-3 border-l-4 border-gold pl-3">1. กำหนดค่าเริ่มต้น (Seed Word)</h3>
+                    <p class="ml-4">คำที่ ${seedIdx + 1} คือ <strong class="text-gold text-lg px-2">${seedWord}</strong> มีค่า Index ในพจนานุกรม BIP39 เท่ากับ <strong>S = <span class="text-cyan-400">${S}</span></strong></p>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-white font-bold mb-3 border-l-4 border-gold pl-3">2. สุ่มตัวแปร A และ B (Random Generator)</h3>
+                    <p class="ml-4 mb-2 text-slate-400">ระบบจะสุ่มตัวเลขช่วง 0 - 2047 ออกมา 2 ค่าอย่างอิสระ:</p>
+                    <div class="math-block ml-4">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="w-8 font-bold text-cyan-400">A</span> = <span class="text-white w-12">${A}</span> 
+                            <span class="text-slate-500">&rarr;</span> ดัชนีในพจนานุกรมคือคำว่า <strong class="text-gold bg-slate-800 px-2 py-0.5 rounded ml-1">${wordA}</strong>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 font-bold text-cyan-400">B</span> = <span class="text-white w-12">${B}</span> 
+                            <span class="text-slate-500">&rarr;</span> ดัชนีในพจนานุกรมคือคำว่า <strong class="text-gold bg-slate-800 px-2 py-0.5 rounded ml-1">${wordB}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-white font-bold mb-3 border-l-4 border-gold pl-3">3. คำนวณหาตัวแปร C</h3>
+                    <p class="ml-4 mb-2 text-slate-400">สมการหลักคือ <code class="bg-slate-800 px-1 rounded text-cyan-300">S = (A + B + C) mod 2048</code> ย้ายข้างเพื่อหา C:</p>
+                    <div class="math-block ml-4">
+                        <div class="text-cyan-400 font-bold mb-2">C = (S - A - B) mod 2048</div>
+                        <div class="text-slate-400 mb-1">แทนค่า: C = (${S} - ${A} - ${B}) mod 2048</div>
+                        <div class="text-slate-400 mb-1">C = ${S - A - B} mod 2048</div>
+                        ${(S - A - B) < 0 
+                            ? `<div class="text-rose-400 text-xs my-2 italic">* เนื่องจากผลลัพธ์ติดลบ จึงบวกด้วย 2048 เพื่อปรับให้อยู่ในช่วงดัชนีบวก</div>
+                               <div class="text-slate-400 mb-1">C = ${S - A - B} + 2048</div>` 
+                            : ''}
+                        <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-700">
+                            <span class="w-8 font-bold text-cyan-400">C</span> = <span class="text-white w-12">${C}</span> 
+                            <span class="text-slate-500">&rarr;</span> ดัชนีในพจนานุกรมคือคำว่า <strong class="text-gold bg-slate-800 px-2 py-0.5 rounded ml-1">${wordC}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-white font-bold mb-3 border-l-4 border-gold pl-3">4. ตรวจสอบการถอดรหัสกู้คืน (Proof)</h3>
+                    <p class="ml-4 mb-2 text-slate-400">เมื่อนำทั้ง 3 ค่ากลับมารวมกันในขั้นตอน Recovery (นำค่า A, B, C มาบวกกัน):</p>
+                    <div class="math-block ml-4">
+                        <span class="text-slate-400">(<span class="text-white">${A}</span> + <span class="text-white">${B}</span> + <span class="text-white">${C}</span>) mod 2048 = </span>
+                        <span class="text-white">${A + B + C} mod 2048</span> = <strong class="text-cyan-400 text-lg">${(A+B+C)%2048}</strong>
+                    </div>
+                    <p class="ml-4 mt-2">ผลลัพธ์ดัชนี <strong>${S}</strong> จะแปลงกลับมาได้คำว่า <strong class="text-gold">${seedWord}</strong> ตรงตาม Seed ต้นทางพอดี!</p>
+                </div>
+            `;
+            
+            document.getElementById('math-modal-content').innerHTML = html;
+            document.getElementById('math-modal').classList.add('active');
+        }
+
+        function closeMathModal() {
+            document.getElementById('math-modal').classList.remove('active');
+        }
+
+        // Close modal on outside click
+        document.getElementById('math-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('math-modal')) {
+                closeMathModal();
+            }
+        });
+
+        // ----- Step 1: Generate Action -----
+        document.getElementById('btn-generate').addEventListener('click', async () => {
+            if(wordlist.length === 0) return alert('Wordlist loading...');
+            originalSeed = await generateValidSeed(currentLength);
+            renderSeedGrid();
+        });
+
+        // ----- Step 1: Manual Confirm -----
+        document.getElementById('btn-manual-confirm').addEventListener('click', async () => {
+            const errorDiv = document.getElementById('manual-error');
+            const errorText = document.getElementById('manual-error-text');
+            const successDiv = document.getElementById('manual-success');
+            const successText = document.getElementById('manual-success-text');
+            const spinner = document.getElementById('loading-spinner');
+            
+            errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
+            spinner.classList.remove('hidden');
+
+            const inputs = document.querySelectorAll('.manual-input');
+            const words = Array.from(inputs).map(inp => inp.value.trim().toLowerCase());
+            
+            if (words.some(w => w === '')) {
+                errorText.textContent = 'กรุณากรอกคำให้ครบทุกช่อง';
+                errorDiv.classList.remove('hidden');
+                spinner.classList.add('hidden');
+                return;
+            }
+
+            const validation = await validateBIP39(words);
+            
+            if (!validation.valid) {
+                errorText.textContent = validation.error;
+                errorDiv.classList.remove('hidden');
+            } else {
+                successText.textContent = 'ยอดเยี่ยม! โครงสร้าง Checksum ของ Seed ถูกต้อง';
+                successDiv.classList.remove('hidden');
+                
+                originalSeed = words.map((w, i) => ({ word: w, index: validation.indices[i] }));
+                renderSeedGrid();
+            }
+            
+            spinner.classList.add('hidden');
+        });
+
+        // ----- Move to Step 2 -----
+        document.getElementById('btn-go-step2').addEventListener('click', () => {
+            document.getElementById('step2').classList.remove('hidden');
+            document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // ----- Step 2: Split Action -----
+        document.getElementById('btn-split').addEventListener('click', () => {
+            sharesData = { 1: [], 2: [], 3: [] };
+            
+            for(let i = 0; i < originalSeed.length; i++) {
+                const S = originalSeed[i].index;
+                
+                const A = Math.floor(Math.random() * 2048);
+                const B = Math.floor(Math.random() * 2048);
+                let C = (S - A - B) % 2048;
+                if (C < 0) C += 2048;
+                
+                // บันทึกค่าพร้อมระบุที่มา (seedIndex และ varName)
+                sharesData[1].push({ val: A, varName: 'A', seedIndex: i + 1 });
+                sharesData[1].push({ val: B, varName: 'B', seedIndex: i + 1 });
+
+                sharesData[2].push({ val: B, varName: 'B', seedIndex: i + 1 });
+                sharesData[2].push({ val: C, varName: 'C', seedIndex: i + 1 });
+
+                sharesData[3].push({ val: C, varName: 'C', seedIndex: i + 1 });
+                sharesData[3].push({ val: A, varName: 'A', seedIndex: i + 1 });
+            }
+            
+            [1, 2, 3].forEach(shareNum => {
+                const grid = document.getElementById(`share${shareNum}-grid`);
+                grid.innerHTML = '';
+                sharesData[shareNum].forEach((item, idx) => {
+                    const word = wordlist[item.val];
+                    // เพิ่ม onclick ให้กดดูรายละเอียดได้
+                    const seedIdx = item.seedIndex - 1;
+                    grid.innerHTML += `
+                        <div class="bg-[#050A14] p-2.5 rounded-lg border border-slate-800 flex flex-col justify-between hover:border-cyan-500/50 transition shadow-inner gap-1 cursor-pointer group" onclick="showMathExplanation(${seedIdx})">
+                            <div class="flex items-center justify-between text-[10px]">
+                                <span class="text-slate-500 font-bold">#${idx + 1}</span>
+                                <span class="bg-cyan-950 border border-cyan-500/40 text-cyan-400 font-mono px-1.5 py-0.5 rounded font-semibold group-hover:bg-cyan-900 transition">
+                                    คำที่ ${item.seedIndex} (${item.varName})
+                                </span>
+                            </div>
+                            <div class="flex items-baseline justify-between mt-1">
+                                <span class="text-white font-bold text-sm tracking-wide group-hover:text-cyan-300 transition">${word}</span>
+                                <span class="text-[10px] text-gold font-mono opacity-80">idx: ${item.val}</span>
+                            </div>
+                        </div>`;
+                });
+            });
+            
+            document.getElementById('split-result').classList.remove('hidden');
+            
+            // อัปเดต Grid คำให้กดได้
+            renderSeedGrid();
+        });
+
+        // ----- Move to Step 3 -----
+        document.getElementById('btn-go-step3').addEventListener('click', () => {
+            document.getElementById('step3').classList.remove('hidden');
+            document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // ----- Step 3: Recover Action (Detailed Process) -----
+        document.getElementById('btn-recover').addEventListener('click', () => {
+            const s1 = parseInt(document.getElementById('rec-share1').value);
+            const s2 = parseInt(document.getElementById('rec-share2').value);
+            
+            if (s1 === s2) {
+                return alert('ต้องเลือก Share ที่ไม่ซ้ำกัน!');
+            }
+            
+            const tbody = document.getElementById('recovery-table-body');
+            const summaryGrid = document.getElementById('final-seed-summary');
+            
+            tbody.innerHTML = '';
+            summaryGrid.innerHTML = '';
+            
+            let recoveredWords = [];
+            
+            for(let i = 0; i < originalSeed.length; i++) {
+                let rA = null, rB = null, rC = null;
+                
+                // อัปเดตให้อ่านค่าจาก .val ของ Object
+                const extract = (shNum, dataArr) => {
+                    if(shNum === 1) { rA = dataArr[i*2].val; rB = dataArr[i*2+1].val; }
+                    if(shNum === 2) { rB = dataArr[i*2].val; rC = dataArr[i*2+1].val; }
+                    if(shNum === 3) { rC = dataArr[i*2].val; rA = dataArr[i*2+1].val; }
+                };
+                
+                extract(s1, sharesData[s1]);
+                extract(s2, sharesData[s2]);
+                
+                const recS = (rA + rB + rC) % 2048;
+                const recWord = wordlist[recS];
+                recoveredWords.push({ word: recWord, index: recS });
+                
+                const trClass = i % 2 === 0 ? 'bg-[#050A14]' : 'bg-slate-900/40';
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-slate-800 transition ${trClass} cursor-pointer group`;
+                tr.onclick = () => showMathExplanation(i);
+                
+                const eqStr = `(<span class="text-slate-300 group-hover:text-cyan-300 transition">${rA}</span> + <span class="text-slate-300 group-hover:text-cyan-300 transition">${rB}</span> + <span class="text-slate-300 group-hover:text-cyan-300 transition">${rC}</span>) mod 2048 = <span class="text-white font-bold group-hover:text-gold transition">${recS}</span>`;
+                
+                tr.innerHTML = `
+                    <td class="p-4 border-b border-r border-slate-800 text-center font-bold text-slate-500 group-hover:text-cyan-400 transition">${i+1}</td>
+                    <td class="p-4 border-b border-r border-slate-800 text-slate-400">
+                        <span class="inline-block w-24">A=<span class="text-cyan-400 group-hover:text-cyan-300 transition">${rA}</span></span> 
+                        <span class="inline-block w-24">B=<span class="text-cyan-400 group-hover:text-cyan-300 transition">${rB}</span></span> 
+                        <span class="inline-block w-24">C=<span class="text-cyan-400 group-hover:text-cyan-300 transition">${rC}</span></span>
+                    </td>
+                    <td class="p-4 border-b border-r border-slate-800">${eqStr}</td>
+                    <td class="p-4 border-b border-slate-800 text-center relative">
+                        <span class="inline-block bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold px-3 py-1 rounded-lg text-base shadow-inner group-hover:bg-rose-500/20 group-hover:border-rose-500/50 transition">${recWord}</span>
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-cyan-500 text-xs transition">🔍</div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+            
+            recoveredWords.forEach((item, i) => {
+                const div = document.createElement('div');
+                div.className = 'word-box relative bg-[#050A14] border-slate-700 font-mono hover:border-emerald-400 transition shadow-inner cursor-pointer group';
+                div.onclick = () => showMathExplanation(i);
+                div.innerHTML = `
+                    <div class="absolute top-1 left-2 text-[10px] text-slate-500 font-bold">${i+1}</div>
+                    <div class="font-bold text-white text-md mt-2 tracking-wide group-hover:text-emerald-400 transition">${item.word}</div>
+                    <div class="text-[10px] text-emerald-400 mt-1 opacity-80">S = ${item.index}</div>
+                `;
+                summaryGrid.appendChild(div);
+            });
+            
+            document.getElementById('recovery-result').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
