@@ -4,8 +4,11 @@ function drawProfession() {
     let sharedIndex = Math.floor(Math.random() * professionCards.length);
     const card = professionCards[sharedIndex];
 
-    player = { profName: card.name, cash: card.savings, salary: card.salary, baseExpenses: card.expenses, profDebt: card.profDebt, bankDebt: 0, creditDebt: 0, passive: 0, assets: [], isEducated: false };
+    player = { profName: card.name, cash: card.savings, salary: card.salary, baseExpenses: card.expenses, profDebt: card.profDebt, bankDebt: 0, creditDebt: 0, creditGrace: 0, passive: 0, assets: [], isEducated: false, currentTax: 0 };
     bot = JSON.parse(JSON.stringify(player));
+
+    getExpenses(player); 
+    getExpenses(bot);
 
     document.getElementById('prof-player-name').innerText = player.profName;
     document.getElementById('prof-player-salary').innerText = fmt(player.salary);
@@ -28,8 +31,12 @@ function startGame() {
     document.getElementById('header-profession').innerText = player.profName;
     document.getElementById('bot-profession').innerText = bot.profName;
     
+    resetEventCounts();
+    // 🌟 วิกฤตแรกจะเกิดได้เมื่อผ่านไป 60 เดือน
+    nextCrisisMonth = 60; 
+    
     logActivity(`[เริ่มเกม] วัดกึ๋น! ผู้เล่นและบอทได้รับอาชีพ ${player.profName} เหมือนกัน`, 'system', 'global');
-    logActivity(`ยินดีต้อนรับสู่ Cashflow Simulation!`, 'system', 'global');
+    logActivity(`ระบบได้นำ 'ภาษีอัตราก้าวหน้า' เข้าไปรวมในรายจ่ายของคุณแล้ว!`, 'system', 'global');
     
     updateMarketPrices();
     updateUI();
@@ -70,50 +77,53 @@ function applySharedSalaryIncrease() {
     showAlert('🎉 ข่าวดี!', `คุณและบอทได้รับการปรับขึ้นเงินเดือน ${percent}% \n(คุณได้เพิ่ม ${fmt(increaseP)} บาท/เดือน)`, '💸');
 }
 
+// --- Event Generators ---
 function generateCrisisEvent() {
     const isPandemic = Math.random() > 0.5;
     return {
         type: 'crisis',
-        name: isPandemic ? "🦠 วิกฤตโรคระบาด!" : "⚔️ สงครามเศรษฐกิจ!",
-        desc: "ธุรกิจและอสังหาฯ ซบเซาหนัก!\n\nคุณมีเงินสำรองฉุกเฉินเพียงพอ (6 เท่าของรายจ่าย) หรือไม่?\nหากไม่พอ... รายรับจากสินทรัพย์ของคุณจะถูกหั่นทิ้ง 50% ทันที!",
+        name: isPandemic ? "🦠 วิกฤตโรคระบาดระลอกใหม่!" : "⚔️ วิกฤตสงครามและซัพพลายเชน!",
+        desc: "เศรษฐกิจหยุดชะงัก ธุรกิจและอสังหาริมทรัพย์ได้รับผลกระทบอย่างหนัก!\n\nหากคุณไม่มีเงินสำรองฉุกเฉิน (6 เท่าของรายจ่าย) รายรับจากสินทรัพย์ของคุณจะถูกหั่นลง 50% ทันที!",
         cost: 0
     };
 }
 
 function generateDynamicDeal() {
     const rand = Math.random(); 
-    let type, cost, roiPercent, downPaymentPercent; 
-    let isBusiness = false;
-    let isLand = false;
+    let typeName, cost, roiPercent, downPaymentPercent; 
+    let isBusiness = false, isLand = false;
+    let buff = 'none', buffDesc = '', taxDeduct = 0;
+    
+    let landNames = [{id:"land_1", name:"ที่ดินชานเมือง", limit:3}, {id:"land_2", name:"ที่ดินรอตัดถนน", limit:2}, {id:"land_3", name:"ที่ดินทำเลทอง", limit:2}, {id:"land_4", name:"ที่ดินใกล้แนวรถไฟฟ้าใหม่", limit:2}, {id:"land_5", name:"ที่ดินหลุดจำนองกรมบังคับคดี", limit:1}];
+    let businessNames = [{id:"biz_1", name:"ตู้หยอดเหรียญอัตโนมัติ", limit:3}, {id:"biz_2", name:"ร้านสะดวกซัก 24 ชม.", limit:2}, {id:"biz_3", name:"แฟรนไชส์ชานมไข่มุก", limit:1}, {id:"biz_4", name:"ร่วมหุ้นสตาร์ทอัพ (Angel Investor)", limit:1}, {id:"biz_5", name:"เปิดร้านอาหารกับเพื่อน", limit:1}, {id:"biz_6", name:"โกดังสินค้า E-commerce", limit:1}, {id:"biz_7", name:"สถานีชาร์จรถไฟฟ้า (EV Charger)", limit:1}];
+    let smallReNames = [{id:"sre_1", name:"คอนโดปล่อยเช่าย่านออฟฟิศ", limit:null}, {id:"sre_2", name:"ทาวน์โฮมชานเมือง", limit:null}, {id:"sre_3", name:"บ้านเดี่ยวหลังเล็ก", limit:null}, {id:"sre_4", name:"คอนโดมือสองใกล้มหาวิทยาลัย", limit:3}, {id:"sre_5", name:"บ้านพักตากอากาศปล่อยเช่ารายวัน", limit:2}];
+    let largeReNames = [{id:"lre_1", name:"อพาร์ตเมนต์ 8 ยูนิต", limit:null}, {id:"lre_2", name:"อาคารพาณิชย์ทำเลทอง", limit:2}, {id:"lre_3", name:"ลานจอดรถให้เช่ารายเดือน", limit:2}, {id:"lre_4", name:"อพาร์ตเมนต์ 20 ยูนิต", limit:2}, {id:"lre_5", name:"โฮสเทลขนาดเล็ก (Boutique)", limit:1}, {id:"lre_6", name:"มินิมอลล์ (Community Mall)", limit:1}];
+
+    function getAvailableName(pool) {
+        let available = pool.filter(e => e.limit === null || getEventCount(e.id) < e.limit);
+        if(available.length === 0) available = pool.filter(e => e.limit === null); 
+        if(available.length === 0) available = pool; 
+        let selected = available[Math.floor(Math.random() * available.length)];
+        incrementEventCount(selected.id);
+        return selected.name;
+    }
     
     if (rand < 0.2) { 
-        type = ["ที่ดินชานเมือง", "ที่ดินรอตัดถนน", "ที่ดินทำเลทอง"][Math.floor(Math.random() * 3)];
-        cost = Math.floor(Math.random() * 50 + 10) * 10000; 
-        downPaymentPercent = 1.0; 
-        isLand = true;
+        typeName = getAvailableName(landNames); cost = Math.floor(Math.random() * 50 + 10) * 10000; downPaymentPercent = 1.0; isLand = true;
     } else if (rand < 0.5) { 
-        type = ["ตู้หยอดเหรียญ", "ร้านสะดวกซัก", "แฟรนไชส์เครื่องดื่ม", "สตาร์ทอัพ (Angel)"][Math.floor(Math.random() * 4)];
-        cost = Math.floor(Math.random() * 30 + 5) * 10000; 
-        downPaymentPercent = Math.random() * 0.3 + 0.3; 
-        roiPercent = Math.floor(Math.random() * 40) + 20; 
-        isBusiness = true;
+        typeName = getAvailableName(businessNames); cost = Math.floor(Math.random() * 30 + 5) * 10000; downPaymentPercent = Math.random() * 0.3 + 0.3; roiPercent = Math.floor(Math.random() * 40) + 20; isBusiness = true;
+        buff = 'business'; buffDesc = '✨ นิติบุคคล: ภาษีเงินเดือนลด 50%';
     } else if (rand < 0.8) { 
-        type = ["คอนโดปล่อยเช่า", "ทาวน์โฮม", "บ้านเดี่ยวหลังเล็ก"][Math.floor(Math.random() * 3)];
-        cost = Math.floor(Math.random() * 30 + 10) * 10000; 
-        downPaymentPercent = Math.random() * 0.1 + 0.1; 
-        roiPercent = Math.floor(Math.random() * 15) + 8; 
+        typeName = getAvailableName(smallReNames); cost = Math.floor(Math.random() * 30 + 10) * 10000; downPaymentPercent = Math.random() * 0.1 + 0.1; roiPercent = Math.floor(Math.random() * 15) + 8; 
+        buff = 'realestate'; taxDeduct = 1000; buffDesc = `✨ ค่าเสื่อมราคา: ลดหย่อนภาษี ฿${taxDeduct.toLocaleString()}/ด`;
     } else { 
-        type = ["อพาร์ตเมนต์ 8 ยูนิต", "โกดังให้เช่า", "อาคารพาณิชย์", "ที่จอดรถให้เช่า"][Math.floor(Math.random() * 4)];
-        cost = Math.floor(Math.random() * 100 + 40) * 10000; 
-        downPaymentPercent = Math.random() * 0.15 + 0.1; 
-        roiPercent = Math.floor(Math.random() * 12) + 8; 
+        typeName = getAvailableName(largeReNames); cost = Math.floor(Math.random() * 100 + 40) * 10000; downPaymentPercent = Math.random() * 0.15 + 0.1; roiPercent = Math.floor(Math.random() * 12) + 8; 
+        buff = 'realestate'; taxDeduct = 2500; buffDesc = `✨ ค่าเสื่อมราคา: ลดหย่อนภาษี ฿${taxDeduct.toLocaleString()}/ด`;
     }
     
     let downPayment = Math.ceil((cost * downPaymentPercent) / 1000) * 1000;
     let mortgage = cost - downPayment;
-    
-    let grossCashflow = 0;
-    let mortgagePayment = 0;
+    let grossCashflow = 0; let mortgagePayment = 0;
     
     if (isLand) {
         mortgagePayment = Math.floor(cost * 0.01 / 12); 
@@ -123,24 +133,60 @@ function generateDynamicDeal() {
     }
     
     let netCashflow = grossCashflow - mortgagePayment;
-    if (!isLand && netCashflow <= 0) {
-        grossCashflow += Math.abs(netCashflow) + 500; 
-        netCashflow = grossCashflow - mortgagePayment;
-    }
+    if (!isLand && netCashflow <= 0) { grossCashflow += Math.abs(netCashflow) + 500; netCashflow = grossCashflow - mortgagePayment; }
     
-    return { id: Date.now().toString(), name: type, cost: cost, downPayment: downPayment, mortgage: mortgage, mortgagePayment: mortgagePayment, grossCashflow: grossCashflow, cashflow: netCashflow, type: 'realestate', buyPrice: cost };
+    return { id: Date.now().toString(), name: typeName, cost: cost, downPayment: downPayment, mortgage: mortgage, mortgagePayment: mortgagePayment, grossCashflow: grossCashflow, cashflow: netCashflow, type: isLand ? 'land' : (isBusiness ? 'business' : 'realestate'), buyPrice: cost, buff: buff, taxDeduct: taxDeduct, buffDesc: buffDesc };
 }
 
 function generateDynamicBadEvent() {
-    if (Math.random() > 0.6) {
-        const name = ["มีลูกเพิ่ม (ค่าเลี้ยงดู)", "ประกันปรับเบี้ยขึ้น", "ย้ายไปเช่าบ้านแพงขึ้น", "ผ่อนรถคันใหม่", "ส่งเสียญาติผู้ใหญ่"][Math.floor(Math.random() * 5)];
-        const expInc = Math.floor(Math.random() * 3 + 1) * 1000; 
-        return { type: 'bad_life', name, expenseIncrease: expInc, cost: 0 };
+    const lifeEvents = [
+        { id: "baby", name: "👶 มีลูกเพิ่ม (ค่าเลี้ยงดู, การศึกษา)", minExp: 2000, maxExp: 5000, limit: 3 }, 
+        { id: "car_loan", name: "🚗 ซื้อรถคันใหม่ (เพิ่มยอดผ่อนต่อเดือน)", minExp: 5000, maxExp: 12000, limit: 2 }, 
+        { id: "insurance", name: "🏥 ประกันสุขภาพ/รถยนต์ ปรับเบี้ยขึ้น", minExp: 500, maxExp: 2000, limit: 3 },
+        { id: "family", name: "👴👵 ต้องส่งเสียญาติผู้ใหญ่เพิ่ม", minExp: 2000, maxExp: 5000, limit: 2 },
+        { id: "rent", name: "🏠 เจ้าของบ้าน/หอพัก ขอขึ้นค่าเช่า", minExp: 1000, maxExp: 3000, limit: 2 }
+    ];
+    const doodadEvents = [
+        { id: "ac", name: "❄️ แอร์พัง! ต้องเปลี่ยนแอร์ใหม่ทั้งบ้าน", minCost: 15000, maxCost: 30000, limit: 2 },
+        { id: "roof", name: "🛠️ บ้านพัง/หลังคารั่ว ต้องซ่อมใหญ่", minCost: 20000, maxCost: 50000, limit: 2 },
+        { id: "hospital", name: "🚑 เข้าโรงพยาบาลฉุกเฉิน", minCost: 10000, maxCost: 40000, limit: null },
+        { id: "tv", name: "📺 กิเลสครอบงำ! ซื้อสมาร์ททีวีจอยักษ์", minCost: 15000, maxCost: 35000, limit: 2 },
+        { id: "travel", name: "✈️ ทริปเที่ยวต่างประเทศสุดหรู", minCost: 30000, maxCost: 80000, limit: null },
+        { id: "gear", name: "⚙️ รถเสียหนัก ซ่อมเกียร์/ยกเครื่องใหม่", minCost: 20000, maxCost: 50000, limit: 2 },
+        { id: "social", name: "💌 จ่ายภาษีสังคม (ซองกฐิน, งานแต่ง)", minCost: 3000, maxCost: 10000, limit: null },
+        { id: "phone", name: "📱 สมาร์ทโฟนพัง ซื้อรุ่นท็อปใหม่ล่าสุด", minCost: 35000, maxCost: 55000, limit: 3 },
+        { id: "brandname", name: "👜 ช้อปปิ้งแบรนด์เนมแก้เครียด", minCost: 40000, maxCost: 90000, limit: null },
+        { id: "wedding", name: "💍 จัดงานแต่งงานสุดหรู!", minCost: 100000, maxCost: 300000, limit: 1 }, 
+        { id: "lawsuit", name: "⚖️ โดนฟ้องร้อง/จ่ายค่าทนายความ", minCost: 50000, maxCost: 150000, limit: 1 } 
+    ];
+
+    const isLifeEvent = Math.random() > 0.6;
+    let pool = isLifeEvent ? lifeEvents : doodadEvents;
+    
+    let available = pool.filter(e => e.limit === null || getEventCount(e.id) < e.limit);
+    if(available.length === 0) available = pool.filter(e => e.limit === null); 
+    let selected = available[Math.floor(Math.random() * available.length)];
+    incrementEventCount(selected.id);
+    
+    if (isLifeEvent) {
+        const expInc = Math.floor((Math.random() * (selected.maxExp - selected.minExp) + selected.minExp) / 1000) * 1000;
+        return { type: 'bad_life', name: selected.name, expenseIncrease: expInc, cost: 0 };
     } else {
-        const name = ["เปลี่ยนแอร์ใหม่ทั้งบ้าน", "ซ่อมหลังคารั่ว", "เข้าโรงพยาบาลฉุกเฉิน", "ซื้อทีวีจอแบน", "ไปเที่ยวต่างประเทศ", "ซ่อมเกียร์รถ", "จ่ายภาษีสังคม"][Math.floor(Math.random() * 7)];
-        const cost = Math.floor(Math.random() * 20 + 5) * 1000; 
-        return { type: 'bad_doodad', name, cost, expenseIncrease: 0 };
+        const cost = Math.floor((Math.random() * (selected.maxCost - selected.minCost) + selected.minCost) / 1000) * 1000;
+        return { type: 'bad_doodad', name: selected.name, cost: cost, expenseIncrease: 0 };
     }
+}
+
+// 🌟 สร้างการ์ดเล่นพนัน/เสี่ยงโชค
+function generateGambleEvent() {
+    const games = [
+        { name: "⚽ แทงบอลคู่เด็ด (สายต่อ)", cost: 10000, win: 40000, prob: 0.25 },
+        { name: "📈 หุ้นปั่นกระแส (เก็งกำไร)", cost: 20000, win: 100000, prob: 0.20 },
+        { name: "🎰 คาสิโนสล็อตแมชชีน", cost: 5000, win: 50000, prob: 0.10 },
+        { name: "🔮 แชร์ลูกโซ่เพื่อนแนะนำ", cost: 30000, win: 90000, prob: 0.30 }
+    ];
+    const g = games[Math.floor(Math.random() * games.length)];
+    return { type: 'gamble', name: g.name, cost: g.cost, win: g.win, prob: g.prob, desc: `เดิมพันด้วยเงิน ${fmt(g.cost)}\nมีโอกาสชนะ ${Math.round(g.prob*100)}% ที่จะได้รับเงินก้อน ${fmt(g.win)}!\n\n"คุณจะลองเสี่ยงโชค หรือจะปล่อยผ่าน?"` };
 }
 
 function generateNews() {
@@ -153,8 +199,7 @@ function generateNews() {
 
 function updateMarketPrices() {
     let r = Math.random();
-    if (market.nextBias === 'bull') r = r * 0.5; 
-    else if (market.nextBias === 'bear') r = r * 0.5 + 0.15; 
+    if (market.nextBias === 'bull') r = r * 0.5; else if (market.nextBias === 'bear') r = r * 0.5 + 0.15; 
     
     if (r < 0.15 || market.nextBias === 'crypto') { 
         market.invPrice *= (1 + (Math.random() * 0.15)); market.btcPrice *= (1 + (Math.random() * 0.30)); market.goldPrice *= (1 + (Math.random() * 0.02 - 0.01)); 
@@ -188,10 +233,34 @@ function updateMarketPrices() {
     market.nextBias = 'normal'; 
 }
 
-// --- 🌟 Player / Actions ---
+// 🌟 ฟังก์ชันสำหรับกู้เงิน (กลับมาใช้งานได้ 100%)
+function takeLoan(amt) { 
+    if (amt <= 0 || amt > 100000) {
+        return showAlert('❌ ยอดกู้ไม่ถูกต้อง', 'สามารถกู้ได้สูงสุด 100,000 บาทต่อครั้ง', '🏦');
+    }
+    player.cash += amt; 
+    player.bankDebt += amt; 
+    spawnFloatingText('player-cash', amt);
+    logActivity(`กู้ฉุกเฉิน +${fmt(amt)} (ดอก 2%/ด)`, 'income', 'player');
+    updateUI(); 
+    closeBankModal();
+}
+
+function takeCustomLoan() {
+    const input = document.getElementById('custom-loan-input');
+    const amt = parseInt(input.value);
+    if (isNaN(amt) || amt <= 0 || amt > 100000) {
+        return showAlert('❌ ยอดกู้ไม่ถูกต้อง', 'กรุณาระบุจำนวนเงินที่ต้องการกู้ (สูงสุด 100,000 บาท)', '🏦');
+    }
+    takeLoan(amt);
+    input.value = '';
+}
+
+// --- Player Actions: Setup Education ---
 function investInEducation() {
     if (gameOver || isAnimating || player.isEducated) return;
     const cost = 50000;
+    
     showConfirm('🎓 อัปสกิลการเงินระดับสูง', `จ่าย ${fmt(cost)} เพื่อเรียนรู้ทักษะการเงินขั้นเทพ?\n\nสิทธิประโยชน์ติดตัวถาวร:\n1. ได้รับส่วนลดเงินดาวน์อสังหาฯ และธุรกิจ 20% ทุกดีล!\n2. มีโอกาส 50% ที่จะรู้ทันและปฏิเสธ "รายจ่ายฟุ่มเฟือย" ได้แบบฟรีๆ!`, '🧠', () => {
         if (player.cash < cost) {
             return showAlert('❌ ยอดเงินไม่พอ', `คุณต้องมีเงินสดอย่างน้อย ${fmt(cost)} เพื่อลงคอร์สนี้!`, '💸');
@@ -207,6 +276,7 @@ function investInEducation() {
 
 document.getElementById('qp-btn-submit').addEventListener('click', submitQuickPay);
 
+// 🌟 ระบบโปะบัตรเครดิต จะลดยอดปลอดดอกเบี้ย (Grace) ออกไปด้วย
 function submitQuickPay() {
     const input = document.getElementById('qp-input');
     const amount = parseInt(input.value);
@@ -231,6 +301,7 @@ function submitQuickPay() {
         logActivity(`ชำระหนี้อาชีพ -${fmt(amount)}`, 'expense', 'player');
     } else {
         player.creditDebt -= amount;
+        player.creditGrace = Math.max(0, (player.creditGrace || 0) - amount); 
         logActivity(`โปะหนี้บัตรเครดิต -${fmt(amount)}`, 'expense', 'player');
     }
     
@@ -257,7 +328,7 @@ function sellAsset(index, val) {
     let mortgage = asset.mortgage || 0;
     let netProceeds = val - mortgage;
 
-    showConfirm('ยืนยันการขาย', `มูลค่าตลาด: ${fmt(val)}\nหักลบหนี้ผูกพัน: -${fmt(mortgage)}\nรับเงินส่วนต่างสุทธิ: ${fmt(netProceeds)}\n\nคำเตือน: คุณจะเสียรายรับ ${fmt(asset.grossCashflow)}/เดือน ถาวร!`, '💸', () => {
+    showConfirm('ยืนยันการขาย', `มูลค่าตลาด: ${fmt(val)}\nหักลบหนี้ผูกพัน: -${fmt(mortgage)}\nรับเงินส่วนต่างสุทธิ: ${fmt(netProceeds)}\n\nคำเตือน: คุณจะเสียรายรับ ${fmt(asset.grossCashflow)}/เดือน ถาวร! (และเสียบัฟลดหย่อนภาษีด้วยถ้ามี)`, '💸', () => {
         player.cash += netProceeds; 
         player.passive -= asset.grossCashflow; 
         const assetName = asset.name;
@@ -276,7 +347,7 @@ function tradeMarket(type) {
         cost = 10000;
         if (player.cash >= cost) {
             const cf = Math.round((cost * 0.02) / 12);
-            assetObj = { id: Date.now(), type: 'bank', name: 'เงินฝากประจำ', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf };
+            assetObj = { id: Date.now(), type: 'bank', name: 'เงินฝากประจำ', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf, buff: 'none' };
             showAlert('✅ สำเร็จ!', `ฝากเงิน ฿10,000 เรียบร้อย (CF +${cf}/ด)`, '🏦');
             logActivity(`ฝากเงินแบงก์ -${fmt(cost)}`, 'expense', 'player');
         }
@@ -284,21 +355,21 @@ function tradeMarket(type) {
         cost = Math.round(market.invPrice * 100); 
         if (player.cash >= cost) {
             const cf = Math.round((cost * 0.05) / 12);
-            assetObj = { id: Date.now(), type: 'inv', name: 'กองทุนหุ้น (Index)', units: 100, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf };
+            assetObj = { id: Date.now(), type: 'inv', name: 'กองทุนหุ้น (Index)', units: 100, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf, buff: 'none' };
             showAlert('✅ สำเร็จ!', `ซื้อกองทุน 1 Lot สำเร็จ!`, '📊');
             logActivity(`ซื้อกองทุน -${fmt(cost)}`, 'expense', 'player');
         }
     } else if (type === 'gold') {
         cost = Math.round(market.goldPrice);
         if (player.cash >= cost) {
-            assetObj = { id: Date.now(), type: 'gold', name: 'ทองคำ (Gold) 1 บาท', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0 };
+            assetObj = { id: Date.now(), type: 'gold', name: 'ทองคำ (Gold) 1 บาท', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' };
             showAlert('✅ สำเร็จ!', `ซื้อทองคำสำเร็จ 1 บาท!`, '🪙');
             logActivity(`ซื้อทองคำ -${fmt(cost)}`, 'expense', 'player');
         }
     } else if (type === 'btc') {
         cost = Math.round(market.btcPrice * 0.01);
         if (player.cash >= cost) {
-            assetObj = { id: Date.now(), type: 'btc', name: 'บิตคอยน์ (0.01 BTC)', units: 0.01, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0 };
+            assetObj = { id: Date.now(), type: 'btc', name: 'บิตคอยน์ (0.01 BTC)', units: 0.01, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' };
             showAlert('✅ สำเร็จ!', `ช้อนบิตคอยน์สำเร็จ 0.01 BTC!`, '₿');
             logActivity(`ซื้อบิตคอยน์ -${fmt(cost)}`, 'expense', 'player');
         }
@@ -311,6 +382,7 @@ function tradeMarket(type) {
     }
 }
 
+// --- Player Specific Responses to Events ---
 function buyDeal() {
     if (isAnimating || !currentSharedEvent) return;
     
@@ -358,8 +430,42 @@ function payDoodadCash() {
 function payDoodadCredit() {
     isAnimating = true;
     player.creditDebt = (player.creditDebt || 0) + currentSharedEvent.cost;
+    player.creditGrace = (player.creditGrace || 0) + currentSharedEvent.cost; // เข้าเกณฑ์ปลอดดอก 1 เดือน
     logActivity(`คุณรูดบัตรเครดิต: ${currentSharedEvent.name} ${fmt(currentSharedEvent.cost)}`, 'expense', 'player');
     hideDecisions(); updateUI();
+    setTimeout(() => { processBotSharedTurn(); }, 1000);
+}
+
+function playGamble() {
+    if (player.cash < currentSharedEvent.cost) {
+        return showAlert('❌ เงินไม่พอ', 'คุณมีเงินสดไม่พอที่จะเดิมพัน!', '💸');
+    }
+    isAnimating = true;
+    player.cash -= currentSharedEvent.cost;
+    spawnFloatingText('player-cash', -currentSharedEvent.cost);
+    
+    hideDecisions();
+    
+    setTimeout(() => {
+        if (Math.random() < currentSharedEvent.prob) {
+            player.cash += currentSharedEvent.win;
+            spawnFloatingText('player-cash', currentSharedEvent.win);
+            logActivity(`🎲 ถูกรางวัล! ได้รับ ${fmt(currentSharedEvent.win)}`, 'income', 'player');
+            showAlert('🎉 แจ็คพอตแตก!', `คุณชนะการเดิมพัน ได้รับเงิน ${fmt(currentSharedEvent.win)}`, '🎰');
+        } else {
+            logActivity(`🎲 เสียพนัน ${fmt(-currentSharedEvent.cost)}`, 'expense', 'player');
+            showAlert('😭 เสียใจด้วย', `คุณเสียเงินเดิมพัน ${fmt(currentSharedEvent.cost)} บ่อนกินเรียบ!`, '💸');
+        }
+        updateUI();
+        setTimeout(processBotSharedTurn, 1000);
+    }, 600); 
+}
+
+function passGamble() {
+    if (isAnimating) return;
+    isAnimating = true;
+    logActivity(`ปฏิเสธการพนัน ไม่ยุ่งเกี่ยวอบายมุข`, 'info', 'player');
+    hideDecisions();
     setTimeout(() => { processBotSharedTurn(); }, 1000);
 }
 
@@ -387,7 +493,9 @@ function processCrisisPlayer() {
     setTimeout(() => { processBotSharedTurn(); }, 1200);
 }
 
+
 // --- 3. Core Loop (Shared Events) ---
+// 🌟 แก้ไข Try...Catch ให้คลุมได้อย่างปลอดภัย และไม่เกิด Syntax Error
 function rollDiceWithAnimation() {
     if (gameOver || currentTurn !== 'player' || isAnimating) return;
     
@@ -424,7 +532,7 @@ function rollDiceWithAnimation() {
     }
 
     setTimeout(() => {
-        try {
+        try { 
             const pIncome = player.salary + player.passive - getExpenses(player);
             player.cash += pIncome;
             if (pIncome < 0) spawnFloatingText('player-cash', pIncome);
@@ -435,23 +543,37 @@ function rollDiceWithAnimation() {
             bot.cash += bIncome;
             logActivity(`บอทรับกระแสเงินสดสุทธิ ${fmt(bIncome)}`, 'income', 'bot');
 
+            // 💡 เคลียร์ Grace Period (ปลอดดอกเบี้ย 1 เดือน) หลังจากรับเงินเดือนแล้ว
+            player.creditGrace = 0;
+            bot.creditGrace = 0;
+
             const rand = Math.random(); 
             
-            // 🌟 ลอจิกการสุ่มเหตุการณ์ (รวมวิกฤต)
-            if (gameMonth >= 36 && rand < 0.05) {
+            // 🌟 ลอจิกการสุ่มเหตุการณ์ทั้งหมด
+            // เช็ค Cooldown วิกฤต: ต้องให้ถึง nextCrisisMonth ก่อนถึงจะเกิดวิกฤตได้
+            if (gameMonth >= nextCrisisMonth && rand < 0.05) {
                 currentSharedEvent = generateCrisisEvent();
-            } else if (rand < 0.50) {
+                // สุ่มเว้นระยะครั้งถัดไป 48 ถึง 60 เดือน
+                nextCrisisMonth = gameMonth + Math.floor(Math.random() * 13) + 48;
+            } else if (rand < 0.45) { // 40% ดีลลงทุน
                 currentSharedEvent = generateDynamicDeal();
-            } else if (rand < 0.80) {
+            } else if (rand < 0.70) { // 25% รายจ่าย/วิกฤตชีวิต
                 currentSharedEvent = generateDynamicBadEvent();
-            } else {
+            } else if (rand < 0.85) { // 15% การพนัน
+                currentSharedEvent = generateGambleEvent();
+            } else { // 15% ราบเรียบ
                 currentSharedEvent = { type: 'nothing' }; 
             }
 
+            // 🌟 ควบคุม UI ให้สอดคล้องกับ Event ที่สุ่มได้
             if (currentSharedEvent.type === 'crisis') {
                 setEventCard(`🚨 ${currentSharedEvent.name}`, currentSharedEvent.desc, '⚠️', false);
                 showCrisisDecisions();
                 actionPanel.classList.add('shake'); setTimeout(() => actionPanel.classList.remove('shake'), 500);
+                isAnimating = false;
+            } else if (currentSharedEvent.type === 'gamble') {
+                setEventCard(`🎰 โอกาสเสี่ยงโชค!`, currentSharedEvent.desc, '🎲', false);
+                showGambleDecisions();
                 isAnimating = false;
             } else if (currentSharedEvent.type === 'realestate' || currentSharedEvent.type === 'business' || currentSharedEvent.type === 'land') {
                 setEventCard(`โอกาสลงทุน: ${currentSharedEvent.name}`, 'วิเคราะห์กระแสเงินสดให้ดีก่อนตัดสินใจ!\n(บอทกำลังพิจารณาดีลนี้อยู่เช่นกัน)', '🏢', true);
@@ -504,20 +626,20 @@ function processBotSharedTurn() {
     }
     
     setTimeout(() => {
-        try {
+        try { 
             tradeMarketForBot();
 
-            // 🎓 1. บอทประเมินการอัปสกิลตัวเอง
+            // AI ซื้อคอร์สเรียนถ้าเงินเหลือ
             if (!bot.isEducated && bot.cash >= 60000) { 
                 bot.cash -= 50000;
                 bot.isEducated = true;
                 logActivity(`บอททุ่มเงินอัปสกิลการเงินขั้นเทพ!`, 'system', 'bot');
             }
 
-            // 2. ลำดับการโปะหนี้ของบอท: บัตรเครดิต -> ฉุกเฉิน -> อาชีพ
+            // ลำดับการโปะหนี้
             if ((bot.creditDebt || 0) > 0 && bot.cash > 5000) {
                 let payAmt = Math.min(bot.cash - 2000, bot.creditDebt);
-                bot.cash -= payAmt; bot.creditDebt -= payAmt;
+                bot.cash -= payAmt; bot.creditDebt -= payAmt; bot.creditGrace = 0; 
                 logActivity(`บอทโปะหนี้บัตรเครดิต ${fmt(payAmt)}`, 'system', 'bot');
             } else if (bot.bankDebt > 0 && bot.cash > 10000) { 
                 let payAmt = Math.min(bot.cash - 5000, bot.bankDebt);
@@ -529,7 +651,6 @@ function processBotSharedTurn() {
                 logActivity(`บอททยอยโปะหนี้อาชีพ ${fmt(payAmt)}`, 'system', 'bot');
             }
 
-            // 3. บอทเจอเหตุการณ์ร่วม
             const ev = currentSharedEvent;
             
             if (ev.type === 'crisis') {
@@ -547,8 +668,19 @@ function processBotSharedTurn() {
                     });
                     logActivity(`บอทบาดเจ็บหนัก! รายรับสินทรัพย์ถูกหั่น 50%`, 'expense', 'bot');
                 }
+            } else if (ev.type === 'gamble') {
+                if (bot.cash > ev.cost * 5 && Math.random() < 0.3) {
+                    bot.cash -= ev.cost;
+                    if (Math.random() < ev.prob) {
+                        bot.cash += ev.win;
+                        logActivity(`บอทเสี่ยงโชคและถูกแจ็คพอต! ได้เงิน ${fmt(ev.win)}`, 'income', 'bot');
+                    } else {
+                        logActivity(`บอทเสี่ยงโชคแต่เสียเงินฟรี ${fmt(-ev.cost)}`, 'expense', 'bot');
+                    }
+                } else {
+                    logActivity(`บอทมีสติ ปฏิเสธการเล่นพนัน`, 'info', 'bot');
+                }
             } else if (ev.type === 'realestate' || ev.type === 'business' || ev.type === 'land') { 
-                // คัดกรองส่วนลดถ้าบอทอัปสกิลแล้ว
                 let actualDpB = bot.isEducated ? Math.floor(ev.downPayment * 0.8) : ev.downPayment;
 
                 if (ev.cashflow > 1000 || (ev.cashflow > 0 && actualDpB < 50000)) { 
@@ -575,6 +707,7 @@ function processBotSharedTurn() {
                     logActivity(`บอทกัดฟันจ่ายเงินสดซื้อ: ${ev.name} ${fmt(-ev.cost)}`, 'expense', 'bot');
                 } else {
                     bot.creditDebt = (bot.creditDebt || 0) + ev.cost;
+                    bot.creditGrace = (bot.creditGrace || 0) + ev.cost; 
                     logActivity(`บอทเงินช็อต! ต้องรูดบัตรเครดิต: ${ev.name} ${fmt(ev.cost)}`, 'expense', 'bot');
                 }
             } 
@@ -653,19 +786,19 @@ function tradeMarketForBot() {
 
     if (rsiInv < 40 && bot.cash >= Math.round(market.invPrice * 100)) {
         cost = Math.round(market.invPrice * 100); const cf = Math.round((cost * 0.05) / 12);
-        assetObj = { id: Date.now(), type: 'inv', name: 'กองทุนหุ้น', units: 100, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf };
+        assetObj = { id: Date.now(), type: 'inv', name: 'กองทุนหุ้น', units: 100, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf, buff: 'none' };
         logActivity(`ช้อนซื้อกองทุนหุ้นตอนถูก`, 'expense', 'bot');
     } else if (rsiBtc < 40 && bot.cash >= Math.round(market.btcPrice * 0.01)) {
         cost = Math.round(market.btcPrice * 0.01);
-        assetObj = { id: Date.now(), type: 'btc', name: 'บิตคอยน์', units: 0.01, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0 };
+        assetObj = { id: Date.now(), type: 'btc', name: 'บิตคอยน์', units: 0.01, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' };
         logActivity(`ช้อนซื้อบิตคอยน์ตอนตลาดร่วง`, 'expense', 'bot');
     } else if (bot.cash >= Math.round(market.goldPrice)) {
         cost = Math.round(market.goldPrice);
-        assetObj = { id: Date.now(), type: 'gold', name: 'ทองคำ 1 บาท', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0 };
+        assetObj = { id: Date.now(), type: 'gold', name: 'ทองคำ 1 บาท', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' };
         logActivity(`ซื้อทองคำเก็บไว้เพื่อป้องกันความเสี่ยง`, 'expense', 'bot');
     } else if (bot.cash >= 15000) {
         cost = 10000; const cf = Math.round((cost * 0.02) / 12);
-        assetObj = { id: Date.now(), type: 'bank', name: 'เงินฝากประจำ', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf };
+        assetObj = { id: Date.now(), type: 'bank', name: 'เงินฝากประจำ', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf, buff: 'none' };
         logActivity(`ฝากเงินในแบงก์กินดอกเบี้ย`, 'expense', 'bot');
     }
 

@@ -32,7 +32,7 @@
                     <h3 class="text-xl font-bold text-amber-400 mb-2 mt-2" id="prof-player-name">อาชีพ</h3>
                     <div class="space-y-1 text-sm text-slate-300 font-mono">
                         <div class="flex justify-between"><span>เงินเดือน:</span> <span class="text-emerald-400" id="prof-player-salary">฿0</span></div>
-                        <div class="flex justify-between"><span>รายจ่ายเริ่มต้น:</span> <span class="text-rose-400" id="prof-player-exp">฿0</span></div>
+                        <div class="flex justify-between"><span>รายจ่ายเริ่มต้น (ค่าครองชีพ):</span> <span class="text-rose-400" id="prof-player-exp">฿0</span></div>
                         <div class="flex justify-between"><span>หนี้อาชีพ (ด/บ 2.5% ต่อปี):</span> <span class="text-rose-400" id="prof-player-debt">฿0</span></div>
                         <div class="flex justify-between pt-2 mt-2 border-t border-slate-700"><span>เงินเก็บเริ่มต้น:</span> <span class="text-white font-bold" id="prof-player-sav">฿0</span></div>
                     </div>
@@ -44,7 +44,7 @@
                     <h3 class="text-xl font-bold text-slate-300 mb-2 mt-2" id="prof-bot-name">อาชีพ</h3>
                     <div class="space-y-1 text-sm text-slate-400 font-mono">
                         <div class="flex justify-between"><span>เงินเดือน:</span> <span id="prof-bot-salary">฿0</span></div>
-                        <div class="flex justify-between"><span>รายจ่ายเริ่มต้น:</span> <span id="prof-bot-exp">฿0</span></div>
+                        <div class="flex justify-between"><span>รายจ่ายเริ่มต้น (ค่าครองชีพ):</span> <span id="prof-bot-exp">฿0</span></div>
                         <div class="flex justify-between"><span>หนี้อาชีพ (ด/บ 2.5% ต่อปี):</span> <span id="prof-bot-debt">฿0</span></div>
                         <div class="flex justify-between pt-2 mt-2 border-t border-slate-700"><span>เงินเก็บเริ่มต้น:</span> <span class="text-slate-300 font-bold" id="prof-bot-sav">฿0</span></div>
                     </div>
@@ -88,7 +88,6 @@
                     </div>
                 </div>
                 
-                <!-- เครื่องมือผู้เล่น -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                     <button onclick="openBankModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs py-2 rounded transition-colors shadow-md">🏦 ธนาคาร</button>
                     <button onclick="openPortfolioModal('player')" class="bg-amber-900/40 hover:bg-amber-800 border border-amber-500/40 text-amber-400 text-xs py-2 rounded transition-colors shadow-md">💼 พอร์ต</button>
@@ -104,7 +103,6 @@
                     <div class="text-2xl font-mono font-bold text-emerald-400" id="player-cash">฿0</div>
                 </div>
 
-                <!-- จัดระยะบรรทัดด้วย min-h-[32px] และ items-center ให้เท่ากันทุกบรรทัด -->
                 <div class="space-y-3 flex-grow font-mono text-sm">
                     <div class="flex justify-between items-center border-b border-slate-700 pb-2 min-h-[32px]">
                         <span class="text-slate-400 font-sans">เงินเดือน</span>
@@ -136,7 +134,7 @@
                     </div>
                     
                     <div class="flex justify-between items-center border-b border-slate-700 pb-2 min-h-[32px]">
-                        <span class="text-rose-400 font-sans font-bold">รายจ่ายรวม (รวมค่าผ่อน)</span>
+                        <span class="text-rose-400 font-sans font-bold cursor-pointer hover:underline" title="รวมภาษีอัตราก้าวหน้าแล้ว" onclick="openStatementModal('player')">รายจ่ายรวม <span class="text-[10px] text-rose-500">(หักภาษี)</span></span>
                         <span class="text-rose-400 font-bold" id="player-expenses">฿0</span>
                     </div>
 
@@ -169,16 +167,14 @@
                             <p class="text-sm text-slate-400">ทอยเต๋าเพื่อเดินหน้า 1 เดือน</p>
                         </div>
                         <div class="back border-2 border-amber-500/60 rounded-xl bg-[#0B1325] shadow-[0_0_30px_rgba(230,194,122,0.15)] flex flex-col justify-start items-center relative overflow-hidden">
-                            <!-- แถบสีตกแต่งด้านบน -->
                             <div class="w-full h-2 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 absolute top-0 left-0"></div>
-                            
                             <div class="p-5 w-full flex flex-col items-center h-full overflow-y-auto custom-scrollbar pt-6">
                                 <div id="event-icon" class="text-5xl mb-3 drop-shadow-md"></div>
                                 <h3 id="event-title" class="text-lg font-extrabold text-white mb-2 text-center leading-tight"></h3>
                                 <p id="event-desc" class="text-[13px] text-slate-300 mb-4 text-center leading-relaxed whitespace-pre-line"></p>
                                 
-                                <!-- กล่องข้อมูลที่จัดระเบียบใหม่ (Receipt Design) -->
-                                <div id="deal-info" class="hidden w-full bg-[#050A14] p-3.5 rounded-lg border border-slate-700/80 shadow-inner mt-auto">
+                                <div id="deal-info" class="hidden w-full bg-[#050A14] p-3.5 rounded-lg border border-slate-700/80 shadow-inner mt-auto relative">
+                                    <div id="deal-buff" class="text-[11px] text-fuchsia-400 font-bold text-center w-full pb-2 mb-2 border-b border-fuchsia-900/50 hidden"></div>
                                     <div class="space-y-1.5 text-xs font-mono w-full">
                                         <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
                                             <span class="text-slate-400 font-sans">ราคาเต็ม:</span> 
@@ -211,21 +207,23 @@
                     <button id="btn-roll" onclick="rollDiceWithAnimation()" class="btn-gold-outline w-full py-4 rounded-lg font-bold text-sm tracking-widest shadow-lg">🎲 ผ่านไป 1 เดือน</button>
                 </div>
                 
-                <!-- ปุ่มตัดสินใจ ดีลลงทุน -->
                 <div id="deal-decision-buttons" class="w-full flex gap-3 hidden z-10 relative">
-                    <button onclick="buyDeal()" class="bg-emerald-600 hover:bg-emerald-500 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">ลงทุนซื้อ (จ่ายดาวน์)</button>
-                    <button onclick="passDeal()" class="bg-slate-700 hover:bg-slate-600 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">ปฏิเสธดีล</button>
+                    <button onclick="buyDeal()" class="bg-emerald-600 hover:bg-emerald-500 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">ลงทุนซื้อ</button>
+                    <button onclick="passDeal()" class="bg-slate-700 hover:bg-slate-600 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">ปฏิเสธ</button>
                 </div>
 
-                <!-- ปุ่มตัดสินใจ รายจ่ายฟุ่มเฟือย -->
                 <div id="doodad-decision-buttons" class="w-full flex gap-3 hidden z-10 relative">
                     <button onclick="payDoodadCash()" class="bg-slate-600 hover:bg-slate-500 border border-slate-400 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">💵 จ่ายเงินสด</button>
                     <button onclick="payDoodadCredit()" class="bg-orange-600 hover:bg-orange-500 border border-orange-400 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">💳 รูดบัตรเครดิต</button>
                 </div>
 
-                <!-- ปุ่มตัดสินใจ วิกฤตเศรษฐกิจ -->
                 <div id="crisis-decision-buttons" class="w-full flex gap-3 hidden z-10 relative">
                     <button onclick="processCrisisPlayer()" class="bg-rose-600 hover:bg-rose-500 text-white w-full py-3 rounded-lg font-bold text-sm shadow-md transition-colors">เผชิญหน้าวิกฤต</button>
+                </div>
+
+                <div id="gamble-decision-buttons" class="w-full flex gap-3 hidden z-10 relative">
+                    <button onclick="playGamble()" class="bg-rose-600 hover:bg-rose-500 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">🎲 เสี่ยงดวง</button>
+                    <button onclick="passGamble()" class="bg-slate-700 hover:bg-slate-600 text-white w-1/2 py-3 rounded-lg font-bold text-sm shadow-md transition-colors">ไม่เล่นดีกว่า</button>
                 </div>
                 
                 <div id="kiyosaki-quote" class="mt-4 text-xs bg-slate-900/50 p-3 rounded border-l-2 border-amber-500 text-amber-500/90 italic hidden w-full text-left"></div>
@@ -251,7 +249,6 @@
                     <div class="text-2xl font-mono font-bold text-emerald-400" id="bot-cash">฿0</div>
                 </div>
 
-                <!-- ปรับแต่งบรรทัดฝั่งบอทให้ตรงกับผู้เล่น (min-h-[32px] และ items-center) -->
                 <div class="space-y-3 flex-grow font-mono text-sm">
                     <div class="flex justify-between items-center border-b border-slate-700 pb-2 min-h-[32px]">
                         <span class="text-slate-400 font-sans">เงินเดือน</span>
@@ -344,8 +341,15 @@
                     <div class="flex justify-between"><span>- รายจ่ายพื้นฐาน:</span> <span id="stmt-base-exp">฿0</span></div>
                     <div class="flex justify-between"><span>- ดอกเบี้ยหนี้อาชีพ (2.5%/ปี):</span> <span id="stmt-prof-int" class="text-rose-400">฿0</span></div>
                     <div class="flex justify-between"><span>- ดอกเบี้ยหนี้ฉุกเฉิน (2%/ด):</span> <span id="stmt-bank-int" class="text-rose-400">฿0</span></div>
-                    <div class="flex justify-between"><span>- ขั้นต่ำบัตรเครดิต (5%/ด):</span> <span id="stmt-credit-int" class="text-orange-400">฿0</span></div>
+                    <div class="flex justify-between"><span>- ดอกเบี้ยบัตรเครดิต (5%/ด):</span> <span id="stmt-credit-int" class="text-orange-400">฿0</span></div>
                     <div class="flex justify-between border-t border-slate-800 pt-1 mt-1"><span>- ค่าผ่อนสินทรัพย์ (Mortgage):</span> <span id="stmt-mortgage-exp" class="text-rose-400">฿0</span></div>
+                    
+                    <div class="flex justify-between border-t border-slate-800 pt-1 mt-1">
+                        <span class="flex items-center gap-1">- ภาษีเงินได้บุคคล/นิติบุคคล:
+                            <span class="cursor-help text-slate-500 bg-slate-800 rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px]" title="อัตราก้าวหน้า หักลบสิทธิประโยชน์จากสินทรัพย์แล้ว">?</span>
+                        </span> 
+                        <span id="stmt-tax-exp" class="text-rose-400">฿0</span>
+                    </div>
                 </div>
                 <div class="flex justify-between text-sm font-bold font-mono text-rose-400 mt-2 bg-rose-900/20 p-2 rounded">
                     <span>รวมรายจ่าย:</span> <span id="stmt-total-exp">฿0</span>
@@ -384,8 +388,8 @@
         </div>
     </div>
 
-    <!-- 🏦 Bank Modal -->
-    <div id="bank-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-50 flex items-center justify-center transition-opacity">
+    <!-- 🏦 Bank Modal 🌟 แก้ไขเพื่อให้กู้แบบใส่ตัวเลขได้ -->
+    <div id="bank-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[150] flex items-center justify-center transition-opacity">
         <div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-md w-full mx-4 shadow-2xl modal-enter">
             <h3 class="text-xl font-bold text-amber-400 mb-4 border-b border-slate-700 pb-2">🏦 ธนาคารพาณิชย์</h3>
             
@@ -393,8 +397,14 @@
                 <p class="text-sm font-bold text-white mb-2">1. เงินกู้ฉุกเฉิน (Bank Loan)</p>
                 <p class="text-[11px] text-rose-400 mb-3 font-bold">ดอกเบี้ย 2% ต่อเดือน (ทบเข้าเงินต้นทุกเดือนถ้าไม่โปะ!)</p>
                 <div class="flex gap-2 mb-3">
-                    <button onclick="takeLoan(10000)" class="w-1/2 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ ฿10k</button>
-                    <button onclick="takeLoan(50000)" class="w-1/2 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ ฿50k</button>
+                    <button onclick="takeLoan(10000)" class="w-1/3 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ ฿10k</button>
+                    <button onclick="takeLoan(50000)" class="w-1/3 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ ฿50k</button>
+                    <button onclick="takeLoan(100000)" class="w-1/3 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ ฿100k</button>
+                </div>
+                
+                <div class="flex gap-2">
+                    <input type="number" id="custom-loan-input" placeholder="ระบุยอดกู้ (สูงสุด 100,000)" max="100000" min="1" class="w-2/3 bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded text-sm outline-none focus:border-amber-500 transition-colors">
+                    <button onclick="takeCustomLoan()" class="w-1/3 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">ยืนยันกู้</button>
                 </div>
             </div>
 

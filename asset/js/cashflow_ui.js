@@ -9,14 +9,23 @@ const professionCards = [
     { name: "แพทย์", salary: 132000, expenses: 96000, savings: 40000, profDebt: 2500000 }
 ];
 
-let player = { isEducated: false };
-let bot = { isEducated: false };
+let player = { isEducated: false, creditGrace: 0, currentTax: 0 };
+let bot = { isEducated: false, creditGrace: 0, currentTax: 0 };
 let currentTurn = 'player';
 let currentSharedEvent = null;
 let gameOver = false;
 let gameMonth = 1;
 let isAnimating = false; 
 let currentQuickPayType = '';
+
+// ระบบ Limit การ์ด (ฐานข้อมูล)
+let eventCounts = {};
+function getEventCount(id) { return eventCounts[id] || 0; }
+function incrementEventCount(id) { eventCounts[id] = (eventCounts[id] || 0) + 1; }
+function resetEventCounts() { eventCounts = {}; }
+
+// Cooldown วิกฤต: ต้อง 60 เดือนจึงจะเกิดครั้งแรกได้
+let nextCrisisMonth = 60;
 
 let market = {
     invPrice: 100, goldPrice: 40000, btcPrice: 2500000,
@@ -25,10 +34,10 @@ let market = {
 };
 
 const kiyosakiQuotes = [
-    "คนรวยซื้อทรัพย์สิน คนชั้นกลางซื้อหนี้สินโดยคิดว่ามันคือทรัพย์สิน",
+    "คนรวยไม่ได้ทำงานเพื่อเงิน แต่ทำงานเพื่อสร้างสินทรัพย์",
     "หนี้ที่ดีทำให้คุณรวย หนี้ที่เลวทำให้คุณจนลง",
     "วิกฤตเศรษฐกิจเป็นเครื่องมือคัดกรองระหว่างคนมีวินัยและคนประมาท",
-    "การลงทุนที่ดีที่สุดคือการลงทุนในความรู้ทางการเงินของคุณเอง"
+    "การเล่นการพนันคือภาษีคนโง่ แต่การลงทุนในความรู้คือทางสู่ความรวย"
 ];
 
 const fmt = (num) => {
@@ -36,12 +45,45 @@ const fmt = (num) => {
     return '฿' + num.toLocaleString('th-TH');
 };
 
+function calculateThaiTax(incomeYearly) {
+    let tax = 0;
+    let inc = incomeYearly;
+    if (inc > 5000000) { tax += (inc - 5000000) * 0.35; inc = 5000000; }
+    if (inc > 2000000) { tax += (inc - 2000000) * 0.30; inc = 2000000; }
+    if (inc > 1000000) { tax += (inc - 1000000) * 0.25; inc = 1000000; }
+    if (inc > 750000) { tax += (inc - 750000) * 0.20; inc = 750000; }
+    if (inc > 500000) { tax += (inc - 500000) * 0.15; inc = 500000; }
+    if (inc > 300000) { tax += (inc - 300000) * 0.10; inc = 300000; }
+    if (inc > 150000) { tax += (inc - 150000) * 0.05; inc = 150000; }
+    return tax;
+}
+
+// 🌟 คำนวณดอกเบี้ยบัตรเครดิต โดยหักลบยอดที่รูดใหม่ในเทิร์นก่อนหน้า (Grace Period)
 function getExpenses(actor) { 
     let profInt = Math.floor((actor.profDebt * 0.025) / 12);
     let bankInt = Math.floor(actor.bankDebt * 0.02); 
-    let creditInt = Math.floor((actor.creditDebt || 0) * 0.05); 
+    
+    let subjectToCreditInt = Math.max(0, (actor.creditDebt || 0) - (actor.creditGrace || 0));
+    let creditInt = Math.floor(subjectToCreditInt * 0.05); 
+    
     let mortgageExp = actor.assets ? actor.assets.reduce((sum, asset) => sum + (asset.mortgagePayment || 0), 0) : 0;
-    return actor.baseExpenses + profInt + bankInt + creditInt + mortgageExp; 
+    
+    let activeTaxYearly = calculateThaiTax(actor.salary * 12);
+    let passiveIncomeYearly = (actor.assets ? actor.assets.reduce((sum, a) => sum + (a.grossCashflow || 0), 0) : 0) * 12;
+    let passiveTaxYearly = calculateThaiTax(passiveIncomeYearly);
+    
+    let hasBusiness = actor.assets && actor.assets.some(a => a.buff === 'business');
+    if (hasBusiness) activeTaxYearly = activeTaxYearly * 0.5; 
+    
+    let monthlyTax = Math.floor((activeTaxYearly + passiveTaxYearly) / 12);
+    
+    let realEstateDeduct = actor.assets ? actor.assets.filter(a => a.buff === 'realestate').reduce((sum, a) => sum + (a.taxDeduct || 0), 0) : 0;
+    monthlyTax -= realEstateDeduct;
+    if (monthlyTax < 0) monthlyTax = 0;
+
+    actor.currentTax = monthlyTax;
+
+    return actor.baseExpenses + profInt + bankInt + creditInt + mortgageExp + monthlyTax; 
 }
 
 function calculateRSI(history) {
@@ -144,11 +186,19 @@ function showDealDecisions(deal) {
     document.getElementById('deal-decision-buttons').classList.remove('hidden');
     document.getElementById('doodad-decision-buttons').classList.add('hidden');
     document.getElementById('crisis-decision-buttons').classList.add('hidden');
+    document.getElementById('gamble-decision-buttons').classList.add('hidden');
     document.getElementById('deal-info').classList.remove('hidden');
     
+    const buffEl = document.getElementById('deal-buff');
+    if (deal.buff !== 'none') {
+        buffEl.innerText = deal.buffDesc;
+        buffEl.classList.remove('hidden');
+    } else {
+        buffEl.classList.add('hidden');
+    }
+
     document.getElementById('deal-full-cost').innerText = fmt(deal.cost);
     
-    // แสดงส่วนลดถ้าผู้เล่นอัปสกิลแล้ว
     let actualDp = player.isEducated ? Math.floor(deal.downPayment * 0.8) : deal.downPayment;
     let dpText = player.isEducated ? `<span class="text-fuchsia-400 text-xs font-normal mr-1">(ลด 20%)</span>${fmt(actualDp)}` : fmt(actualDp);
     document.getElementById('deal-downpayment').innerHTML = dpText;
@@ -166,6 +216,7 @@ function showDoodadDecisions() {
     document.getElementById('deal-decision-buttons').classList.add('hidden');
     document.getElementById('doodad-decision-buttons').classList.remove('hidden');
     document.getElementById('crisis-decision-buttons').classList.add('hidden');
+    document.getElementById('gamble-decision-buttons').classList.add('hidden');
     document.getElementById('deal-info').classList.add('hidden');
 }
 
@@ -174,6 +225,16 @@ function showCrisisDecisions() {
     document.getElementById('deal-decision-buttons').classList.add('hidden');
     document.getElementById('doodad-decision-buttons').classList.add('hidden');
     document.getElementById('crisis-decision-buttons').classList.remove('hidden');
+    document.getElementById('gamble-decision-buttons').classList.add('hidden');
+    document.getElementById('deal-info').classList.add('hidden');
+}
+
+function showGambleDecisions() {
+    document.getElementById('action-buttons').classList.add('hidden');
+    document.getElementById('deal-decision-buttons').classList.add('hidden');
+    document.getElementById('doodad-decision-buttons').classList.add('hidden');
+    document.getElementById('crisis-decision-buttons').classList.add('hidden');
+    document.getElementById('gamble-decision-buttons').classList.remove('hidden');
     document.getElementById('deal-info').classList.add('hidden');
 }
 
@@ -186,13 +247,14 @@ function hideDecisions() {
     document.getElementById('deal-decision-buttons').classList.add('hidden');
     document.getElementById('doodad-decision-buttons').classList.add('hidden');
     document.getElementById('crisis-decision-buttons').classList.add('hidden');
+    document.getElementById('gamble-decision-buttons').classList.add('hidden');
     document.getElementById('deal-info').classList.add('hidden');
 }
 
 function updateUI() {
     const safeSetText = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = val; };
 
-    // อัปเดต UI ผู้เล่น
+    // Player UI
     safeSetText('player-cash', fmt(player.cash));
     safeSetText('player-salary', fmt(player.salary));
     safeSetText('player-prof-debt', fmt(player.profDebt));
@@ -204,7 +266,7 @@ function updateUI() {
     if (player.isEducated) {
         document.getElementById('player-education-badge').classList.remove('hidden');
         const btnEd = document.getElementById('btn-educate');
-        if(btnEd) { btnEd.disabled = true; btnEd.innerText = "🎓 อัปสกิลแล้ว"; btnEd.classList.replace('bg-fuchsia-900/40', 'bg-slate-800'); btnEd.classList.replace('text-fuchsia-300', 'text-slate-500'); }
+        if(btnEd) { btnEd.disabled = true; btnEd.innerText = "🎓 อัปสกิลแล้ว"; btnEd.classList.replace('bg-fuchsia-900/40', 'bg-slate-800'); btnEd.classList.replace('text-fuchsia-300', 'text-slate-500'); btnEd.classList.remove('border-fuchsia-500/50'); }
     }
     
     const netCashflowPlayer = (player.salary + player.passive) - getExpenses(player);
@@ -223,7 +285,7 @@ function updateUI() {
         pProgEl.classList.add('glow-pulse');
     }
 
-    // อัปเดต UI บอท
+    // Bot UI
     safeSetText('bot-cash', fmt(bot.cash));
     safeSetText('bot-salary', fmt(bot.salary));
     safeSetText('bot-prof-debt', fmt(bot.profDebt));
@@ -264,11 +326,15 @@ function openStatementModal(target) {
     
     const profInt = Math.floor((actor.profDebt * 0.025) / 12);
     const bankInt = Math.floor(actor.bankDebt * 0.02); 
-    const creditInt = Math.floor((actor.creditDebt || 0) * 0.05); 
+    
+    const subjectToCreditInt = Math.max(0, (actor.creditDebt || 0) - (actor.creditGrace || 0));
+    const creditInt = Math.floor(subjectToCreditInt * 0.05); 
+    
     const mortgageExp = actor.assets ? actor.assets.reduce((sum, asset) => sum + (asset.mortgagePayment || 0), 0) : 0;
+    const currentTax = actor.currentTax || 0; 
     
     const totalInc = actor.salary + actor.passive;
-    const totalExp = actor.baseExpenses + profInt + bankInt + creditInt + mortgageExp;
+    const totalExp = actor.baseExpenses + profInt + bankInt + creditInt + mortgageExp + currentTax;
     const net = totalInc - totalExp;
 
     document.getElementById('stmt-salary').innerText = fmt(actor.salary);
@@ -280,6 +346,8 @@ function openStatementModal(target) {
     document.getElementById('stmt-bank-int').innerText = fmt(bankInt);
     document.getElementById('stmt-credit-int').innerText = fmt(creditInt);
     document.getElementById('stmt-mortgage-exp').innerText = fmt(mortgageExp);
+    document.getElementById('stmt-tax-exp').innerText = fmt(currentTax);
+    
     document.getElementById('stmt-total-exp').innerText = fmt(totalExp);
     
     const netEl = document.getElementById('stmt-net');
@@ -307,7 +375,7 @@ function openQuickPayModal(type) {
         document.getElementById('qp-desc').innerText = 'เคลียร์ให้เป็น 0 เพื่อเอาชนะเกม!';
     } else {
         document.getElementById('qp-title').innerHTML = '💳 โปะหนี้บัตรเครดิต';
-        document.getElementById('qp-desc').innerText = 'ลดยอดผ่อนขั้นต่ำ 5% ต่อเดือน';
+        document.getElementById('qp-desc').innerText = 'โปะก่อนจบเดือน จะไม่โดนดอกเบี้ย 5%';
     }
     
     document.getElementById('qp-debt-amount').innerText = fmt(debtAmount);
@@ -350,6 +418,8 @@ function openPortfolioModal(target = 'player') {
             const profitStr = profit >= 0 ? `<span class="text-emerald-400 text-[10px]">(กำไร +${fmt(profit)})</span>` : `<span class="text-rose-400 text-[10px]">(ขาดทุน ${fmt(profit)})</span>`;
             
             const sellBtnHTML = target === 'player' ? `<button onclick="sellAsset(${index}, ${val})" class="w-full md:w-auto bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow mt-2 md:mt-0">สั่งขายรับส่วนต่าง</button>` : '';
+            
+            let buffLabel = asset.buff !== 'none' ? `<div class="text-[10px] text-fuchsia-400 mt-1"> ${asset.buffDesc}</div>` : '';
 
             if (asset.type === 'realestate' || asset.type === 'business' || asset.type === 'land') {
                 realEstateHTML += `
@@ -357,6 +427,7 @@ function openPortfolioModal(target = 'player') {
                         <div class="flex flex-col md:flex-row justify-between items-start">
                             <div>
                                 <div class="font-bold text-white text-sm">${asset.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(asset.grossCashflow)}/ด</span></div>
+                                ${buffLabel}
                                 <div class="text-[11px] text-slate-400 mt-1">เงินดาวน์ (จ่ายจริง): ${fmt(asset.downPayment)}</div>
                                 <div class="text-[11px] text-amber-400">มูลค่ารับซื้อ (หักหนี้แล้ว): ${fmt(netProceeds)} ${profitStr}</div>
                             </div>
@@ -411,5 +482,4 @@ function openMarketModal() {
         drawSparkline('chart-btc', market.history.btc, 'rgba(251, 146, 60, 1)'); 
     }, 100);
 }
-
 function closeMarketModal() { document.getElementById('market-modal').classList.add('hidden'); }
