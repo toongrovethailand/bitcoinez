@@ -85,7 +85,6 @@ function updateUI() {
     const pNet = (player.salary + player.passive) - player.getExpenses(); const pNetEl = document.getElementById('player-net-cashflow'); if(pNetEl) { pNetEl.innerText = fmt(pNet); pNetEl.className = pNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
     let pProg = Math.min((player.passive / (player.getExpenses() || 1)) * 100, 100) || 0; const pProgEl = document.getElementById('player-progress'); if(pProgEl) pProgEl.style.width = pProg + '%'; uiManager.safeSetText('player-progress-text', pProg.toFixed(1) + '%'); 
     
-    // 🌟 อัปเดตเงื่อนไขให้แถบสว่าง (Glow) เมื่อเข้าเงื่อนไขชนะเกม
     const isPlayerWinReady = (player.passive > player.getExpenses() && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
     if(isPlayerWinReady && pProgEl) pProgEl.classList.add('glow-pulse');
 
@@ -152,7 +151,44 @@ function closeInsuranceModal() { document.getElementById('insurance-modal').clas
 function openBankModal() { if(!gameEngine.gameOver && !gameEngine.isAnimating) document.getElementById('bank-modal').classList.remove('hidden'); }
 function closeBankModal() { document.getElementById('bank-modal').classList.add('hidden'); }
 
-function openStatementModal(t) { if(gameEngine.gameOver || gameEngine.isAnimating) return; const act = t === 'player' ? player : bot; document.getElementById('stmt-title').innerHTML = t === 'player' ? '📊 งบการเงินของคุณ (Player)' : '🤖 งบการเงินของบอท (AI)'; const totalInc = act.salary + act.passive; const totalExp = act.getExpenses(); uiManager.safeSetText('stmt-salary', fmt(act.salary)); uiManager.safeSetText('stmt-passive', fmt(act.passive)); uiManager.safeSetText('stmt-total-inc', fmt(totalInc)); uiManager.safeSetText('stmt-base-exp', fmt(act.baseExpenses)); uiManager.safeSetText('stmt-prof-int', fmt(Math.floor((act.profDebt*0.025)/12))); uiManager.safeSetText('stmt-bank-int', fmt(Math.floor(act.bankDebt*gameEngine.bankInterestRate))); uiManager.safeSetText('stmt-credit-int', fmt(Math.floor(Math.max(0, (act.creditDebt||0)-(act.creditGrace||0))*0.023))); uiManager.safeSetText('stmt-mortgage-exp', fmt(act.assets?act.assets.reduce((s,a)=>s+(a.mortgagePayment||0),0):0)); uiManager.safeSetText('stmt-tax-exp', fmt(act.currentTax)); uiManager.safeSetText('stmt-total-exp', fmt(totalExp)); const net = document.getElementById('stmt-net'); net.innerText = fmt(totalInc - totalExp); net.className = (totalInc - totalExp) >= 0 ? "text-emerald-400 font-bold text-lg font-mono text-right" : "text-rose-400 font-bold text-lg font-mono text-right"; document.getElementById('statement-modal').classList.remove('hidden'); }
+function openStatementModal(t) { 
+    if(gameEngine.gameOver || gameEngine.isAnimating) return; 
+    const act = t === 'player' ? player : bot; 
+    document.getElementById('stmt-title').innerHTML = t === 'player' ? '📊 งบการเงินของคุณ (Player)' : '🤖 งบการเงินของบอท (AI)'; 
+    const totalInc = act.salary + act.passive; 
+    const totalExp = act.getExpenses(); 
+    
+    uiManager.safeSetText('stmt-salary', fmt(act.salary)); 
+    uiManager.safeSetText('stmt-passive', fmt(act.passive)); 
+    uiManager.safeSetText('stmt-total-inc', fmt(totalInc)); 
+    uiManager.safeSetText('stmt-base-exp', fmt(act.baseExpenses)); 
+
+    // 🌟 นำค่า breakdown มาแสดง
+    let bd = act.expenseBreakdown;
+    if (bd) {
+        document.getElementById('stmt-breakdown-container').innerHTML = `
+            <div class="text-[11px] text-slate-400 ml-4 mb-2 border-l border-slate-700 pl-2 space-y-0.5">
+                <div class="flex justify-between"><span>- ค่าอาหาร:</span> <span>${fmt(bd.food)}</span></div>
+                <div class="flex justify-between"><span>- ค่าที่พัก:</span> <span>${fmt(bd.housing)}</span></div>
+                <div class="flex justify-between"><span>- ค่าเดินทาง:</span> <span>${fmt(bd.transport)}</span></div>
+                <div class="flex justify-between"><span>- จิปาถะ:</span> <span>${fmt(bd.personal)}</span></div>
+            </div>
+        `;
+    }
+
+    uiManager.safeSetText('stmt-prof-int', fmt(Math.floor((act.profDebt*0.025)/12))); 
+    uiManager.safeSetText('stmt-bank-int', fmt(Math.floor(act.bankDebt*gameEngine.bankInterestRate))); 
+    uiManager.safeSetText('stmt-credit-int', fmt(Math.floor(Math.max(0, (act.creditDebt||0)-(act.creditGrace||0))*0.023))); 
+    uiManager.safeSetText('stmt-mortgage-exp', fmt(act.assets?act.assets.reduce((s,a)=>s+(a.mortgagePayment||0),0):0)); 
+    uiManager.safeSetText('stmt-tax-exp', fmt(act.currentTax)); 
+    uiManager.safeSetText('stmt-total-exp', fmt(totalExp)); 
+    
+    const net = document.getElementById('stmt-net'); 
+    net.innerText = fmt(totalInc - totalExp); 
+    net.className = (totalInc - totalExp) >= 0 ? "text-emerald-400 font-bold text-lg font-mono text-right" : "text-rose-400 font-bold text-lg font-mono text-right"; 
+    
+    document.getElementById('statement-modal').classList.remove('hidden'); 
+}
 function closeStatementModal() { document.getElementById('statement-modal').classList.add('hidden'); }
 
 function openQuickPayModal(t) { if(gameEngine.gameOver || gameEngine.isAnimating) return; let debt = t==='bank'?player.bankDebt:(t==='prof'?player.profDebt:player.creditDebt||0); if (debt <= 0) return showAlert('ข้อมูล', 'คุณไม่มีหนี้ประเภทนี้คงค้าง', '✅'); gameEngine.currentQuickPayType = t; uiManager.safeSetText('qp-title', t==='bank'?'💸 โปะหนี้ฉุกเฉิน (Bank)':(t==='prof'?'🎓 โปะหนี้อาชีพ (Prof.)':'💳 โปะหนี้บัตรเครดิต')); uiManager.safeSetText('qp-desc', t==='bank'?`ลดภาระดอกเบี้ยมหาโหด ${(gameEngine.bankInterestRate*100).toFixed(2)}% ต่อเดือน`:(t==='prof'?'เคลียร์ให้เป็น 0 เพื่อเอาชนะเกม!':'โปะก่อนจบเดือน จะไม่โดนดอกเบี้ย 2.3%')); uiManager.safeSetText('qp-debt-amount', fmt(debt)); uiManager.safeSetText('qp-cash-amount', fmt(player.cash)); document.getElementById('qp-input').value = ''; closeBankModal(); document.getElementById('quickpay-modal').classList.remove('hidden'); }
@@ -258,7 +294,19 @@ function renderPortfolioList() {
                 if(isPhysical) { 
                     reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)}</div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
                 } else { 
-                    mHTML+=`<div class="bg-slate-800 p-3 rounded border border-indigo-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div class="w-full"><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">CF: +${fmt(a.grossCashflow)}/ด</span></div><div class="text-[11px] text-slate-400 mt-1">ต้นทุน: ${fmt(a.buyPrice)}</div><div class="text-[11px] text-indigo-300 cursor-help" title="หักภาษีกำไร 15% แล้ว">มูลค่าขายสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="w-full md:w-auto mt-1 md:mt-0">${btn}</div></div>`; 
+                    // 🌟 เพิ่มการคำนวณและแสดงผล Purchasing Power สำหรับเงินฝากธนาคาร
+                    let pPowerHtml = '';
+                    if (a.type === 'bank') {
+                        let currentInf = gameEngine.cumulativeInflation || 1.0;
+                        let pPower = Math.floor(val / currentInf);
+                        let loss = val - pPower;
+                        let infRateDisplay = ((currentInf - 1) * 100).toFixed(1);
+                        if (currentInf > 1.0) {
+                            pPowerHtml = `<div class="text-[10px] text-rose-400 mt-1 cursor-help" title="หักเงินเฟ้อสะสม ${infRateDisplay}%">อำนาจซื้อจริง (Purchasing Power): ${fmt(pPower)} <span class="text-xs">(เสื่อมค่า -${fmt(loss)})</span></div>`;
+                        }
+                    }
+
+                    mHTML+=`<div class="bg-slate-800 p-3 rounded border border-indigo-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div class="w-full"><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">CF: +${fmt(a.grossCashflow)}/ด</span></div><div class="text-[11px] text-slate-400 mt-1">เงินต้น: ${fmt(a.buyPrice)}</div>${pPowerHtml}<div class="text-[11px] text-indigo-300 cursor-help mt-1" title="หักภาษีกำไร 15% แล้ว">มูลค่าขาย/ถอน สุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="w-full md:w-auto mt-1 md:mt-0">${btn}</div></div>`; 
                 } 
             }
         }

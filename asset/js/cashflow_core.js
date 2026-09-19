@@ -27,6 +27,10 @@ function drawProfession() {
     let card = CONTENT.professions[Math.floor(Math.random() * CONTENT.professions.length)];
     player.assignProfession(card); bot.assignProfession(card);
 
+    // 🌟 ดึงข้อมูลรายจ่ายย่อยมาเก็บไว้ที่ Player และ Bot
+    player.expenseBreakdown = JSON.parse(JSON.stringify(card.expenseBreakdown));
+    bot.expenseBreakdown = JSON.parse(JSON.stringify(card.expenseBreakdown));
+
     uiManager.safeSetText('prof-player-name', player.profName);
     uiManager.safeSetText('prof-player-salary', fmt(player.salary));
     uiManager.safeSetText('prof-player-exp', fmt(player.baseExpenses));
@@ -49,6 +53,10 @@ function startGame() {
     uiManager.safeSetText('bot-profession', bot.profName);
     
     gameEngine.resetEventCounts(); gameEngine.nextCrisisMonth = 36; 
+    
+    // 🌟 ตัวแปรเก็บอัตราเงินเฟ้อสะสม สำหรับคำนวณ Purchasing Power
+    gameEngine.cumulativeInflation = 1.0;
+
     logActivity(`[เริ่มเกม] วัดกึ๋น! ผู้เล่นและบอทได้รับอาชีพ ${player.profName} เหมือนกัน`, 'system', 'global');
     logActivity(`ระบบได้นำ 'ภาษีอัตราก้าวหน้า' เข้าไปรวมในรายจ่ายของคุณแล้ว!`, 'system', 'global');
     
@@ -136,12 +144,10 @@ function updateMarketPrices() {
     market.nextBias = 'normal'; 
 }
 
-// 🌟 อัปเดตเงื่อนไขการชนะเกมแบบขั้นสุด
 function checkWinCondition() {
     let pNetCashflow = (player.salary + player.passive) - player.getExpenses();
     let bNetCashflow = (bot.salary + bot.passive) - bot.getExpenses();
 
-    // ต้องเคลียร์หนี้ทุกก้อนให้เป็นศูนย์ และมีกระแสเงินสดสุทธิเป็นบวก พร้อมกับ Passive > Expenses
     const isPlayerWin = (
         player.passive > player.getExpenses() && 
         pNetCashflow > 0 &&
@@ -176,6 +182,14 @@ function calculateNetWorth(actor) {
     return nw;
 }
 
+// 🌟 ฟังก์ชันสำหรับการแชร์ Facebook
+function shareToFacebook() {
+    let text = document.getElementById('post-game-report-text').innerText;
+    let url = window.location.href; // ใช้ URL ปัจจุบัน
+    let fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
+    window.open(fbUrl, '_blank', 'width=600,height=400');
+}
+
 function endGame(winner) {
     if (gameEngine.gameOver) return;
     gameEngine.gameOver = true; gameEngine.isAnimating = false; hideDecisions();
@@ -184,19 +198,36 @@ function endGame(winner) {
     const stEl = document.getElementById(stId); if(stEl) { stEl.innerText = 'Fast Track!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
 
     const goTime = document.getElementById('go-time');
-    goTime.innerText = `${gameEngine.gameMonth} เดือน (ราวๆ ${Math.floor(gameEngine.gameMonth / 12)} ปี ${gameEngine.gameMonth % 12} เดือน)`;
+    let yrs = Math.floor(gameEngine.gameMonth / 12);
+    let mos = gameEngine.gameMonth % 12;
+    goTime.innerText = `${gameEngine.gameMonth} เดือน (${yrs} ปี ${mos} เดือน)`;
 
     let pNetWorth = calculateNetWorth(player);
     document.getElementById('go-networth').innerText = fmt(pNetWorth);
+
+    // 🌟 สร้างข้อความ Post-Game Report
+    let reportText = "";
 
     if (winner === 'player') {
         uiManager.safeSetText('go-icon', '🏆'); uiManager.safeSetText('go-title', 'ชนะเกม!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-amber-400 mb-2";
         uiManager.safeSetText('go-desc', "สุดยอดมาก!\nคุณสร้าง Passive Income แซงรายจ่ายและล้างหนี้ทั้งหมดได้สำเร็จ!\n\nการตัดสินใจของคุณเฉียบคมกว่า AI อย่างแท้จริง!");
         document.getElementById('submit-score-section').classList.remove('hidden'); 
+        document.getElementById('share-report-section').classList.remove('hidden');
+
+        reportText = `ผมเพิ่งหนีออกจาก "สนามแข่งหนู" ได้สำเร็จในเกม Cashflow Matrix! 🏆\n\n📌 อาชีพ: ${player.profName}\n⏱️ ใช้เวลา: ${yrs} ปี ${mos} เดือน\n💰 ความมั่งคั่งสุทธิ: ${fmt(pNetWorth)} บาท\n\nมาทดสอบทักษะการเงินของคุณ และแข่งกับ AI ดูสิ!`;
     } else {
         uiManager.safeSetText('go-icon', '💀'); uiManager.safeSetText('go-title', 'พ่ายแพ้!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-rose-500 mb-2";
         uiManager.safeSetText('go-desc', "บอท (AI) สามารถเผชิญเหตุการณ์เดียวกัน แต่บริหารเงินและเคลียร์หนี้ได้ฉลาดกว่าจนชนะไปก่อน!\n\nไม่เป็นไร ลองเล่นใหม่และวิเคราะห์จังหวะการลงทุนให้ดีขึ้นนะ");
+        document.getElementById('share-report-section').classList.remove('hidden');
+
+        reportText = `โดน AI ตบยับในเกม Cashflow Matrix! 💀\n\nบอทบริหารเงินเก่งกว่าผม แย่งเข้า Fast Track ไปก่อนใน ${yrs} ปี ${mos} เดือน\n\nใครคิดว่าเจ๋ง ลองมาแก้แค้น AI แทนผมหน่อย!`;
     }
+
+    document.getElementById('post-game-report').innerHTML = `
+        <div id="post-game-report-text" class="hidden">${reportText}</div>
+        <div class="whitespace-pre-line text-amber-100">${reportText}</div>
+    `;
+
     setTimeout(() => { document.getElementById('gameover-modal').classList.remove('hidden'); }, 1000);
 }
 
@@ -242,7 +273,26 @@ function rollDiceWithAnimation() {
         }
 
         let infRate = parseFloat(infRateEl.value) || 3;
-        player.baseExpenses += Math.floor(player.baseExpenses * (infRate / 100)); bot.baseExpenses += Math.floor(bot.baseExpenses * (infRate / 100));
+        let infMult = 1 + (infRate / 100);
+        
+        // 🌟 สะสมอัตราเงินเฟ้อเพื่อใช้คำนวณ Purchasing Power
+        gameEngine.cumulativeInflation = (gameEngine.cumulativeInflation || 1.0) * infMult;
+
+        // 🌟 อัปเดตรายจ่ายย่อยของ Player ให้สอดคล้องกับเงินเฟ้อ
+        let pNewBaseExp = 0;
+        ['food', 'housing', 'transport', 'personal'].forEach(k => {
+            player.expenseBreakdown[k] = Math.floor(player.expenseBreakdown[k] * infMult);
+            pNewBaseExp += player.expenseBreakdown[k];
+        });
+        player.baseExpenses = pNewBaseExp;
+
+        // 🌟 อัปเดตรายจ่ายย่อยของ Bot
+        let bNewBaseExp = 0;
+        ['food', 'housing', 'transport', 'personal'].forEach(k => {
+            bot.expenseBreakdown[k] = Math.floor(bot.expenseBreakdown[k] * infMult);
+            bNewBaseExp += bot.expenseBreakdown[k];
+        });
+        bot.baseExpenses = bNewBaseExp;
         
         if (player.profDebt > 0) player.profDebt = Math.floor(player.profDebt * 1.025);
         if (bot.profDebt > 0) bot.profDebt = Math.floor(bot.profDebt * 1.025);

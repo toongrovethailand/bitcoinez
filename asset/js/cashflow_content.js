@@ -2,12 +2,12 @@
 
 const CONTENT = {
     professions: [
-        { name: "ภารโรง", salary: 16000, expenses: 10000, savings: 5000, profDebt: 100000 },
-        { name: "พนักงานออฟฟิศ", salary: 25000, expenses: 17000, savings: 8000, profDebt: 250000 },
-        { name: "ครู", salary: 33000, expenses: 22000, savings: 10000, profDebt: 350000 },
-        { name: "วิศวกร", salary: 50000, expenses: 35000, savings: 20000, profDebt: 800000 },
-        { name: "ทนายความ", salary: 75000, expenses: 54000, savings: 25000, profDebt: 1200000 },
-        { name: "แพทย์", salary: 132000, expenses: 96000, savings: 40000, profDebt: 2500000 }
+        { name: "ภารโรง", salary: 16000, expenses: 10000, savings: 5000, profDebt: 100000, expenseBreakdown: { food: 4500, housing: 3000, transport: 1500, personal: 1000 } },
+        { name: "พนักงานออฟฟิศ", salary: 25000, expenses: 17000, savings: 8000, profDebt: 250000, expenseBreakdown: { food: 6000, housing: 6500, transport: 2500, personal: 2000 } },
+        { name: "ครู", salary: 33000, expenses: 22000, savings: 10000, profDebt: 350000, expenseBreakdown: { food: 7000, housing: 8500, transport: 3500, personal: 3000 } },
+        { name: "วิศวกร", salary: 50000, expenses: 35000, savings: 20000, profDebt: 800000, expenseBreakdown: { food: 10000, housing: 14000, transport: 6000, personal: 5000 } },
+        { name: "ทนายความ", salary: 75000, expenses: 54000, savings: 25000, profDebt: 1200000, expenseBreakdown: { food: 14000, housing: 22000, transport: 9000, personal: 9000 } },
+        { name: "แพทย์", salary: 132000, expenses: 96000, savings: 40000, profDebt: 2500000, expenseBreakdown: { food: 20000, housing: 40000, transport: 16000, personal: 20000 } }
     ],
     quotes: [
         "คนรวยไม่ได้ทำงานเพื่อเงิน แต่ทำงานเพื่อสร้างสินทรัพย์",
@@ -21,7 +21,6 @@ const CONTENT = {
         smallRE: [{id:"sre_1", name:"คอนโดปล่อยเช่าย่านออฟฟิศ", limit:null}, {id:"sre_2", name:"ทาวน์โฮมชานเมือง", limit:null}, {id:"sre_3", name:"บ้านเดี่ยวหลังเล็ก", limit:null}, {id:"sre_4", name:"คอนโดมือสองใกล้มหาวิทยาลัย", limit:3}, {id:"sre_5", name:"บ้านพักตากอากาศปล่อยเช่ารายวัน", limit:2}],
         largeRE: [{id:"lre_1", name:"อพาร์ตเมนต์ 8 ยูนิต", limit:null}, {id:"lre_2", name:"อาคารพาณิชย์ทำเลทอง", limit:2}, {id:"lre_3", name:"ลานจอดรถให้เช่ารายเดือน", limit:2}, {id:"lre_4", name:"อพาร์ตเมนต์ 20 ยูนิต", limit:2}, {id:"lre_5", name:"โฮสเทลขนาดเล็ก (Boutique)", limit:1}, {id:"lre_6", name:"มินิมอลล์ (Community Mall)", limit:1}]
     },
-    // 🌟 เปลี่ยน limit ของวิกฤตเศรษฐกิจทุกตัวเป็น null เพื่อให้เกิดได้ไม่จำกัด
     crisis: [
         { id: "cr_pandemic", name: "🦠 วิกฤตโรคระบาดระดับโลก!", desc: "เศรษฐกิจหยุดชะงัก ธุรกิจและอสังหาริมทรัพย์ได้รับผลกระทบอย่างหนัก!\n\nหากไม่มีเงินสำรอง (6 เท่าของรายจ่าย) รายรับสินทรัพย์จะถูกหั่นลง 50%!", limit: null },
         { id: "cr_war", name: "⚔️ วิกฤตสงครามและซัพพลายเชน!", desc: "เกิดความตื่นตระหนกทั่วโลก ต้นทุนทุกอย่างพุ่งทะยาน!\n\nหากไม่มีเงินสำรอง (6 เท่าของรายจ่าย) รายรับสินทรัพย์จะถูกหั่นลง 50%!", limit: null },
