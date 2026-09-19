@@ -1,0 +1,375 @@
+// ./asset/js/cashflow_core.js
+
+const gameEngine = new GameEngine();
+const uiManager = new UIManager();
+const botEngine = new BotEngine(gameEngine, uiManager);
+
+let player = gameEngine.player;
+let bot = gameEngine.bot;
+let market = gameEngine.market;
+
+let currentPortfolioTab = 'all';
+let portfolioSearchQuery = '';
+let portfolioTarget = 'player';
+let cachedLeaderboardData = []; 
+
+function fmt(num) { return GameUtils.fmt(num); }
+function logActivity(msg, type, ctx) { uiManager.logActivity(msg, `ด.${gameEngine.gameMonth}`, type, ctx); }
+function spawnFloatingText(id, amt) { uiManager.spawnFloatingText(id, amt); }
+function showAlert(title, msg, icon) { uiManager.showAlert(title, msg, icon); }
+function closeCustomAlert() { uiManager.closeCustomAlert(); }
+function showConfirm(title, msg, icon, onConfirm) { uiManager.showConfirm(title, msg, icon, onConfirm); }
+function closeCustomConfirm() { uiManager.closeCustomConfirm(); }
+function setEventCard(title, desc, icon, quote) { uiManager.setEventCard(title, desc, icon, quote); }
+function hideDecisions() { uiManager.hideDecisions(gameEngine.gameOver); }
+
+function drawProfession() {
+    let card = CONTENT.professions[Math.floor(Math.random() * CONTENT.professions.length)];
+    player.assignProfession(card); bot.assignProfession(card);
+
+    uiManager.safeSetText('prof-player-name', player.profName);
+    uiManager.safeSetText('prof-player-salary', fmt(player.salary));
+    uiManager.safeSetText('prof-player-exp', fmt(player.baseExpenses));
+    uiManager.safeSetText('prof-player-debt', fmt(player.profDebt));
+    uiManager.safeSetText('prof-player-sav', fmt(player.cash));
+
+    uiManager.safeSetText('prof-bot-name', bot.profName);
+    uiManager.safeSetText('prof-bot-salary', fmt(bot.salary));
+    uiManager.safeSetText('prof-bot-exp', fmt(bot.baseExpenses));
+    uiManager.safeSetText('prof-bot-debt', fmt(bot.profDebt));
+    uiManager.safeSetText('prof-bot-sav', fmt(bot.cash));
+
+    document.getElementById('welcome-step-1').classList.add('hidden');
+    document.getElementById('welcome-step-2').classList.remove('hidden');
+}
+
+function startGame() {
+    document.getElementById('welcome-modal').classList.add('hidden');
+    uiManager.safeSetText('header-profession', player.profName);
+    uiManager.safeSetText('bot-profession', bot.profName);
+    
+    gameEngine.resetEventCounts(); gameEngine.nextCrisisMonth = 36; 
+    logActivity(`[เริ่มเกม] วัดกึ๋น! ผู้เล่นและบอทได้รับอาชีพ ${player.profName} เหมือนกัน`, 'system', 'global');
+    logActivity(`ระบบได้นำ 'ภาษีอัตราก้าวหน้า' เข้าไปรวมในรายจ่ายของคุณแล้ว!`, 'system', 'global');
+    
+    updateMarketPrices(); updateUI();
+}
+
+function toggleInflationMode() {
+    const isDynamic = document.getElementById('inflation-dynamic-toggle').checked;
+    const inputEl = document.getElementById('inflation-rate');
+    if (isDynamic) {
+        inputEl.disabled = true;
+        inputEl.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        inputEl.disabled = false;
+        inputEl.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+function updateMarketPrices() {
+    let bias = market.nextBias;
+    let infRate = parseFloat(document.getElementById('inflation-rate')?.value) || 3;
+    let isHighInflation = infRate >= 7;
+
+    if (market.spMonthsLeft <= 0) {
+        const r = Math.random();
+        if (r < 0.25) { market.spState = 'bear'; market.spMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+        else if (r < 0.65) { market.spState = 'sideways'; market.spMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+        else { market.spState = 'bull'; market.spMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+    }
+    market.spMonthsLeft--;
+
+    let spChange = 0;
+    if (market.spState === 'bear') spChange = (Math.random() * 0.03) - 0.03; 
+    else if (market.spState === 'sideways') spChange = (Math.random() * 0.04) - 0.02; 
+    else if (market.spState === 'bull') spChange = (Math.random() * 0.03) + 0.01; 
+
+    if (bias === 'bull') spChange += 0.02;
+    if (bias === 'bear' || isHighInflation) spChange -= 0.03;
+
+    if (market.goldMonthsLeft <= 0) {
+        const r = Math.random();
+        if (isHighInflation || market.spState === 'bear') {
+            if (r < 0.60) { market.goldState = 'bull'; market.goldMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+            else if (r < 0.90) { market.goldState = 'sideways'; market.goldMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+            else { market.goldState = 'bear'; market.goldMonthsLeft = Math.floor(Math.random() * 4) + 2; }
+        } else {
+            if (r < 0.20) { market.goldState = 'bull'; market.goldMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+            else if (r < 0.70) { market.goldState = 'sideways'; market.goldMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+            else { market.goldState = 'bear'; market.goldMonthsLeft = Math.floor(Math.random() * 6) + 3; }
+        }
+    }
+    market.goldMonthsLeft--;
+
+    let goldChange = 0;
+    if (market.goldState === 'bear') goldChange = (Math.random() * 0.03) - 0.025;
+    else if (market.goldState === 'sideways') goldChange = (Math.random() * 0.03) - 0.015;
+    else if (market.goldState === 'bull') goldChange = (Math.random() * 0.04) + 0.01;
+
+    if (bias === 'bear' || isHighInflation) goldChange += 0.02;
+
+    if (market.btcMonthsLeft <= 0) {
+        const r = Math.random();
+        if (r < 0.60) { market.btcState = 'bear'; market.btcMonthsLeft = Math.floor(Math.random() * 13) + 6; } 
+        else if (r < 0.90) { market.btcState = 'sideways'; market.btcMonthsLeft = Math.floor(Math.random() * 10) + 3; } 
+        else { market.btcState = 'bull'; market.btcMonthsLeft = Math.floor(Math.random() * 3) + 1; }
+    }
+    market.btcMonthsLeft--;
+
+    let btcChange = 0;
+    if (market.btcState === 'bear') btcChange = (Math.random() * 0.20) - 0.15; 
+    else if (market.btcState === 'sideways') btcChange = (Math.random() * 0.20) - 0.10; 
+    else if (market.btcState === 'bull') btcChange = (Math.random() * 1.50) + 0.50; 
+
+    if (bias === 'crypto') btcChange += 0.20;
+    if (isHighInflation && market.btcState !== 'bull') btcChange += (Math.random() > 0.5 ? 0.15 : -0.15); 
+
+    market.invPrice = Math.max(10, market.invPrice * (1 + spChange));
+    market.goldPrice = Math.max(1000, market.goldPrice * (1 + goldChange));
+    market.btcPrice = Math.max(100000, market.btcPrice * (1 + btcChange)); 
+
+    uiManager.safeSetText('price-inv', fmt(Math.round(market.invPrice * 100))); 
+    uiManager.safeSetText('price-gold', fmt(Math.round(market.goldPrice)));
+    uiManager.safeSetText('price-btc', fmt(Math.round(market.btcPrice * 0.01))); 
+    
+    market.nextBias = 'normal'; 
+}
+
+// 🌟 อัปเดตเงื่อนไขการชนะเกมแบบขั้นสุด
+function checkWinCondition() {
+    let pNetCashflow = (player.salary + player.passive) - player.getExpenses();
+    let bNetCashflow = (bot.salary + bot.passive) - bot.getExpenses();
+
+    // ต้องเคลียร์หนี้ทุกก้อนให้เป็นศูนย์ และมีกระแสเงินสดสุทธิเป็นบวก พร้อมกับ Passive > Expenses
+    const isPlayerWin = (
+        player.passive > player.getExpenses() && 
+        pNetCashflow > 0 &&
+        player.profDebt === 0 && 
+        player.bankDebt === 0 && 
+        (!player.creditDebt || player.creditDebt === 0)
+    );
+    
+    const isBotWin = (
+        bot.passive > bot.getExpenses() && 
+        bNetCashflow > 0 &&
+        bot.profDebt === 0 && 
+        bot.bankDebt === 0 && 
+        (!bot.creditDebt || bot.creditDebt === 0)
+    );
+
+    if (isPlayerWin) { logActivity(`🎉 ชนะแล้ว! คุณเข้าสู่ Fast Track`, 'system', 'global'); endGame('player'); } 
+    else if (isBotWin) { logActivity(`💀 แพ้แล้ว! บอทออกจากสนามแข่งหนู`, 'system', 'global'); endGame('bot'); }
+}
+
+function calculateNetWorth(actor) {
+    let nw = actor.cash - (actor.profDebt + actor.bankDebt + (actor.creditDebt||0));
+    actor.assets.forEach(a => {
+        if(a.type==='bank') nw += a.buyPrice;
+        else if(a.type==='inv') nw += Math.round(market.invPrice*a.units);
+        else if(a.type==='gold') nw += Math.round(market.goldPrice*a.units);
+        else if(a.type==='btc') nw += Math.round(market.btcPrice*a.units);
+        else if(a.type==='installment') nw += a.salvage;
+        else nw += (a.buyPrice - (a.mortgage||0));
+    });
+    actor.escrows.forEach(e => nw += e.amount);
+    return nw;
+}
+
+function endGame(winner) {
+    if (gameEngine.gameOver) return;
+    gameEngine.gameOver = true; gameEngine.isAnimating = false; hideDecisions();
+    const btnRoll = document.getElementById('btn-roll'); if(btnRoll) { btnRoll.disabled = true; btnRoll.innerText = 'จบเกมแล้ว'; }
+    const stId = winner === 'player' ? 'player-status' : 'bot-status';
+    const stEl = document.getElementById(stId); if(stEl) { stEl.innerText = 'Fast Track!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
+
+    const goTime = document.getElementById('go-time');
+    goTime.innerText = `${gameEngine.gameMonth} เดือน (ราวๆ ${Math.floor(gameEngine.gameMonth / 12)} ปี ${gameEngine.gameMonth % 12} เดือน)`;
+
+    let pNetWorth = calculateNetWorth(player);
+    document.getElementById('go-networth').innerText = fmt(pNetWorth);
+
+    if (winner === 'player') {
+        uiManager.safeSetText('go-icon', '🏆'); uiManager.safeSetText('go-title', 'ชนะเกม!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-amber-400 mb-2";
+        uiManager.safeSetText('go-desc', "สุดยอดมาก!\nคุณสร้าง Passive Income แซงรายจ่ายและล้างหนี้ทั้งหมดได้สำเร็จ!\n\nการตัดสินใจของคุณเฉียบคมกว่า AI อย่างแท้จริง!");
+        document.getElementById('submit-score-section').classList.remove('hidden'); 
+    } else {
+        uiManager.safeSetText('go-icon', '💀'); uiManager.safeSetText('go-title', 'พ่ายแพ้!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-rose-500 mb-2";
+        uiManager.safeSetText('go-desc', "บอท (AI) สามารถเผชิญเหตุการณ์เดียวกัน แต่บริหารเงินและเคลียร์หนี้ได้ฉลาดกว่าจนชนะไปก่อน!\n\nไม่เป็นไร ลองเล่นใหม่และวิเคราะห์จังหวะการลงทุนให้ดีขึ้นนะ");
+    }
+    setTimeout(() => { document.getElementById('gameover-modal').classList.remove('hidden'); }, 1000);
+}
+
+function rollDiceWithAnimation() {
+    if (gameEngine.gameOver || gameEngine.currentTurn !== 'player' || gameEngine.isAnimating) return;
+    gameEngine.isAnimating = true;
+    document.getElementById('btn-roll').disabled = true; document.getElementById('btn-roll').innerText = 'กำลังดำเนินชีวิต...'; 
+    document.getElementById('card-flipper').classList.remove('flipped'); 
+    
+    if(Math.random() < 0.2) logActivity(gameEngine.generateNews(), 'news', 'global');
+    gameEngine.gameMonth++; updateMarketPrices(); 
+
+    if (player.bankDebt > 0) player.bankDebt = Math.floor(player.bankDebt * (1 + gameEngine.bankInterestRate));
+    if (bot.bankDebt > 0) bot.bankDebt = Math.floor(bot.bankDebt * (1 + gameEngine.bankInterestRate));
+    
+    if (gameEngine.badCooldown > 0) gameEngine.badCooldown--;
+
+    let infRateEl = document.getElementById('inflation-rate');
+    let isDynamic = document.getElementById('inflation-dynamic-toggle')?.checked;
+
+    if (gameEngine.gameMonth > 1 && gameEngine.gameMonth % 12 === 1) {
+        if (isDynamic) {
+            let newRate = Math.floor(Math.random() * 15) + 1; 
+            infRateEl.value = newRate;
+            logActivity(`📈 [ปีใหม่] อัตราเงินเฟ้อผันผวน! ปรับเป็น ${newRate}%`, 'system', 'global');
+            if (newRate >= 8) showAlert('🚨 เงินเฟ้อพุ่งสูง!', `อัตราเงินเฟ้อปีนี้พุ่งทะยานถึง ${newRate}%\nส่งผลให้ข้าวของแพงขึ้น และตลาดทุน (หุ้น/คริปโต) อาจผันผวนอย่างหนัก!`, '🔥');
+            
+            if (newRate >= 6) {
+                gameEngine.bankInterestRate = 0.03; 
+                logActivity(`🚨 ดอกเบี้ยนโยบายปรับขึ้น! หนี้ฉุกเฉินดอกเบี้ยพุ่งเป็น 3.00% ต่อเดือน`, 'expense', 'global');
+                uiManager.safeSetText('ui-bank-rate', '3.00%');
+            } else if (newRate >= 4) {
+                gameEngine.bankInterestRate = 0.02; 
+                logActivity(`⚠️ ดอกเบี้ยนโยบายปรับขึ้น! หนี้ฉุกเฉินดอกเบี้ยเป็น 2.00% ต่อเดือน`, 'expense', 'global');
+                uiManager.safeSetText('ui-bank-rate', '2.00%');
+            } else {
+                gameEngine.bankInterestRate = 0.0125;
+                logActivity(`✅ ดอกเบี้ยนโยบายปกติ หนี้ฉุกเฉิน 1.25% ต่อเดือน`, 'info', 'global');
+                uiManager.safeSetText('ui-bank-rate', '1.25%');
+            }
+        } else {
+            logActivity(`[ปีใหม่] เงินเฟ้อทำงาน ของแพงขึ้น!`, 'system', 'global');
+        }
+
+        let infRate = parseFloat(infRateEl.value) || 3;
+        player.baseExpenses += Math.floor(player.baseExpenses * (infRate / 100)); bot.baseExpenses += Math.floor(bot.baseExpenses * (infRate / 100));
+        
+        if (player.profDebt > 0) player.profDebt = Math.floor(player.profDebt * 1.025);
+        if (bot.profDebt > 0) bot.profDebt = Math.floor(bot.profDebt * 1.025);
+        if (Math.random() <= 0.25) { 
+            let p = player.salary < 30000 ? 6 : (player.salary < 80000 ? 4 : 2);
+            player.salary += Math.floor(player.salary * (p / 100)); bot.salary += Math.floor(bot.salary * (p / 100));
+            logActivity(`🎉 ปรับฐานเงินเดือนขึ้น ${p}% ทั้งระบบ!`, 'system', 'global'); showAlert('🎉 ข่าวดี!', `คุณและบอทได้ขึ้นเงินเดือน ${p}%`, '💸');
+        }
+    }
+
+    setTimeout(() => {
+        try { 
+            const pInc = player.salary + player.passive - player.getExpenses(); player.cash += pInc; spawnFloatingText('player-cash', pInc); logActivity(`คุณรับกระแสเงินสดสุทธิ ${fmt(pInc)}`, 'income', 'player');
+            
+            const timeAssetsResult = player.processTimeBasedAssets();
+            if (timeAssetsResult.maturedCash > 0) {
+                spawnFloatingText('player-cash', timeAssetsResult.maturedCash);
+                logActivity(`💰 สัญญาเสร็จสิ้น! รับเงินขาย ${timeAssetsResult.maturedNames.join(', ')} จำนวน ${fmt(timeAssetsResult.maturedCash)}`, 'income', 'player');
+                showAlert('💰 เงินเข้าแล้ว!', `สัญญาซื้อขายเสร็จสิ้น!\nคุณได้รับเงินก้อน ${fmt(timeAssetsResult.maturedCash)} จากการขาย ${timeAssetsResult.maturedNames.join(', ')}`, '💵');
+            }
+            if (timeAssetsResult.finishedInstallments.length > 0) {
+                logActivity(`🎉 ผ่อน ${timeAssetsResult.finishedInstallments.join(', ')} หมดแล้ว! กลายเป็นทรัพย์สินปลอดภาระ`, 'system', 'player');
+                showAlert('🎉 ผ่อนหมดแล้ว!', `ยินดีด้วย!\nคุณผ่อน ${timeAssetsResult.finishedInstallments.join(', ')} หมดแล้ว\nภาระรายจ่ายลดลง และสามารถนำไปขายเป็นของมือสองได้!`, '🥳');
+            }
+
+            const bInc = bot.salary + bot.passive - bot.getExpenses(); bot.cash += bInc; logActivity(`บอทรับกระแสเงินสดสุทธิ ${fmt(bInc)}`, 'income', 'bot');
+            player.creditGrace = 0; bot.creditGrace = 0;
+
+            const prob = gameEngine.probabilities;
+            let rCrisis = prob.crisis / 100;
+            let rDeal = rCrisis + (prob.deal / 100);
+            let rBad = rDeal + (prob.bad / 100);
+            let rGamble = rBad + (prob.gamble / 100);
+
+            const r = Math.random(); 
+            if (gameEngine.gameMonth >= gameEngine.nextCrisisMonth && r < rCrisis) { 
+                gameEngine.currentSharedEvent = gameEngine.generateCrisisEvent(); 
+                gameEngine.nextCrisisMonth = gameEngine.gameMonth + Math.floor(Math.random() * 13) + 48; 
+            } 
+            else if (r < rDeal) gameEngine.currentSharedEvent = gameEngine.generateDynamicDeal();
+            else if (r < rBad) {
+                if (gameEngine.gameMonth <= 3 || gameEngine.badCooldown > 0) {
+                    gameEngine.currentSharedEvent = { type: 'nothing' }; 
+                } else {
+                    gameEngine.currentSharedEvent = gameEngine.generateDynamicBadEvent();
+                    gameEngine.badCooldown = 2; 
+                }
+            }
+            else if (r < rGamble) gameEngine.currentSharedEvent = gameEngine.generateGambleEvent();
+            else gameEngine.currentSharedEvent = { type: 'nothing' }; 
+
+            const ev = gameEngine.currentSharedEvent;
+            const ap = document.getElementById('action-panel');
+            
+            let isCovered = false;
+            if (ev.type === 'bad_doodad' || ev.type === 'bad_life' || ev.type === 'installment') {
+                player.insurances.forEach(ins => {
+                    if(ins.covers.includes(ev.id)) isCovered = true;
+                });
+            }
+
+            if (ev.type === 'crisis') { 
+                let dynamicDesc = ev.desc;
+                if (ev.id === 'cr_crypto_crash') {
+                    if (player.hasSelfCustody) {
+                        dynamicDesc += `\n\n✅ คุณมีทักษะ Self Custody บิตคอยน์ของคุณปลอดภัย 100%`;
+                    } else if (player.assets.some(a => a.type === 'btc')) {
+                        dynamicDesc += `\n\n❌ หายนะ! คุณไม่มีทักษะ Self Custody และจะสูญเสียบิตคอยน์ทั้งหมดทันที!`;
+                    } else {
+                        dynamicDesc += `\n\nโชคดีที่คุณไม่ได้ถือครองบิตคอยน์ไว้เลย`;
+                    }
+                } else {
+                    let reqReserve = player.getExpenses() * 6;
+                    dynamicDesc += `\n\n🎯 เป้าหมายเงินสำรอง: ${fmt(reqReserve)}`;
+                    if(player.cash < reqReserve) {
+                        dynamicDesc += `\n❌ คุณมีเงินสดไม่พอ ขาดอีก ${fmt(reqReserve - player.cash)}\n(สามารถไปเปิดหน้าต่างพอร์ต เพื่อเทขายสินทรัพย์ก่อนที่จะกดปุ่ม 'เผชิญหน้าวิกฤต' ได้!)`;
+                    } else {
+                        dynamicDesc += `\n✅ ยินดีด้วย! คุณมีเงินสดสำรองเพียงพอ`;
+                    }
+                }
+                
+                setEventCard(`🚨 ${ev.name}`, dynamicDesc, '⚠️', false); 
+                uiManager.showCrisisDecisions(); ap.classList.add('shake'); setTimeout(() => ap.classList.remove('shake'), 500); gameEngine.isAnimating = false; 
+            } 
+            else if (ev.type === 'gamble') { setEventCard(`🎰 โอกาสเสี่ยงโชค!`, ev.desc, '🃏', false); uiManager.showGambleDecisions(); gameEngine.isAnimating = false; } 
+            else if (['realestate','business','land'].includes(ev.type)) { setEventCard(`โอกาสลงทุน: ${ev.name}`, 'วิเคราะห์กระแสเงินสดให้ดีก่อนตัดสินใจ!', '🏢', true); uiManager.showDealDecisions(ev, player.isEducated); logActivity(`พบดีลร่วมกัน: ${ev.name}`, 'system', 'global'); gameEngine.isAnimating = false; } 
+            else if (isCovered) {
+                setEventCard('🛡️ ประกันภัยคุ้มครอง!', `เกิดเหตุการณ์: ${ev.name}\nแต่โชคดีที่คุณซื้อประกันไว้!\n\nบริษัทประกันรับผิดชอบค่าใช้จ่าย/ภาระหนี้ทั้งหมดให้คุณ!`, '✅', true);
+                logActivity(`ใช้สิทธิ์ประกันคุ้มครองเคลม: ${ev.name}`, 'income', 'player');
+                setTimeout(() => botEngine.processTurn(), 2000);
+            }
+            else if (ev.type === 'bad_doodad') {
+                if (player.isEducated && Math.random() < 0.5) { setEventCard('🛡️ รอดตัว!', `ทักษะการเงินขั้นสูงทำให้คุณมีสติ! ไม่ซื้อ "${ev.name}"`, '🎓', true); logActivity(`ใช้ภูมิคุ้มกันการเงินปฏิเสธรายจ่ายฟุ่มเฟือย`, 'income', 'player'); setTimeout(() => botEngine.processTurn(), 1800); } 
+                else { setEventCard('💸 เสียเงิน', `คุณพบของล่อตาล่อใจ: ${ev.name}\nราคา: ${fmt(ev.cost)}`, '🛒', true); uiManager.showDoodadDecisions(); ap.classList.add('shake'); setTimeout(() => ap.classList.remove('shake'), 500); gameEngine.isAnimating = false; }
+            } 
+            else if (ev.type === 'bad_life') { 
+                player.baseExpenses += ev.expenseIncrease; bot.baseExpenses += ev.expenseIncrease; setEventCard('📉 วิกฤต/ภาระชีวิต!', `${ev.name} ทำให้รายจ่ายเพิ่ม ${fmt(ev.expenseIncrease)}/เดือน`, '⚠️', true); logActivity(`ทุกคนโดนเพิ่มรายจ่าย: ${ev.name}`, 'system', 'global'); ap.classList.add('shake'); setTimeout(() => ap.classList.remove('shake'), 500); setTimeout(() => botEngine.processTurn(), 1800); 
+            } 
+            else if (ev.type === 'installment') {
+                let newInstP = { ...ev, type: 'installment', monthsLeft: ev.months, buyPrice: ev.cost, mortgage: 0, grossCashflow: 0, mortgagePayment: 0, buff: 'none' };
+                let newInstB = { ...ev, type: 'installment', monthsLeft: ev.months, buyPrice: ev.cost, mortgage: 0, grossCashflow: 0, mortgagePayment: 0, buff: 'none' };
+                
+                player.assets.push(newInstP);
+                bot.assets.push(newInstB);
+                
+                setEventCard('💳 ภาระผ่อนชิ้นใหม่!', `คุณตัดสินใจซื้อ "${ev.name}"\nทำให้รายจ่ายเพิ่มขึ้น ${fmt(ev.monthly)}/เดือน\nเป็นเวลา ${ev.months} เดือน!\n\n(เมื่อผ่อนหมดสามารถนำไปขายเป็นของมือสองได้)`, '⚠️', true);
+                logActivity(`สร้างหนี้ผ่อน: ${ev.name} (-${fmt(ev.monthly)}/ด)`, 'expense', 'global');
+                
+                ap.classList.add('shake'); setTimeout(() => ap.classList.remove('shake'), 500); 
+                setTimeout(() => botEngine.processTurn(), 2500);
+            }
+            else { setEventCard('☕ ชีวิตเรียบง่าย', `เดือนนี้ไม่มีเหตุการณ์พิเศษ\nรับเงินเดือนแล้วใช้ชีวิตต่อไปอย่างสงบสุข!`, '☀️', true); setTimeout(() => botEngine.processTurn(), 1800); }
+            
+            gameEngine.enforceBankruptcyRule(player); updateUI(); document.getElementById('card-flipper').classList.add('flipped');
+        } catch(err) { console.error(err); restorePlayerTurn(); }
+    }, 400);
+}
+
+function restorePlayerTurn() { 
+    if(gameEngine.gameOver) return; 
+    gameEngine.currentTurn = 'player'; 
+    gameEngine.isAnimating = false; 
+    const ind = document.getElementById('turn-indicator'); 
+    if(ind) { 
+        ind.innerText = 'ตาของคุณ'; 
+        ind.classList.remove('bg-slate-700', 'text-slate-300'); 
+        ind.classList.add('bg-amber-900/30', 'text-amber-400'); 
+    } 
+    hideDecisions(); 
+}
