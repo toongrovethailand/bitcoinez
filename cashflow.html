@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./asset/css/cashflow.css">
+    <!-- 🌟 เพิ่มไลบรารี html2canvas สำหรับทำระบบเซฟภาพสถิติ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body class="p-4 flex flex-col items-center py-6">
 
@@ -391,8 +393,9 @@
         </div>
     </div>
 
-    <!-- Modals ทั้งหมด (งบดุล, โปะหนี้, แบงก์, ประกัน, ตลาดทุน, พอร์ต, ทักษะ, Leaderboard, Alert, Confirm) -->
-    <!-- 📊 Income Statement Modal 📊 -->
+    <!-- Modals ทั้งหมด -->
+    
+    <!-- 📊 Income Statement Modal -->
     <div id="statement-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[160] flex items-center justify-center transition-opacity">
         <div class="bg-slate-900 border border-cyan-500/50 p-6 rounded-xl max-w-md w-full mx-4 shadow-2xl modal-enter">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
@@ -416,7 +419,6 @@
                 <div class="space-y-1 text-sm font-mono text-slate-300 px-2">
                     <div class="flex justify-between"><span>- รายจ่ายพื้นฐาน:</span> <span id="stmt-base-exp">฿0</span></div>
                     
-                    <!-- 🌟 ส่วนแสดงรายจ่ายแจกแจง (จะถูกเติมด้วย JS) -->
                     <div id="stmt-breakdown-container"></div>
 
                     <div class="flex justify-between border-t border-slate-800 pt-1 mt-1"><span>- ดอกเบี้ยหนี้อาชีพ (2.5%/ปี):</span> <span id="stmt-prof-int" class="text-rose-400">฿0</span></div>
@@ -443,29 +445,105 @@
     <!-- Quick Pay Modal -->
     <div id="quickpay-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[150] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-sm w-full mx-4 shadow-2xl modal-enter"><div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3"><h3 class="text-lg font-bold text-white flex items-center gap-2" id="qp-title">💸 โปะหนี้ด่วน</h3><button onclick="closeQuickPayModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><p class="text-sm text-slate-300 mb-4" id="qp-desc">ระบุจำนวนเงินที่ต้องการชำระ</p><div class="mb-4"><div class="text-xs text-slate-400 mb-1">ยอดหนี้คงค้าง: <span id="qp-debt-amount" class="text-rose-400 font-bold font-mono">฿0</span></div><div class="text-xs text-slate-400 mb-2">เงินสดของคุณ: <span id="qp-cash-amount" class="text-emerald-400 font-bold font-mono">฿0</span></div><input type="number" id="qp-input" placeholder="ระบุจำนวนเงิน..." class="w-full bg-slate-800 border border-slate-600 text-white px-3 py-3 rounded text-sm outline-none focus:border-emerald-500 transition-colors mb-2"><div class="flex gap-2 mb-4"><button onclick="setQuickPayAmount(10)" class="w-1/4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 py-1.5 rounded text-xs font-bold transition-colors">10%</button><button onclick="setQuickPayAmount(25)" class="w-1/4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 py-1.5 rounded text-xs font-bold transition-colors">25%</button><button onclick="setQuickPayAmount(50)" class="w-1/4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 py-1.5 rounded text-xs font-bold transition-colors">50%</button><button onclick="setQuickPayAmount(100)" class="w-1/4 bg-amber-700 hover:bg-amber-600 border border-amber-600 text-white py-1.5 rounded text-xs font-bold transition-colors">100%</button></div><button id="qp-btn-submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded text-sm font-bold shadow-md transition-colors">ยืนยันการชำระหนี้</button></div></div></div>
 
+    <!-- Bank Modal -->
     <div id="bank-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[150] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-md w-full mx-4 shadow-2xl modal-enter"><h3 class="text-xl font-bold text-amber-400 mb-4 border-b border-slate-700 pb-2">🏦 ธนาคารพาณิชย์</h3><div class="mb-6"><p class="text-sm font-bold text-white mb-2">1. เงินกู้ฉุกเฉิน (Bank Loan)</p><p class="text-[11px] text-rose-400 mb-3 font-bold">ดอกเบี้ย <span id="ui-bank-rate">1.25%</span> ต่อเดือน (จำกัดวงเงินกู้รวมไม่เกิน 5 เท่าของเงินเดือน)</p><div class="flex gap-2 mb-3"><button onclick="setLoanAmount(25)" class="w-1/3 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ 25%</button><button onclick="setLoanAmount(50)" class="w-1/3 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ 50%</button><button onclick="setLoanAmount(100)" class="w-1/3 bg-amber-600 hover:bg-amber-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">กู้ 100%</button></div><div class="flex gap-2"><input type="number" id="custom-loan-input" placeholder="ระบุยอดกู้" min="1" class="w-2/3 bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded text-sm outline-none focus:border-amber-500 transition-colors font-mono"><button onclick="takeCustomLoan()" class="w-1/3 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-sm font-bold shadow-md transition-colors">ยืนยันกู้</button></div></div><div class="pt-2 border-t border-slate-700"><button onclick="closeBankModal()" class="w-full text-slate-400 hover:text-white text-sm py-2 transition-colors mt-2">ปิดหน้าต่าง</button></div></div></div>
 
+    <!-- Insurance Modal -->
     <div id="insurance-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[150] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-blue-500/50 p-6 rounded-xl max-w-lg w-full mx-4 shadow-2xl modal-enter"><div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3"><h3 class="text-xl font-bold text-blue-400 flex items-center gap-2">🛡️ บริษัทประกันภัย</h3><button onclick="closeInsuranceModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><p class="text-sm text-slate-300 mb-4">บริหารความเสี่ยง โอนภาระค่าใช้จ่ายก้อนใหญ่ให้บริษัทประกันรับผิดชอบแทน!</p><div id="insurance-list" class="space-y-3"></div><div class="pt-4 mt-4 border-t border-slate-700 text-right"><button onclick="closeInsuranceModal()" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-bold transition-colors">ปิดหน้าต่าง</button></div></div></div>
 
+    <!-- Portfolio Modal -->
     <div id="portfolio-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[160] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-3xl w-full mx-4 shadow-2xl max-h-[85vh] flex flex-col modal-enter"><div class="flex justify-between items-center mb-2"><h3 class="text-xl font-bold text-amber-400" id="portfolio-title">💼 พอร์ตการลงทุน</h3><button onclick="closePortfolioModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><p class="text-xs text-slate-400 mb-3" id="portfolio-desc">เมื่อขายสินทรัพย์ ระบบจะหักลบ "หนี้สินเชื่อ" ออกให้ก่อนนำเงินทอนเข้ากระเป๋า</p><div class="flex flex-col sm:flex-row gap-2 mb-3"><input type="text" id="portfolio-search" placeholder="🔍 ค้นหาสินทรัพย์..." class="w-full sm:w-1/3 bg-slate-800 border border-slate-600 text-white px-3 py-1.5 rounded text-sm outline-none focus:border-amber-500 transition-colors" oninput="searchPortfolio(this.value)"><div class="flex overflow-x-auto custom-scrollbar gap-2 pb-1 w-full sm:w-2/3"><button onclick="setPortfolioTab('all')" id="tab-all" class="whitespace-nowrap px-3 py-1.5 bg-amber-600 text-white rounded text-xs font-bold transition-colors shadow">ทั้งหมด</button><button onclick="setPortfolioTab('physical')" id="tab-physical" class="whitespace-nowrap px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs font-bold transition-colors">🏢 อสังหาฯ/ผ่อน</button><button onclick="setPortfolioTab('paper')" id="tab-paper" class="whitespace-nowrap px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs font-bold transition-colors">📈 สภาพคล่อง</button><button onclick="setPortfolioTab('escrow')" id="tab-escrow" class="whitespace-nowrap px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs font-bold transition-colors">⏳ รอสัญญา</button></div></div><div class="overflow-y-auto flex-grow bg-[#050A14] p-3 rounded-lg border border-slate-700 space-y-3 shadow-inner custom-scrollbar" id="portfolio-list"></div></div></div>
 
-    <div id="market-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-50 flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-indigo-500/50 p-6 rounded-xl max-w-5xl w-full mx-4 shadow-2xl modal-enter"><div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3"><div><h3 class="text-xl font-bold text-indigo-400">📈 ตลาดทุน (Capital Market)</h3><p class="text-xs text-slate-400 mt-1">วิเคราะห์แนวโน้มตลาดและกระจายความเสี่ยงด้วยตัวคุณเอง</p></div></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"><div class="bg-[#050A14] p-4 rounded-lg border border-slate-600 text-center flex flex-col justify-between hover:border-slate-400 transition-colors"><div><div class="text-4xl mb-2">🏦</div><h4 class="font-bold text-white text-sm mb-1">เงินฝากประจำ</h4><div class="my-3 py-2 bg-slate-800 rounded border border-slate-700"><div class="text-[10px] text-emerald-400 font-bold">+ ปันผล 2% ต่อปี</div><div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: ต่ำมาก (เงินต้นไม่หาย)</div></div></div><button onclick="tradeMarket('bank')" class="w-full bg-slate-600 hover:bg-slate-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ฝากเงิน ฿10,000</button></div><div class="bg-[#050A14] p-4 rounded-lg border border-emerald-500/30 text-center flex flex-col justify-between hover:border-emerald-500/80 transition-colors"><div><h4 class="font-bold text-emerald-400 text-sm mb-1">S&P500 (กองทุนดัชนี)</h4><div class="my-2 py-2 bg-slate-800 rounded border border-slate-700"><div class="text-xs text-slate-400">ราคา (ต่อ 100 หุ้น)</div><div class="font-mono font-bold text-white text-lg" id="price-inv">฿0</div><div class="text-[10px] text-emerald-400 font-bold mt-1">+ ปันผล ~5% ต่อปี</div></div><div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: ปานกลาง (เติบโตต่อเนื่อง)</div></div><button onclick="tradeMarket('inv')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ซื้อ 1 Lot (100 หุ้น)</button></div><div class="bg-[#050A14] p-4 rounded-lg border border-amber-500/30 text-center flex flex-col justify-between hover:border-amber-500/80 transition-colors"><div><h4 class="font-bold text-amber-400 text-sm mb-1">ทองคำ (Gold)</h4><div class="my-2 py-2 bg-slate-800 rounded border border-slate-700"><div class="text-xs text-slate-400">ราคา (ต่อ 1 บาททอง)</div><div class="font-mono font-bold text-white text-lg" id="price-gold">฿0</div><div class="text-[10px] text-slate-500 mt-1">Cashflow: 0</div></div><div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: ต่ำ (Safe Haven)</div></div><button onclick="tradeMarket('gold')" class="w-full bg-amber-600 hover:bg-amber-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ซื้อทองคำ 1 บาท</button></div><div class="bg-[#050A14] p-4 rounded-lg border border-orange-500/30 text-center flex flex-col justify-between hover:border-orange-500/80 transition-colors"><div><h4 class="font-bold text-orange-400 text-sm mb-1">บิตคอยน์ (BTC)</h4><div class="my-2 py-2 bg-slate-800 rounded border border-slate-700"><div class="text-xs text-slate-400">ราคา (ต่อ 0.01 BTC)</div><div class="font-mono font-bold text-white text-lg" id="price-btc">฿0</div><div class="text-[10px] text-slate-500 mt-1">Cashflow: 0</div></div><div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: สูงมาก (High Volatility)</div></div><button onclick="tradeMarket('btc')" class="w-full bg-orange-600 hover:bg-orange-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ซื้อ 0.01 BTC</button></div></div><div class="pt-2 text-right"><button onclick="closeMarketModal()" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-bold transition-colors">กลับสู่กระดานหลัก</button></div></div></div>
+    <!-- 📈 Capital Market Modal (แบบจำกัดความสูงและ Scroll ได้) -->
+    <div id="market-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[160] flex items-center justify-center transition-opacity">
+        <div class="bg-slate-900 border border-indigo-500/50 p-6 rounded-xl max-w-5xl w-full mx-4 shadow-2xl modal-enter max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-start mb-4 border-b border-slate-700 pb-3 shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-indigo-400">📈 ตลาดทุน (Capital Market)</h3>
+                    <p class="text-xs text-slate-400 mt-1">วิเคราะห์แนวโน้มตลาดและกระจายความเสี่ยงด้วยตัวคุณเอง</p>
+                </div>
+                <button onclick="closeMarketModal()" class="text-slate-400 hover:text-white text-3xl leading-none ml-4">&times;</button>
+            </div>
+            
+            <div class="overflow-y-auto custom-scrollbar flex-grow pr-2 mb-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-[#050A14] p-4 rounded-lg border border-slate-600 text-center flex flex-col justify-between hover:border-slate-400 transition-colors">
+                        <div>
+                            <div class="text-4xl mb-2">🏦</div>
+                            <h4 class="font-bold text-white text-sm mb-1">เงินฝากประจำ</h4>
+                            <div class="my-3 py-2 bg-slate-800 rounded border border-slate-700">
+                                <div class="text-[10px] text-emerald-400 font-bold">+ ปันผล 2% ต่อปี</div>
+                                <div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: ต่ำมาก (เงินต้นไม่หาย)</div>
+                            </div>
+                        </div>
+                        <button onclick="tradeMarket('bank')" class="w-full bg-slate-600 hover:bg-slate-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ฝากเงิน ฿10,000</button>
+                    </div>
 
+                    <div class="bg-[#050A14] p-4 rounded-lg border border-emerald-500/30 text-center flex flex-col justify-between hover:border-emerald-500/80 transition-colors">
+                        <div>
+                            <h4 class="font-bold text-emerald-400 text-sm mb-1">S&P500 (กองทุนดัชนี)</h4>
+                            <div class="my-2 py-2 bg-slate-800 rounded border border-slate-700">
+                                <div class="text-xs text-slate-400">ราคา (ต่อ 100 หุ้น)</div>
+                                <div class="font-mono font-bold text-white text-lg" id="price-inv">฿0</div>
+                                <div class="text-[10px] text-emerald-400 font-bold mt-1">+ ปันผล ~5% ต่อปี</div>
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: ปานกลาง (เติบโตต่อเนื่อง)</div>
+                        </div>
+                        <button onclick="tradeMarket('inv')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ซื้อ 1 Lot (100 หุ้น)</button>
+                    </div>
+
+                    <div class="bg-[#050A14] p-4 rounded-lg border border-amber-500/30 text-center flex flex-col justify-between hover:border-amber-500/80 transition-colors">
+                        <div>
+                            <h4 class="font-bold text-amber-400 text-sm mb-1">ทองคำ (Gold)</h4>
+                            <div class="my-2 py-2 bg-slate-800 rounded border border-slate-700">
+                                <div class="text-xs text-slate-400">ราคา (ต่อ 1 บาททอง)</div>
+                                <div class="font-mono font-bold text-white text-lg" id="price-gold">฿0</div>
+                                <div class="text-[10px] text-slate-500 mt-1">Cashflow: 0</div>
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: ต่ำ (Safe Haven)</div>
+                        </div>
+                        <button onclick="tradeMarket('gold')" class="w-full bg-amber-600 hover:bg-amber-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ซื้อทองคำ 1 บาท</button>
+                    </div>
+
+                    <div class="bg-[#050A14] p-4 rounded-lg border border-orange-500/30 text-center flex flex-col justify-between hover:border-orange-500/80 transition-colors">
+                        <div>
+                            <h4 class="font-bold text-orange-400 text-sm mb-1">บิตคอยน์ (BTC)</h4>
+                            <div class="my-2 py-2 bg-slate-800 rounded border border-slate-700">
+                                <div class="text-xs text-slate-400">ราคา (ต่อ 0.01 BTC)</div>
+                                <div class="font-mono font-bold text-white text-lg" id="price-btc">฿0</div>
+                                <div class="text-[10px] text-slate-500 mt-1">Cashflow: 0</div>
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1">ความเสี่ยง: สูงมาก (High Volatility)</div>
+                        </div>
+                        <button onclick="tradeMarket('btc')" class="w-full bg-orange-600 hover:bg-orange-500 text-white text-xs py-2 rounded font-bold shadow-md transition-colors mt-3">ซื้อ 0.01 BTC</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-3 border-t border-slate-700 text-right shrink-0">
+                <button onclick="closeMarketModal()" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-bold transition-colors w-full md:w-auto shadow-md">กลับสู่กระดานหลัก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skills Modal -->
     <div id="skills-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[150] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-fuchsia-500/50 p-6 rounded-xl max-w-lg w-full mx-4 shadow-2xl modal-enter"><div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3"><h3 class="text-xl font-bold text-fuchsia-400 flex items-center gap-2">🎓 ศูนย์พัฒนาทักษะ</h3><button onclick="closeSkillsModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><p class="text-sm text-slate-300 mb-4">การลงทุนในความรู้ ให้ผลตอบแทนที่ดีที่สุดเสมอ เลือกอัปสกิลเพื่อรับบัฟติดตัวถาวรตลอดทั้งเกม</p><div class="space-y-3"><div class="bg-slate-800 border border-slate-600 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><h4 class="font-bold text-white mb-1">🧠 ทักษะการเงินขั้นสูง</h4><ul class="text-xs text-slate-400 space-y-1 list-disc list-inside"><li>ลดเงินดาวน์อสังหาฯ และธุรกิจ 20% ทุกดีล</li><li>มีโอกาส 50% รอดพ้นจากรายจ่ายฟุ่มเฟือย</li></ul></div><div class="flex flex-col items-end w-full sm:w-auto"><span class="text-emerald-400 font-bold font-mono text-sm mb-2">฿50,000</span><button id="btn-buy-skill-1" onclick="investInSkill('financial')" class="w-full sm:w-auto bg-fuchsia-600 hover:bg-fuchsia-500 text-white py-1.5 px-4 rounded text-xs font-bold shadow-md transition-colors">เรียนรู้</button></div></div><div class="bg-slate-800 border border-slate-600 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><h4 class="font-bold text-white mb-1">🔐 ทักษะ Self Custody</h4><ul class="text-xs text-slate-400 space-y-1 list-disc list-inside"><li>เก็บรักษาคริปโตเคอร์เรนซีด้วยตัวเอง (Hardware Wallet)</li><li>ป้องกันการสูญเสียบิตคอยน์ 100% เมื่อกระดานเทรดล้มละลาย</li></ul></div><div class="flex flex-col items-end w-full sm:w-auto"><span class="text-emerald-400 font-bold font-mono text-sm mb-2">฿10,000</span><button id="btn-buy-skill-selfcustody" onclick="investInSkill('selfcustody')" class="w-full sm:w-auto bg-fuchsia-600 hover:bg-fuchsia-500 text-white py-1.5 px-4 rounded text-xs font-bold shadow-md transition-colors">เรียนรู้</button></div></div></div><div class="pt-4 mt-4 border-t border-slate-700 text-right"><button onclick="closeSkillsModal()" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-bold transition-colors">ปิดหน้าต่าง</button></div></div></div>
 
+    <!-- Deck Modal -->
     <div id="deck-modal" class="fixed inset-0 bg-[#050A14]/90 backdrop-blur-md hidden z-[200] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-slate-500/50 p-6 rounded-xl max-w-2xl w-full mx-4 shadow-2xl modal-enter max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3"><h3 class="text-xl font-bold text-white flex items-center gap-2">🗂️ ข้อมูลเด็คและโอกาสออกการ์ด</h3><button onclick="closeDeckModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><div class="bg-slate-800 p-4 rounded-lg border border-slate-700 mb-4 flex-shrink-0"><h4 class="text-sm font-bold text-amber-400 mb-3">⚙️ ปรับแต่งโอกาสสุ่มการ์ด (%)</h4><div class="grid grid-cols-4 gap-2 mb-2"><div><label class="text-[10px] text-rose-400 font-bold">วิกฤตเศรษฐกิจ</label><input id="prob-crisis" type="number" min="0" max="100" class="w-full bg-slate-900 border border-rose-500/50 text-white p-1.5 rounded text-center text-sm font-mono" oninput="updateProbRemaining()"></div><div><label class="text-[10px] text-emerald-400 font-bold">ดีลลงทุน</label><input id="prob-deal" type="number" min="0" max="100" class="w-full bg-slate-900 border border-emerald-500/50 text-white p-1.5 rounded text-center text-sm font-mono" oninput="updateProbRemaining()"></div><div><label class="text-[10px] text-orange-400 font-bold">รายจ่าย/หนี้</label><input id="prob-bad" type="number" min="0" max="100" class="w-full bg-slate-900 border border-orange-500/50 text-white p-1.5 rounded text-center text-sm font-mono" oninput="updateProbRemaining()"></div><div><label class="text-[10px] text-fuchsia-400 font-bold">เสี่ยงโชค</label><input id="prob-gamble" type="number" min="0" max="100" class="w-full bg-slate-900 border border-fuchsia-500/50 text-white p-1.5 rounded text-center text-sm font-mono" oninput="updateProbRemaining()"></div></div><div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-700/50"><div class="text-xs text-slate-400">โอกาสชีวิตราบเรียบ (ไม่เกิดเหตุการณ์ใดๆ): <span id="prob-nothing" class="font-bold text-lg ml-1"></span></div><button onclick="saveDeckProbabilities()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded text-xs font-bold shadow-md transition-colors">บันทึกอัตราสุ่ม</button></div></div><h4 class="text-sm font-bold text-white mb-2 flex-shrink-0">📋 สถานะการ์ดในระบบ (จำนวนที่ออก / ลิมิตทั้งหมด)</h4><div id="deck-cards-list" class="overflow-y-auto flex-grow bg-[#050A14] p-3 rounded-lg border border-slate-700 custom-scrollbar space-y-4"></div></div></div>
 
+    <!-- Leaderboard Modal -->
     <div id="leaderboard-modal" class="fixed inset-0 bg-[#050A14]/95 backdrop-blur-md hidden z-[250] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-3xl w-full mx-4 shadow-2xl modal-enter max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3"><h3 class="text-xl font-bold text-amber-400 flex items-center gap-2">🏆 กระดานผู้นำ (Leaderboard)</h3><button onclick="closeLeaderboardModal()" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><div class="mb-3 flex justify-between items-center"><label class="text-slate-400 text-sm font-bold">หมวดหมู่อาชีพ:</label><select id="leaderboard-filter" onchange="filterLeaderboard(this.value)" class="bg-slate-800 border border-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:border-amber-500"><option value="all">🏆 ทุกอาชีพรวมกัน</option><option value="ภารโรง">🧹 ภารโรง</option><option value="พนักงานออฟฟิศ">💻 พนักงานออฟฟิศ</option><option value="ครู">👨‍🏫 ครู</option><option value="วิศวกร">👷 วิศวกร</option><option value="ทนายความ">⚖️ ทนายความ</option><option value="แพทย์">🩺 แพทย์</option></select></div><div id="leaderboard-loading" class="text-center py-10 text-slate-400">กำลังโหลดข้อมูล... ⏳</div><div id="leaderboard-content" class="hidden flex-col flex-grow overflow-hidden"><div class="overflow-y-auto custom-scrollbar flex-grow pr-2"><table class="w-full text-left text-sm text-slate-300"><thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0"><tr><th class="px-4 py-3 rounded-tl-lg">อันดับ</th><th class="px-4 py-3">ชื่อ</th><th class="px-4 py-3">อาชีพ</th><th class="px-4 py-3 text-right">เวลาที่ใช้ (เดือน)</th><th class="px-4 py-3 text-right rounded-tr-lg">ความมั่งคั่งสุทธิ</th></tr></thead><tbody id="leaderboard-tbody" class="divide-y divide-slate-700"></tbody></table></div></div></div></div>
 
+    <!-- Alert / Confirm -->
     <div id="custom-alert-modal" class="fixed inset-0 bg-[#050A14]/95 backdrop-blur-md hidden z-[300] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-sm w-full mx-4 shadow-2xl text-center modal-enter"><div id="custom-alert-icon" class="text-5xl mb-3">🚨</div><h3 id="custom-alert-title" class="text-xl font-bold text-white mb-2">Title</h3><p id="custom-alert-message" class="text-sm text-slate-300 mb-6 whitespace-pre-line">Message</p><button onclick="closeCustomAlert()" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded font-bold shadow-md transition-colors">รับทราบ</button></div></div>
-
     <div id="custom-confirm-modal" class="fixed inset-0 bg-[#050A14]/95 backdrop-blur-md hidden z-[300] flex items-center justify-center transition-opacity"><div class="bg-slate-900 border border-amber-500/50 p-6 rounded-xl max-w-sm w-full mx-4 shadow-2xl text-center modal-enter"><div id="custom-confirm-icon" class="text-5xl mb-3">❓</div><h3 id="custom-confirm-title" class="text-xl font-bold text-white mb-2">Title</h3><p id="custom-confirm-message" class="text-sm text-slate-300 mb-6 whitespace-pre-line">Message</p><div class="flex gap-3"><button id="custom-confirm-yes" class="w-1/2 bg-rose-600 hover:bg-rose-500 text-white py-2.5 rounded font-bold shadow-md transition-colors">ยืนยัน</button><button onclick="closeCustomConfirm()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded font-bold shadow-md transition-colors">ยกเลิก</button></div></div></div>
 
-    <!-- 🏆 Game Over Modal (เพิ่มปุ่มแชร์ Facebook) -->
+    <!-- 🏆 Game Over Modal (เพิ่มปุ่มเซฟรูปลงเครื่องด้วย html2canvas) -->
     <div id="gameover-modal" class="fixed inset-0 bg-[#050A14]/95 backdrop-blur-xl hidden z-[400] flex items-center justify-center transition-opacity">
-        <div class="bg-slate-900 border border-amber-500 p-8 rounded-xl max-w-md w-full mx-4 shadow-[0_0_50px_rgba(230,194,122,0.3)] text-center modal-enter relative overflow-hidden">
-            <div class="absolute -top-10 -left-10 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl"></div>
+        <div class="bg-slate-900 border border-amber-500 p-8 rounded-xl max-w-md w-full mx-4 shadow-[0_0_50px_rgba(230,194,122,0.3)] text-center modal-enter relative overflow-hidden" id="report-container">
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl" data-html2canvas-ignore></div>
+            <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl" data-html2canvas-ignore></div>
             
             <div id="go-icon" class="text-7xl mb-4 animate-bounce">🏆</div>
             <h2 id="go-title" class="text-3xl font-extrabold text-white mb-2">ชนะเกม!</h2>
@@ -478,29 +556,37 @@
                 <div id="go-networth" class="text-xl font-bold text-emerald-400">฿0</div>
             </div>
 
-            <!-- 🌟 Post-Game Report Share -->
-            <div id="share-report-section" class="bg-slate-800 p-3 rounded-lg text-left mt-4 text-xs font-mono text-slate-300 border border-slate-700 relative group hidden">
-                <div id="post-game-report" class="mb-3"></div>
-                <button onclick="shareToFacebook()" class="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white py-2 rounded font-sans font-bold transition-colors flex items-center justify-center gap-2 shadow-md">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                    แชร์ความสำเร็จลง Facebook
+            <!-- กล่องสำหรับเนื้อหา Report สวยๆ -->
+            <div id="post-game-report" class="bg-slate-800 p-4 rounded-lg text-left text-xs font-mono text-slate-300 border border-slate-700 mb-4 shadow-inner"></div>
+
+            <!-- 🌟 ปุ่มเซฟภาพสถิติ (ซ่อนเวลาถ่ายรูป) 🌟 -->
+            <div data-html2canvas-ignore>
+                <button id="btn-download-report" onclick="downloadReportImage()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-sans font-bold transition-colors flex items-center justify-center gap-2 shadow-md mb-2">
+                    📸 บันทึกภาพสถิติ (เซฟรูปลงเครื่อง)
+                </button>
+                <p class="text-[10px] text-slate-400 text-center mb-4 font-sans">คุณสามารถนำภาพที่โหลดไปโพสต์อวดเพื่อนลงโซเชียลได้เลย!</p>
+                
+                <div id="submit-score-section" class="mb-4 mt-4 hidden">
+                    <p class="text-sm text-amber-400 font-bold mb-2">จารึกชื่อของคุณลงใน Leaderboard!</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="player-name-input" placeholder="พิมพ์ชื่อของคุณ..." class="w-full bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded outline-none focus:border-amber-500">
+                        <button onclick="submitToLeaderboard()" id="btn-submit-score" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded font-bold transition-colors whitespace-nowrap">บันทึก</button>
+                    </div>
+                </div>
+
+                <button onclick="location.reload()" class="w-full bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-lg font-bold text-lg transition-all transform hover:scale-105 mt-2">
+                    🔄 เริ่มเกมใหม่อีกครั้ง
                 </button>
             </div>
             
-            <div id="submit-score-section" class="mb-4 mt-4 hidden">
-                <p class="text-sm text-amber-400 font-bold mb-2">จารึกชื่อของคุณลงใน Leaderboard!</p>
-                <div class="flex gap-2">
-                    <input type="text" id="player-name-input" placeholder="พิมพ์ชื่อของคุณ..." class="w-full bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded outline-none focus:border-amber-500">
-                    <button onclick="submitToLeaderboard()" id="btn-submit-score" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded font-bold transition-colors whitespace-nowrap">บันทึก</button>
-                </div>
+            <!-- เครดิตเกมซ่อนไว้ จะโชว์เฉพาะตอนถ่ายรูป -->
+            <div id="watermark-report" class="hidden mt-4 text-[10px] text-slate-500 font-sans text-center border-t border-slate-800 pt-2">
+                เล่นฟรีได้ที่: Cashflow Matrix Simulator (Github)
             </div>
-
-            <button onclick="location.reload()" class="w-full bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-lg font-bold text-lg transition-all transform hover:scale-105 mt-2">
-                🔄 เริ่มเกมใหม่อีกครั้ง
-            </button>
         </div>
     </div>
 
+    <!-- Scripts ยึดตามลำดับที่ถูกต้อง -->
     <script src="./asset/js/cashflow_insurance.js"></script>
     <script src="./asset/js/cashflow_content.js"></script>
     <script src="./asset/js/cashflow_utils.js"></script>
