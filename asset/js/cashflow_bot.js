@@ -64,10 +64,13 @@ class BotEngine {
                             }
                         }
                     } else { 
-                        if (bot.cash >= (bot.getExpenses() * 6)) this.log(`บอทเอาตัวรอดจากวิกฤตได้เพราะมีเงินสำรอง!`, 'income');
-                        else {
-                            bot.assets.forEach(a => { if (a.type === 'realestate' || a.type === 'business') { const penalty = Math.floor(a.grossCashflow * 0.5); a.grossCashflow -= penalty; a.cashflow -= penalty; bot.passive -= penalty; } });
-                            this.log(`บอทบาดเจ็บหนัก! รายรับถูกหั่น 50%`, 'expense');
+                        if (bot.cash >= (bot.getExpenses() * 6)) {
+                            this.log(`บอทเอาตัวรอดจากวิกฤตได้เพราะมีเงินสำรอง!`, 'income');
+                        } else {
+                            // 🌟 ลงโทษหนัก: บอทก็ล้มละลายได้เช่นกัน หากเงินไม่พอ!
+                            this.log(`บอทล้มละลาย! เงินสำรองไม่พอรับวิกฤต`, 'expense');
+                            if(window.endGame) window.endGame('player_survive'); // ผู้เล่นรอดชีวิตและชนะไปเลย
+                            return; 
                         }
                     }
                 } else if (ev.type === 'gamble') {
@@ -109,14 +112,12 @@ class BotEngine {
         }, 1000);
     }
 
-    // 🌟 AI ขั้นเทพ: รู้จักอ่านวัฏจักรตลาดเพื่อเลือกลงทุน
     tradeMarket() {
         const bot = this.engine.bot; const market = this.engine.market;
         let cost = 0; let assetObj = null; 
         let infRate = parseFloat(document.getElementById('inflation-rate')?.value) || 3;
         let isHighInflation = infRate >= 7;
 
-        // โอกาสซื้อหุ้น S&P500 จะสูงขึ้น (DCA) ถ้าตลาดเป็นไซด์เวย์หรือซึมลง (ไม่ได้อยู่ใน Bull)
         let spProb = market.spState !== 'bull' ? 0.6 : 0.4;
         
         if (bot.cash >= Math.round(market.invPrice * 100) + 15000 && Math.random() < spProb) {
@@ -132,7 +133,6 @@ class BotEngine {
             }
         } 
         else {
-            // โอกาสทุ่มซื้อทองคำสูงขึ้น ถ้าเงินเฟ้อหนัก หรือ หุ้นเป็นขาลง
             let goldProb = (isHighInflation || market.spState === 'bear') ? 0.50 : 0.25;
 
             if (bot.cash >= Math.round(market.goldPrice) + 15000 && Math.random() < goldProb) {

@@ -85,7 +85,7 @@ function updateUI() {
     const pNet = (player.salary + player.passive) - player.getExpenses(); const pNetEl = document.getElementById('player-net-cashflow'); if(pNetEl) { pNetEl.innerText = fmt(pNet); pNetEl.className = pNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
     let pProg = Math.min((player.passive / (player.getExpenses() || 1)) * 100, 100) || 0; const pProgEl = document.getElementById('player-progress'); if(pProgEl) pProgEl.style.width = pProg + '%'; uiManager.safeSetText('player-progress-text', pProg.toFixed(1) + '%'); 
     
-    const isPlayerWinReady = (player.passive > player.getExpenses() && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
+    const isPlayerWinReady = (player.passive > player.getExpenses() && pNet > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
     if(isPlayerWinReady && pProgEl) pProgEl.classList.add('glow-pulse');
 
     uiManager.safeSetText('bot-cash', fmt(bot.cash)); uiManager.safeSetText('bot-salary', fmt(bot.salary)); uiManager.safeSetText('bot-prof-debt', fmt(bot.profDebt)); uiManager.safeSetText('bot-bank-debt', fmt(bot.bankDebt)); uiManager.safeSetText('bot-credit-debt', fmt(bot.creditDebt || 0)); uiManager.safeSetText('bot-expenses', fmt(bot.getExpenses())); uiManager.safeSetText('bot-passive', fmt(bot.passive));
@@ -104,6 +104,8 @@ function updateUI() {
 
 function openSkillsModal() {
     if(gameEngine.gameOver || gameEngine.isAnimating) return;
+    if(gameEngine.currentSharedEvent && gameEngine.currentSharedEvent.type === 'crisis') return showAlert('❌ ไม่อนุญาต', 'ไม่สามารถอัปสกิลได้ในขณะเกิดวิกฤต (สายเกินไปแล้ว)!', '⚠️');
+
     const btn1 = document.getElementById('btn-buy-skill-1');
     if (player.isEducated) {
         btn1.disabled = true;
@@ -148,7 +150,12 @@ function openInsuranceModal() {
 }
 function closeInsuranceModal() { document.getElementById('insurance-modal').classList.add('hidden'); }
 
-function openBankModal() { if(!gameEngine.gameOver && !gameEngine.isAnimating) document.getElementById('bank-modal').classList.remove('hidden'); }
+function openBankModal() { 
+    if(gameEngine.gameOver || gameEngine.isAnimating) return; 
+    if(gameEngine.currentSharedEvent && gameEngine.currentSharedEvent.type === 'crisis') return showAlert('❌ ธนาคารระงับการกู้', 'ธนาคารระงับการอนุมัติสินเชื่อทุกประเภทในช่วงวิกฤตเศรษฐกิจ!', '🏦');
+    
+    document.getElementById('bank-modal').classList.remove('hidden'); 
+}
 function closeBankModal() { document.getElementById('bank-modal').classList.add('hidden'); }
 
 function openStatementModal(t) { 
@@ -163,7 +170,6 @@ function openStatementModal(t) {
     uiManager.safeSetText('stmt-total-inc', fmt(totalInc)); 
     uiManager.safeSetText('stmt-base-exp', fmt(act.baseExpenses)); 
 
-    // 🌟 นำค่า breakdown มาแสดง
     let bd = act.expenseBreakdown;
     if (bd) {
         document.getElementById('stmt-breakdown-container').innerHTML = `
@@ -194,7 +200,12 @@ function closeStatementModal() { document.getElementById('statement-modal').clas
 function openQuickPayModal(t) { if(gameEngine.gameOver || gameEngine.isAnimating) return; let debt = t==='bank'?player.bankDebt:(t==='prof'?player.profDebt:player.creditDebt||0); if (debt <= 0) return showAlert('ข้อมูล', 'คุณไม่มีหนี้ประเภทนี้คงค้าง', '✅'); gameEngine.currentQuickPayType = t; uiManager.safeSetText('qp-title', t==='bank'?'💸 โปะหนี้ฉุกเฉิน (Bank)':(t==='prof'?'🎓 โปะหนี้อาชีพ (Prof.)':'💳 โปะหนี้บัตรเครดิต')); uiManager.safeSetText('qp-desc', t==='bank'?`ลดภาระดอกเบี้ยมหาโหด ${(gameEngine.bankInterestRate*100).toFixed(2)}% ต่อเดือน`:(t==='prof'?'เคลียร์ให้เป็น 0 เพื่อเอาชนะเกม!':'โปะก่อนจบเดือน จะไม่โดนดอกเบี้ย 2.3%')); uiManager.safeSetText('qp-debt-amount', fmt(debt)); uiManager.safeSetText('qp-cash-amount', fmt(player.cash)); document.getElementById('qp-input').value = ''; closeBankModal(); document.getElementById('quickpay-modal').classList.remove('hidden'); }
 function closeQuickPayModal() { document.getElementById('quickpay-modal').classList.add('hidden'); gameEngine.currentQuickPayType = ''; }
 
-function openMarketModal() { if(gameEngine.gameOver || gameEngine.isAnimating) return; document.getElementById('market-modal').classList.remove('hidden'); }
+function openMarketModal() { 
+    if(gameEngine.gameOver || gameEngine.isAnimating) return; 
+    if(gameEngine.currentSharedEvent && gameEngine.currentSharedEvent.type === 'crisis') return showAlert('❌ ตลาดปิดชั่วคราว', 'ตลาดทุนพังทลายและถูกระงับการซื้อขายชั่วคราว (Circuit Breaker)! คุณทำได้แค่ "เทขาย" จากหน้าพอร์ตเท่านั้น', '📉');
+    
+    document.getElementById('market-modal').classList.remove('hidden'); 
+}
 function closeMarketModal() { document.getElementById('market-modal').classList.add('hidden'); }
 
 function setPortfolioTab(tab) {
@@ -239,6 +250,8 @@ function renderPortfolioList() {
         });
     }
 
+    let isCrisis = gameEngine.currentSharedEvent && gameEngine.currentSharedEvent.type === 'crisis';
+
     let reHTML = ''; let mHTML = ''; 
     filteredAssets.forEach((a) => { 
         let originalIndex = act.assets.indexOf(a);
@@ -250,7 +263,10 @@ function renderPortfolioList() {
         else if(a.type==='gold') val=Math.round(market.goldPrice*a.units);
         else if(a.type==='btc') val=Math.round(market.btcPrice*a.units);
         else if(a.type==='installment') val=a.salvage;
-        else val=Math.floor(a.buyPrice*((Math.random()*0.6)+0.7)); 
+        else {
+            let multiplier = isCrisis ? ((Math.random()*0.2) + 0.3) : ((Math.random()*0.6)+0.7);
+            val = Math.floor(a.buyPrice * multiplier);
+        }
 
         let mortgage=a.mortgage||0; 
         let netProceeds=val-mortgage; 
@@ -288,13 +304,12 @@ function renderPortfolioList() {
                 reHTML += `<div class="bg-slate-800 p-3 rounded border border-rose-500/30 flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name}</div><div class="text-[11px] mt-1">${statusText}</div>${!isPaidOff ? `<div class="text-[11px] text-rose-400">ภาระผ่อน: ${fmt(a.monthly)}/เดือน</div>` : ''}<div class="text-[11px] text-amber-400 mt-1">ราคาประเมินมือสอง: ${fmt(val)}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${sellBtnHTML}</div></div></div>`;
             } else {
                 let pfStr = finalProfit >= 0 ? `<span class="text-emerald-400 text-[10px]">(กำไรสุทธิ +${fmt(finalProfit)})</span>` : `<span class="text-rose-400 text-[10px]">(ขาดทุนสุทธิ ${fmt(finalProfit)})</span>`; 
-                let btn = portfolioTarget==='player' ? `<button onclick="sellAsset(${originalIndex}, ${val})" class="w-full md:w-auto bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow mt-2 md:mt-0">สั่งขายรับส่วนต่าง</button>` : ''; 
+                let btn = portfolioTarget==='player' ? `<button onclick="sellAsset(${originalIndex}, ${val})" class="w-full md:w-auto bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow mt-2 md:mt-0">สั่งขาย</button>` : ''; 
                 let buff = a.buff!=='none' ? `<div class="text-[10px] text-fuchsia-400 mt-1"> ${a.buffDesc}</div>` : ''; 
 
                 if(isPhysical) { 
                     reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)}</div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
                 } else { 
-                    // 🌟 เพิ่มการคำนวณและแสดงผล Purchasing Power สำหรับเงินฝากธนาคาร
                     let pPowerHtml = '';
                     if (a.type === 'bank') {
                         let currentInf = gameEngine.cumulativeInflation || 1.0;
@@ -312,6 +327,25 @@ function renderPortfolioList() {
         }
     }); 
     
+    // 🌟 1. สร้าง HTML ปุ่มเทขายเหมาเข่ง ตรงนี้ครับ! 🌟
+    let sellAllHtml = '';
+    if (portfolioTarget === 'player' && mHTML !== '') {
+        let hasBank = player.assets.some(a => a.type === 'bank');
+        let hasInv = player.assets.some(a => a.type === 'inv');
+        let hasGold = player.assets.some(a => a.type === 'gold');
+        let hasBtc = player.assets.some(a => a.type === 'btc');
+        
+        let btns = '';
+        if (hasBank) btns += `<button onclick="sellAllAssetType('bank')" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white px-2 py-1.5 rounded text-[10px] font-bold shadow transition-colors">ขายเงินฝากเกลี้ยง</button>`;
+        if (hasInv) btns += `<button onclick="sellAllAssetType('inv')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1.5 rounded text-[10px] font-bold shadow transition-colors">ขาย S&P500 เกลี้ยง</button>`;
+        if (hasGold) btns += `<button onclick="sellAllAssetType('gold')" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white px-2 py-1.5 rounded text-[10px] font-bold shadow transition-colors">ขายทองคำเกลี้ยง</button>`;
+        if (hasBtc) btns += `<button onclick="sellAllAssetType('btc')" class="flex-1 bg-orange-600 hover:bg-orange-500 text-white px-2 py-1.5 rounded text-[10px] font-bold shadow transition-colors">ขาย BTC เกลี้ยง</button>`;
+
+        if (btns !== '') {
+            sellAllHtml = `<div class="flex flex-wrap gap-2 mb-3 bg-slate-800/40 p-2 rounded-lg border border-slate-700/50">${btns}</div>`;
+        }
+    }
+
     let totalAssetValue = sumPhysical + sumLiquid + sumEscrow;
     let summaryHTML = `
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 bg-slate-900/60 p-3 rounded-lg border border-slate-700 shadow-inner">
@@ -338,7 +372,9 @@ function renderPortfolioList() {
 
     if (currentPortfolioTab === 'all' || currentPortfolioTab === 'escrow') list.innerHTML += escrowHTML;
     if (reHTML) list.innerHTML+=`<h4 class="text-amber-400 font-bold mb-2 border-b border-slate-700 pb-1 ${escrowHTML?'mt-4':'mt-1'}">🏢 สินทรัพย์จับต้องได้ (และผ่อนชำระ)</h4>${reHTML}`; 
-    if (mHTML) list.innerHTML+=`<h4 class="text-indigo-400 font-bold mb-2 border-b border-slate-700 pb-1 ${reHTML?'mt-4':'mt-1'}">📈 สภาพคล่อง</h4>${mHTML}`; 
+    
+    // 🌟 2. แทรกปุ่มเทขายเหมาเข่งเข้าไปในหมวดหมู่สภาพคล่อง 🌟
+    if (mHTML) list.innerHTML+=`<h4 class="text-indigo-400 font-bold mb-2 border-b border-slate-700 pb-1 ${reHTML?'mt-4':'mt-1'}">📈 สภาพคล่อง</h4>${sellAllHtml}${mHTML}`; 
 
     if (!escrowHTML && !reHTML && !mHTML) list.innerHTML += '<div class="text-center text-slate-500 py-6">ไม่มีข้อมูลที่ตรงกับการค้นหา</div>';
 }

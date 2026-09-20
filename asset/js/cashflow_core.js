@@ -27,7 +27,6 @@ function drawProfession() {
     let card = CONTENT.professions[Math.floor(Math.random() * CONTENT.professions.length)];
     player.assignProfession(card); bot.assignProfession(card);
 
-    // 🌟 ดึงข้อมูลรายจ่ายย่อยมาเก็บไว้ที่ Player และ Bot
     player.expenseBreakdown = JSON.parse(JSON.stringify(card.expenseBreakdown));
     bot.expenseBreakdown = JSON.parse(JSON.stringify(card.expenseBreakdown));
 
@@ -53,8 +52,6 @@ function startGame() {
     uiManager.safeSetText('bot-profession', bot.profName);
     
     gameEngine.resetEventCounts(); gameEngine.nextCrisisMonth = 36; 
-    
-    // 🌟 ตัวแปรเก็บอัตราเงินเฟ้อสะสม สำหรับคำนวณ Purchasing Power
     gameEngine.cumulativeInflation = 1.0;
 
     logActivity(`[เริ่มเกม] วัดกึ๋น! ผู้เล่นและบอทได้รับอาชีพ ${player.profName} เหมือนกัน`, 'system', 'global');
@@ -182,52 +179,140 @@ function calculateNetWorth(actor) {
     return nw;
 }
 
-// 🌟 ฟังก์ชันสำหรับการแชร์ Facebook
 function shareToFacebook() {
     let text = document.getElementById('post-game-report-text').innerText;
-    let url = window.location.href; // ใช้ URL ปัจจุบัน
+    let url = window.location.href; 
     let fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
     window.open(fbUrl, '_blank', 'width=600,height=400');
 }
 
+function downloadReportImage() {
+    const btn = document.getElementById('btn-download-report');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '⏳ กำลังสร้างรูปภาพ...';
+    btn.disabled = true;
+
+    const watermark = document.getElementById('watermark-report');
+    if (watermark) watermark.classList.remove('hidden');
+
+    setTimeout(() => {
+        const container = document.getElementById('report-container');
+        html2canvas(container, {
+            backgroundColor: '#0f172a',
+            scale: 2, 
+            useCORS: true,
+            logging: false
+        }).then(canvas => {
+            if (watermark) watermark.classList.add('hidden');
+            const imgData = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = imgData;
+            link.download = `Cashflow_Report_${player.profName}_${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click(); 
+            document.body.removeChild(link);
+
+            btn.innerHTML = '✅ บันทึกภาพสำเร็จ!';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 3000);
+            
+        }).catch(err => {
+            console.error("Error generating image", err);
+            btn.innerHTML = '❌ เกิดข้อผิดพลาด';
+            if (watermark) watermark.classList.add('hidden');
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 3000);
+        });
+    }, 300);
+}
+
+// 🌟 อัปเดตเงื่อนไขให้รองรับการล้มละลาย (bankrupt) และบอทล้มละลาย (player_survive)
 function endGame(winner) {
     if (gameEngine.gameOver) return;
     gameEngine.gameOver = true; gameEngine.isAnimating = false; hideDecisions();
     const btnRoll = document.getElementById('btn-roll'); if(btnRoll) { btnRoll.disabled = true; btnRoll.innerText = 'จบเกมแล้ว'; }
-    const stId = winner === 'player' ? 'player-status' : 'bot-status';
-    const stEl = document.getElementById(stId); if(stEl) { stEl.innerText = 'Fast Track!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
-
-    const goTime = document.getElementById('go-time');
+    
     let yrs = Math.floor(gameEngine.gameMonth / 12);
     let mos = gameEngine.gameMonth % 12;
+    const goTime = document.getElementById('go-time');
     goTime.innerText = `${gameEngine.gameMonth} เดือน (${yrs} ปี ${mos} เดือน)`;
 
     let pNetWorth = calculateNetWorth(player);
     document.getElementById('go-networth').innerText = fmt(pNetWorth);
 
-    // 🌟 สร้างข้อความ Post-Game Report
-    let reportText = "";
+    let reportHtml = '';
 
     if (winner === 'player') {
+        const stEl = document.getElementById('player-status'); if(stEl) { stEl.innerText = 'Fast Track!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
         uiManager.safeSetText('go-icon', '🏆'); uiManager.safeSetText('go-title', 'ชนะเกม!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-amber-400 mb-2";
-        uiManager.safeSetText('go-desc', "สุดยอดมาก!\nคุณสร้าง Passive Income แซงรายจ่ายและล้างหนี้ทั้งหมดได้สำเร็จ!\n\nการตัดสินใจของคุณเฉียบคมกว่า AI อย่างแท้จริง!");
+        uiManager.safeSetText('go-desc', "คุณสร้าง Passive Income แซงรายจ่าย\nและเคลียร์หนี้เลวทั้งหมดได้สำเร็จ!");
+        
+        reportHtml = `
+            <div class="text-emerald-400 font-bold text-center text-sm mb-3">🎉 THE FAST TRACK 🎉</div>
+            <div class="space-y-1.5 px-2">
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>อาชีพเริ่มต้น:</span> <span class="text-white">${player.profName}</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>เวลาแห่งอิสรภาพ:</span> <span class="text-amber-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>Passive Income:</span> <span class="text-emerald-400">+${fmt(player.passive)}/เดือน</span></div>
+                <div class="flex justify-between pb-1"><span>หนี้เลวคงค้าง:</span> <span class="text-white">฿0</span></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"ผมสามารถหนีออกจากสนามแข่งหนูได้สำเร็จ ลองมาแข่งด้วยกันไหมล่ะ?"</div>
+            <div id="post-game-report-text" class="hidden">ผมเพิ่งหนีออกจาก "สนามแข่งหนู" ได้สำเร็จในเกม Cashflow Matrix! 🏆\n\n📌 อาชีพ: ${player.profName}\n⏱️ ใช้เวลา: ${yrs} ปี ${mos} เดือน\n💰 ความมั่งคั่งสุทธิ: ${fmt(pNetWorth)} บาท\n\nมาทดสอบทักษะการเงินของคุณ และแข่งกับ AI ดูสิ!</div>
+        `;
         document.getElementById('submit-score-section').classList.remove('hidden'); 
-        document.getElementById('share-report-section').classList.remove('hidden');
-
-        reportText = `ผมเพิ่งหนีออกจาก "สนามแข่งหนู" ได้สำเร็จในเกม Cashflow Matrix! 🏆\n\n📌 อาชีพ: ${player.profName}\n⏱️ ใช้เวลา: ${yrs} ปี ${mos} เดือน\n💰 ความมั่งคั่งสุทธิ: ${fmt(pNetWorth)} บาท\n\nมาทดสอบทักษะการเงินของคุณ และแข่งกับ AI ดูสิ!`;
-    } else {
+    } else if (winner === 'bot') {
+        const stEl = document.getElementById('bot-status'); if(stEl) { stEl.innerText = 'Fast Track!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
         uiManager.safeSetText('go-icon', '💀'); uiManager.safeSetText('go-title', 'พ่ายแพ้!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-rose-500 mb-2";
-        uiManager.safeSetText('go-desc', "บอท (AI) สามารถเผชิญเหตุการณ์เดียวกัน แต่บริหารเงินและเคลียร์หนี้ได้ฉลาดกว่าจนชนะไปก่อน!\n\nไม่เป็นไร ลองเล่นใหม่และวิเคราะห์จังหวะการลงทุนให้ดีขึ้นนะ");
-        document.getElementById('share-report-section').classList.remove('hidden');
-
-        reportText = `โดน AI ตบยับในเกม Cashflow Matrix! 💀\n\nบอทบริหารเงินเก่งกว่าผม แย่งเข้า Fast Track ไปก่อนใน ${yrs} ปี ${mos} เดือน\n\nใครคิดว่าเจ๋ง ลองมาแก้แค้น AI แทนผมหน่อย!`;
+        uiManager.safeSetText('go-desc', "บอท (AI) สามารถเผชิญเหตุการณ์เดียวกัน\nแต่บริหารเงินได้ดีกว่าจนชนะไปก่อน!");
+        
+        reportHtml = `
+            <div class="text-rose-400 font-bold text-center text-sm mb-3">💀 GAME OVER 💀</div>
+            <div class="space-y-1.5 px-2">
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>อาชีพที่ท้าทาย:</span> <span class="text-white">${player.profName}</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>เวลาที่บอท AI ชนะ:</span> <span class="text-rose-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
+                <div class="flex justify-between pb-1"><span>ความมั่งคั่งตอนจบเกม:</span> <span class="text-white">${fmt(pNetWorth)} บาท</span></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"โดน AI ตบยับ! ใครคิดว่าเจ๋ง ลองมาแก้แค้น AI แทนผมหน่อย"</div>
+            <div id="post-game-report-text" class="hidden">โดน AI ตบยับในเกม Cashflow Matrix! 💀\n\nบอทบริหารเงินเก่งกว่าผม แย่งเข้า Fast Track ไปก่อนใน ${yrs} ปี ${mos} เดือน\n\nใครคิดว่าเจ๋ง ลองมาแก้แค้น AI แทนผมหน่อย!</div>
+        `;
+    } else if (winner === 'bankrupt') {
+        const stEl = document.getElementById('player-status'); if(stEl) { stEl.innerText = 'ล้มละลาย!'; stEl.classList.replace('text-amber-400', 'text-rose-500'); }
+        uiManager.safeSetText('go-icon', '💥'); uiManager.safeSetText('go-title', 'ล้มละลาย!'); document.getElementById('go-title').className = "text-3xl font-extrabold text-rose-500 mb-2";
+        uiManager.safeSetText('go-desc', "เกิดวิกฤตเศรษฐกิจ แต่คุณเตรียมเงินสำรองไว้ไม่พอ\n\nกระแสเงินสดพังทลาย คุณถูกฟ้องล้มละลายและยึดทรัพย์ทั้งหมด!");
+        
+        reportHtml = `
+            <div class="text-rose-400 font-bold text-center text-sm mb-3">💥 BANKRUPTCY 💥</div>
+            <div class="space-y-1.5 px-2">
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>อาชีพที่ท้าทาย:</span> <span class="text-white">${player.profName}</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>จุดจบสายแข็ง:</span> <span class="text-rose-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
+                <div class="flex justify-between pb-1"><span>สาเหตุ:</span> <span class="text-white">เงินสำรองไม่พอตอนเจอวิกฤต</span></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"ประมาทไปหน่อย เจอวิกฤตซัดจนล้มละลายเลย ใครเอาตัวรอดเก่งมาลองดู"</div>
+            <div id="post-game-report-text" class="hidden">ล้มละลายในเกม Cashflow Matrix! 💥\n\nเจอวิกฤตเศรษฐกิจเข้าไป แต่เตรียมเงินสำรองไว้ไม่พอ เลยโดนยึดทรัพย์หมดตัวในเวลา ${yrs} ปี ${mos} เดือน 😭\n\nใครอยากลองทดสอบทักษะการเอาตัวรอดทางการเงิน มาลองเล่นกันดู!</div>
+        `;
+    } else if (winner === 'player_survive') {
+        const stEl = document.getElementById('player-status'); if(stEl) { stEl.innerText = 'ผู้ชนะ (รอดชีวิต)!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
+        uiManager.safeSetText('go-icon', '🏆'); uiManager.safeSetText('go-title', 'ชนะเกม! (บอทพังทลาย)'); document.getElementById('go-title').className = "text-3xl font-extrabold text-amber-400 mb-2";
+        uiManager.safeSetText('go-desc', "สุดยอดมาก!\nคุณรับมือวิกฤตเศรษฐกิจได้ยอดเยี่ยม ในขณะที่บอท (AI) เงินสำรองไม่พอและถูกฟ้องล้มละลายไปก่อน!\n\nคุณคือผู้รอดชีวิตที่แท้จริง!");
+        
+        reportHtml = `
+            <div class="text-emerald-400 font-bold text-center text-sm mb-3">🏆 THE SURVIVOR 🏆</div>
+            <div class="space-y-1.5 px-2">
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>อาชีพเริ่มต้น:</span> <span class="text-white">${player.profName}</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>เวลาที่บอทล้มละลาย:</span> <span class="text-amber-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
+                <div class="flex justify-between pb-1"><span>ความมั่งคั่งสุทธิ:</span> <span class="text-white">${fmt(pNetWorth)} บาท</span></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"ผมวางแผนรับมือวิกฤตจน AI ล้มละลายไปก่อนได้สำเร็จ! มาทดสอบกันหน่อยไหม?"</div>
+            <div id="post-game-report-text" class="hidden">ผมเอาตัวรอดจน AI ล้มละลายไปก่อนในเกม Cashflow Matrix! 🏆\n\n📌 อาชีพ: ${player.profName}\n⏱️ ใช้เวลา: ${yrs} ปี ${mos} เดือน\n💰 ความมั่งคั่งสุทธิ: ${fmt(pNetWorth)} บาท\n\nวิกฤตเศรษฐกิจทำอะไรผมไม่ได้ มาทดสอบทักษะของคุณดูสิ!</div>
+        `;
+        document.getElementById('submit-score-section').classList.remove('hidden'); 
     }
 
-    document.getElementById('post-game-report').innerHTML = `
-        <div id="post-game-report-text" class="hidden">${reportText}</div>
-        <div class="whitespace-pre-line text-amber-100">${reportText}</div>
-    `;
-
+    document.getElementById('post-game-report').innerHTML = reportHtml;
     setTimeout(() => { document.getElementById('gameover-modal').classList.remove('hidden'); }, 1000);
 }
 
@@ -275,10 +360,8 @@ function rollDiceWithAnimation() {
         let infRate = parseFloat(infRateEl.value) || 3;
         let infMult = 1 + (infRate / 100);
         
-        // 🌟 สะสมอัตราเงินเฟ้อเพื่อใช้คำนวณ Purchasing Power
         gameEngine.cumulativeInflation = (gameEngine.cumulativeInflation || 1.0) * infMult;
 
-        // 🌟 อัปเดตรายจ่ายย่อยของ Player ให้สอดคล้องกับเงินเฟ้อ
         let pNewBaseExp = 0;
         ['food', 'housing', 'transport', 'personal'].forEach(k => {
             player.expenseBreakdown[k] = Math.floor(player.expenseBreakdown[k] * infMult);
@@ -286,7 +369,6 @@ function rollDiceWithAnimation() {
         });
         player.baseExpenses = pNewBaseExp;
 
-        // 🌟 อัปเดตรายจ่ายย่อยของ Bot
         let bNewBaseExp = 0;
         ['food', 'housing', 'transport', 'personal'].forEach(k => {
             bot.expenseBreakdown[k] = Math.floor(bot.expenseBreakdown[k] * infMult);
@@ -355,12 +437,22 @@ function rollDiceWithAnimation() {
             }
 
             if (ev.type === 'crisis') { 
+                // 🌟 ทันทีที่เกิดวิกฤต ตลาดหุ้นและคริปโตพังทลายทันที (Panic Sell)
+                if (ev.id !== 'cr_crypto_crash') {
+                    market.spState = 'bear'; market.invPrice = Math.max(10, market.invPrice * 0.6); // ร่วง 40%
+                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.5); // ร่วง 50%
+                    market.goldPrice = Math.max(1000, market.goldPrice * 0.9); // ร่วง 10%
+                } else {
+                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.3); // ร่วง 70%
+                }
+                updateUI(); // ทำให้ราคาในพอร์ตอัปเดตทันที
+
                 let dynamicDesc = ev.desc;
                 if (ev.id === 'cr_crypto_crash') {
                     if (player.hasSelfCustody) {
                         dynamicDesc += `\n\n✅ คุณมีทักษะ Self Custody บิตคอยน์ของคุณปลอดภัย 100%`;
                     } else if (player.assets.some(a => a.type === 'btc')) {
-                        dynamicDesc += `\n\n❌ หายนะ! คุณไม่มีทักษะ Self Custody และจะสูญเสียบิตคอยน์ทั้งหมดทันที!`;
+                        dynamicDesc += `\n\n❌ หายนะ! คุณไม่มีทักษะ Self Custody และจะสูญเสียบิตคอยน์ทั้งหมดทันที! (จะไปเรียนตอนนี้ก็ไม่ทันแล้ว!)`;
                     } else {
                         dynamicDesc += `\n\nโชคดีที่คุณไม่ได้ถือครองบิตคอยน์ไว้เลย`;
                     }
@@ -368,7 +460,7 @@ function rollDiceWithAnimation() {
                     let reqReserve = player.getExpenses() * 6;
                     dynamicDesc += `\n\n🎯 เป้าหมายเงินสำรอง: ${fmt(reqReserve)}`;
                     if(player.cash < reqReserve) {
-                        dynamicDesc += `\n❌ คุณมีเงินสดไม่พอ ขาดอีก ${fmt(reqReserve - player.cash)}\n(สามารถไปเปิดหน้าต่างพอร์ต เพื่อเทขายสินทรัพย์ก่อนที่จะกดปุ่ม 'เผชิญหน้าวิกฤต' ได้!)`;
+                        dynamicDesc += `\n❌ เงินสดคุณขาดอีก ${fmt(reqReserve - player.cash)}\n(สามารถไปเปิดหน้าพอร์ตเทขายสินทรัพย์ด่วนตอนนี้ได้ แต่ราคาประเมินจะขาดทุนหนักมาก! และถ้าคุณหาเงินมาตุนไม่ได้... คุณจะถูกฟ้องล้มละลายทันที!)`;
                     } else {
                         dynamicDesc += `\n✅ ยินดีด้วย! คุณมีเงินสดสำรองเพียงพอ`;
                     }

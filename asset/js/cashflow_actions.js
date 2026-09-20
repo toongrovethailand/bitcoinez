@@ -27,13 +27,15 @@ function processCrisisPlayer() {
             }
         }
     } else {
-        if (player.cash >= player.getExpenses() * 6) { 
+        let reqReserve = player.getExpenses() * 6;
+        if (player.cash >= reqReserve) { 
             logActivity(`รอดพ้นวิกฤตเพราะมีเงินสำรอง`, 'income', 'player'); 
-            showAlert('✅ รอดพ้นวิกฤต', `มีเงินสำรองเพียงพอ!`, '🛡️'); 
+            showAlert('✅ รอดพ้นวิกฤต', `คุณเตรียมเงินสำรองไว้เพียงพอ!`, '🛡️'); 
         } else { 
-            player.assets.forEach(a => { if (['realestate','business'].includes(a.type)) { const p = Math.floor(a.grossCashflow * 0.5); a.grossCashflow -= p; a.cashflow -= p; player.passive -= p; } }); 
-            logActivity(`บาดเจ็บหนัก! รายรับถูกหั่น 50%`, 'expense', 'player'); 
-            showAlert('❌ หายนะทางการเงิน', `เงินสำรองไม่พอ! Passive หายครึ่งนึง`, '📉'); 
+            // 🌟 ลงโทษหนัก: เงินสำรองไม่พอ ล้มละลายและแพ้เกมทันที!
+            logActivity(`ล้มละลาย! เงินสำรองไม่พอรับวิกฤต`, 'expense', 'player'); 
+            endGame('bankrupt');
+            return; 
         } 
     }
     
@@ -115,6 +117,54 @@ function setQuickPayAmount(percent) {
 function submitQuickPay() { const amount = parseInt(document.getElementById('qp-input').value); if (isNaN(amount) || amount <= 0) return showAlert('ข้อมูล', 'ระบุจำนวนเงินที่ถูกต้อง', '❌'); let maxDebt = gameEngine.currentQuickPayType === 'bank' ? player.bankDebt : (gameEngine.currentQuickPayType === 'prof' ? player.profDebt : player.creditDebt || 0); if (amount > maxDebt) return showAlert('ข้อมูล', `ยอดหนี้มีเพียง ${fmt(maxDebt)}`, 'ℹ️'); if (amount > player.cash) return showAlert('❌ ยอดเงินไม่พอ', 'เงินสดไม่พอ!', '💸'); player.cash -= amount; spawnFloatingText('player-cash', -amount); if (gameEngine.currentQuickPayType === 'bank') { player.bankDebt -= amount; logActivity(`ชำระหนี้ฉุกเฉิน -${fmt(amount)}`, 'expense', 'player'); } else if (gameEngine.currentQuickPayType === 'prof') { player.profDebt -= amount; logActivity(`ชำระหนี้อาชีพ -${fmt(amount)}`, 'expense', 'player'); } else { player.creditDebt -= amount; player.creditGrace = Math.max(0, (player.creditGrace || 0) - amount); logActivity(`โปะหนี้บัตรเครดิต -${fmt(amount)}`, 'expense', 'player'); } updateUI(); closeQuickPayModal(); setTimeout(checkWinCondition, 500); }
 
 function payOffMortgage(i) { let asset = player.assets[i]; if (player.cash < asset.mortgage) return showAlert('❌ ยอดเงินไม่พอ', `ต้องมีเงินสด ${fmt(asset.mortgage)}`, '💸'); showConfirm('โปะหนี้พิเศษ', `จ่ายก้อน ${fmt(asset.mortgage)} เพื่อล้างหนี้สินทรัพย์นี้?`, '🏠', () => { player.cash -= asset.mortgage; spawnFloatingText('player-cash', -asset.mortgage); logActivity(`โปะหนี้ ${asset.name} สำเร็จ`, 'income', 'player'); asset.mortgage = 0; asset.mortgagePayment = 0; updateUI(); openPortfolioModal('player'); }); }
+
+// 🌟 ระบบเทขายแบบเหมาเข่ง
+function sellAllAssetType(type) {
+    if (gameEngine.gameOver || gameEngine.isAnimating) return;
+
+    let assetsToSell = player.assets.filter(a => a.type === type);
+    if (assetsToSell.length === 0) return showAlert('ข้อมูล', 'คุณไม่มีสินทรัพย์ประเภทนี้', 'ℹ️');
+
+    if (type === 'inv' && Math.random() < 0.285) {
+        return showAlert('❌ ตลาดปิดทำการ', 'วันนี้บังเอิญตรงกับวันหยุดเสาร์-อาทิตย์!\nตลาดหุ้น S&P500 ปิดทำการ คุณไม่สามารถส่งคำสั่งขายได้ โปรดรอโอกาสในเดือนถัดไป', '🛑');
+    }
+
+    let typeName = type === 'bank' ? 'เงินฝากประจำ' : (type === 'inv' ? 'S&P500' : (type === 'gold' ? 'ทองคำ' : 'บิตคอยน์'));
+    let totalVal = 0;
+    let totalCost = 0;
+    let totalCF = 0;
+
+    assetsToSell.forEach(a => {
+        let val = 0;
+        if(a.type==='bank') val=a.buyPrice;
+        else if(a.type==='inv') val=Math.round(market.invPrice*a.units);
+        else if(a.type==='gold') val=Math.round(market.goldPrice*a.units);
+        else if(a.type==='btc') val=Math.round(market.btcPrice*a.units);
+
+        totalVal += val;
+        totalCost += a.buyPrice; 
+        totalCF += (a.grossCashflow || 0);
+    });
+
+    let preTaxProfit = totalVal - totalCost;
+    let capGainsTax = preTaxProfit > 0 ? Math.floor(preTaxProfit * 0.15) : 0;
+    let finalNetCash = totalVal - capGainsTax;
+
+    let taxText = capGainsTax > 0 ? `\nหักภาษีกำไร (15%): -${fmt(capGainsTax)}` : ``;
+    let lossText = preTaxProfit < 0 ? `\n(ขาดทุนสุทธิ ${fmt(preTaxProfit)})` : ``;
+
+    showConfirm(`ขาย ${typeName} ทั้งหมดเหมาเข่ง`, `จำนวน: ${assetsToSell.length} รายการ\nมูลค่ารับซื้อรวม: ${fmt(totalVal)}${taxText}${lossText}\nรับเงินสุทธิ: ${fmt(finalNetCash)}\n\n${totalCF > 0 ? `คำเตือน: คุณจะเสียรายรับรวม ${fmt(totalCF)}/เดือน ถาวร!` : ''}`, '💸', () => { 
+        player.passive -= totalCF; 
+        player.assets = player.assets.filter(a => a.type !== type);
+        
+        player.cash += finalNetCash; 
+        spawnFloatingText('player-cash', finalNetCash); 
+        logActivity(`เทขาย ${typeName} ทั้งหมด รับเงินสุทธิ ${fmt(finalNetCash)}`, 'income', 'player'); 
+        
+        updateUI(); 
+        openPortfolioModal('player'); 
+    }); 
+}
 
 function sellAsset(i, val) { 
     let asset = player.assets[i]; 
