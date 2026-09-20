@@ -51,6 +51,10 @@ function startGame() {
     uiManager.safeSetText('header-profession', player.profName);
     uiManager.safeSetText('bot-profession', bot.profName);
     
+    // 🌟 รีเซ็ตตัวแปรสถานะ Layoff และ DSR
+    player.layoffMonths = 0; bot.layoffMonths = 0;
+    player.dsrMonths = 0; bot.dsrMonths = 0;
+
     gameEngine.resetEventCounts(); gameEngine.nextCrisisMonth = 36; 
     gameEngine.cumulativeInflation = 1.0;
 
@@ -141,24 +145,61 @@ function updateMarketPrices() {
     market.nextBias = 'normal'; 
 }
 
+// 🌟 Engine ตรวจสอบการล้มละลาย (เงินช็อต / หนี้ท่วมหัว)
+gameEngine.checkBankruptcy = function(actor) {
+    let effSalary = actor.salary;
+    if (actor.layoffMonths > 0) {
+        let hasSS = actor.insurances.some(i => i.id === 'ins_social');
+        effSalary = hasSS ? Math.floor(actor.salary * 0.5) : 0;
+    }
+    let totalIncome = effSalary + actor.passive;
+    let expenses = actor.getExpenses();
+    
+    // 1. ตรวจสอบ NPL หนี้ท่วมหัว (รายจ่าย > รายรับ 1.5 เท่า)
+    if (totalIncome > 0 && expenses > totalIncome * 1.5) {
+        actor.dsrMonths = (actor.dsrMonths || 0) + 1;
+    } else {
+        actor.dsrMonths = 0;
+    }
+    if (actor.dsrMonths >= 3) return 'over_leveraged';
+
+    // 2. ตรวจสอบเงินสดช็อต (Liquidity Crash) - ตายแบบคณิตศาสตร์ (กู้ไม่ได้ ขายไม่ได้แล้ว)
+    if (actor.cash < 0) {
+        let maxLoan = actor.salary * 5;
+        let availableLoan = Math.max(0, maxLoan - actor.bankDebt);
+        let sellableValue = 0;
+        actor.assets.forEach(a => {
+            let val = 0;
+            if(a.type==='bank') val=a.buyPrice;
+            else if(a.type==='inv') val=Math.round(market.invPrice*a.units);
+            else if(a.type==='gold') val=Math.round(market.goldPrice*a.units);
+            else if(a.type==='btc') val=Math.round(market.btcPrice*a.units);
+            else if(a.type==='installment') val=a.salvage;
+            else val = Math.floor(a.buyPrice * 0.5); // ประเมินราคาเทขายด่วน
+            let net = val - (a.mortgage || 0);
+            if (net > 0) sellableValue += net;
+        });
+        
+        // ถ้าเอาเงินกู้มารวมกับของขายหมดบ้านแล้วยังไม่พอจ่ายหนี้ = ตายสนิท
+        if (actor.cash + availableLoan + sellableValue < 0) {
+            return 'liquidity_crash';
+        }
+    }
+    return null;
+}
+
 function checkWinCondition() {
-    let pNetCashflow = (player.salary + player.passive) - player.getExpenses();
-    let bNetCashflow = (bot.salary + bot.passive) - bot.getExpenses();
+    let pEffSalary = player.layoffMonths > 0 ? (player.insurances.some(i=>i.id==='ins_social') ? Math.floor(player.salary*0.5) : 0) : player.salary;
+    let bEffSalary = bot.layoffMonths > 0 ? (bot.insurances.some(i=>i.id==='ins_social') ? Math.floor(bot.salary*0.5) : 0) : bot.salary;
+    
+    let pNetCashflow = (pEffSalary + player.passive) - player.getExpenses();
+    let bNetCashflow = (bEffSalary + bot.passive) - bot.getExpenses();
 
     const isPlayerWin = (
-        player.passive > player.getExpenses() && 
-        pNetCashflow > 0 &&
-        player.profDebt === 0 && 
-        player.bankDebt === 0 && 
-        (!player.creditDebt || player.creditDebt === 0)
+        player.passive > player.getExpenses() && pNetCashflow > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0)
     );
-    
     const isBotWin = (
-        bot.passive > bot.getExpenses() && 
-        bNetCashflow > 0 &&
-        bot.profDebt === 0 && 
-        bot.bankDebt === 0 && 
-        (!bot.creditDebt || bot.creditDebt === 0)
+        bot.passive > bot.getExpenses() && bNetCashflow > 0 && bot.profDebt === 0 && bot.bankDebt === 0 && (!bot.creditDebt || bot.creditDebt === 0)
     );
 
     if (isPlayerWin) { logActivity(`🎉 ชนะแล้ว! คุณเข้าสู่ Fast Track`, 'system', 'global'); endGame('player'); } 
@@ -231,11 +272,10 @@ function downloadReportImage() {
     }, 300);
 }
 
-// 🌟 อัปเดตเงื่อนไขให้รองรับการล้มละลาย (bankrupt) และบอทล้มละลาย (player_survive)
 function endGame(winner) {
     if (gameEngine.gameOver) return;
     gameEngine.gameOver = true; gameEngine.isAnimating = false; hideDecisions();
-    const btnRoll = document.getElementById('btn-roll'); if(btnRoll) { btnRoll.disabled = true; btnRoll.innerText = 'จบเกมแล้ว'; }
+    const btnRoll = document.getElementById('btn-roll'); if(btnRoll) { btnRoll.disabled = true; btnRoll.innerText = 'จบเกมแล้ว'; btnRoll.className = "w-full py-4 rounded-lg font-bold text-sm tracking-widest shadow-lg bg-slate-700 text-slate-500 cursor-not-allowed"; }
     
     let yrs = Math.floor(gameEngine.gameMonth / 12);
     let mos = gameEngine.gameMonth % 12;
@@ -294,10 +334,40 @@ function endGame(winner) {
             <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"ประมาทไปหน่อย เจอวิกฤตซัดจนล้มละลายเลย ใครเอาตัวรอดเก่งมาลองดู"</div>
             <div id="post-game-report-text" class="hidden">ล้มละลายในเกม Cashflow Matrix! 💥\n\nเจอวิกฤตเศรษฐกิจเข้าไป แต่เตรียมเงินสำรองไว้ไม่พอ เลยโดนยึดทรัพย์หมดตัวในเวลา ${yrs} ปี ${mos} เดือน 😭\n\nใครอยากลองทดสอบทักษะการเอาตัวรอดทางการเงิน มาลองเล่นกันดู!</div>
         `;
+    } else if (winner === 'bankrupt_liquidity') {
+        const stEl = document.getElementById('player-status'); if(stEl) { stEl.innerText = 'ล้มละลาย!'; stEl.classList.replace('text-amber-400', 'text-rose-500'); }
+        uiManager.safeSetText('go-icon', '💥'); uiManager.safeSetText('go-title', 'ล้มละลาย! (เงินช็อต)'); document.getElementById('go-title').className = "text-3xl font-extrabold text-rose-500 mb-2";
+        uiManager.safeSetText('go-desc', "กระแสเงินสดของคุณติดลบต่อเนื่อง!\nคุณไม่มีวงเงินกู้ หรือสินทรัพย์เหลือให้ขายอีกแล้ว\n\nศาลสั่งฟ้องล้มละลายและยึดทรัพย์ทั้งหมด!");
+        
+        reportHtml = `
+            <div class="text-rose-400 font-bold text-center text-sm mb-3">💥 BANKRUPTCY (LIQUIDITY) 💥</div>
+            <div class="space-y-1.5 px-2">
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>อาชีพที่ท้าทาย:</span> <span class="text-white">${player.profName}</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>จุดจบสายแข็ง:</span> <span class="text-rose-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
+                <div class="flex justify-between pb-1"><span>สาเหตุ:</span> <span class="text-white">หมุนเงินไม่ทันจนหมดตัว (ช็อต!)</span></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"เงินสดช็อตหนักจนไปต่อไม่ไหว ล้มละลายคากระดาน!"</div>
+            <div id="post-game-report-text" class="hidden">หมุนเงินไม่ทันจนล้มละลายใน Cashflow Matrix! 💥\n\nใช้เงินเกินตัวจนช็อต หาเงินมาอุดรอยรั่วไม่ได้ โดนยึดทรัพย์หมดตัวใน ${yrs} ปี ${mos} เดือน 😭\n\nใครบริหารเงินเก่งกว่านี้ มาโชว์สเตปหน่อย!</div>
+        `;
+    } else if (winner === 'bankrupt_dsr') {
+        const stEl = document.getElementById('player-status'); if(stEl) { stEl.innerText = 'ล้มละลาย!'; stEl.classList.replace('text-amber-400', 'text-rose-500'); }
+        uiManager.safeSetText('go-icon', '💥'); uiManager.safeSetText('go-title', 'ล้มละลาย! (หนี้ท่วม)'); document.getElementById('go-title').className = "text-3xl font-extrabold text-rose-500 mb-2";
+        uiManager.safeSetText('go-desc', "ภาระหนี้สินของคุณสูงเกิน 150% ของรายรับติดต่อกัน 3 เดือน!\n\nธนาคารจัดคุณเป็นหนี้เสีย (NPL) และยึดทรัพย์ทั้งหมด!");
+        
+        reportHtml = `
+            <div class="text-rose-400 font-bold text-center text-sm mb-3">💥 BANKRUPTCY (OVER-LEVERAGED) 💥</div>
+            <div class="space-y-1.5 px-2">
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>อาชีพที่ท้าทาย:</span> <span class="text-white">${player.profName}</span></div>
+                <div class="flex justify-between border-b border-slate-700 pb-1"><span>จุดจบสายแข็ง:</span> <span class="text-rose-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
+                <div class="flex justify-between pb-1"><span>สาเหตุ:</span> <span class="text-white">กู้หนี้เกินตัว (NPL) ธนาคารยึดทรัพย์</span></div>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"หนี้ท่วมหัวเอาตัวไม่รอด ธนาคารยึดเกลี้ยง!"</div>
+            <div id="post-game-report-text" class="hidden">ก่อหนี้เกินตัวจนพังทลายใน Cashflow Matrix! 💥\n\nภาระหนี้บวมทะลุ 150% ของรายได้ โดนแบงก์ฟ้องล้มละลาย NPL ใน ${yrs} ปี ${mos} เดือน 😭\n\nใครอยากรู้ว่าหนี้เลวน่ากลัวแค่ไหน มาลองเล่นกันดู!</div>
+        `;
     } else if (winner === 'player_survive') {
         const stEl = document.getElementById('player-status'); if(stEl) { stEl.innerText = 'ผู้ชนะ (รอดชีวิต)!'; stEl.classList.replace('text-amber-400', 'text-emerald-400'); }
         uiManager.safeSetText('go-icon', '🏆'); uiManager.safeSetText('go-title', 'ชนะเกม! (บอทพังทลาย)'); document.getElementById('go-title').className = "text-3xl font-extrabold text-amber-400 mb-2";
-        uiManager.safeSetText('go-desc', "สุดยอดมาก!\nคุณรับมือวิกฤตเศรษฐกิจได้ยอดเยี่ยม ในขณะที่บอท (AI) เงินสำรองไม่พอและถูกฟ้องล้มละลายไปก่อน!\n\nคุณคือผู้รอดชีวิตที่แท้จริง!");
+        uiManager.safeSetText('go-desc', "สุดยอดมาก!\nคุณรับมือเหตุการณ์เลวร้ายได้ยอดเยี่ยม ในขณะที่บอท (AI) ทนพิษบาดแผลไม่ไหวและถูกฟ้องล้มละลายไปก่อน!\n\nคุณคือผู้รอดชีวิตที่แท้จริง!");
         
         reportHtml = `
             <div class="text-emerald-400 font-bold text-center text-sm mb-3">🏆 THE SURVIVOR 🏆</div>
@@ -306,8 +376,8 @@ function endGame(winner) {
                 <div class="flex justify-between border-b border-slate-700 pb-1"><span>เวลาที่บอทล้มละลาย:</span> <span class="text-amber-400 font-bold">${yrs} ปี ${mos} เดือน</span></div>
                 <div class="flex justify-between pb-1"><span>ความมั่งคั่งสุทธิ:</span> <span class="text-white">${fmt(pNetWorth)} บาท</span></div>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"ผมวางแผนรับมือวิกฤตจน AI ล้มละลายไปก่อนได้สำเร็จ! มาทดสอบกันหน่อยไหม?"</div>
-            <div id="post-game-report-text" class="hidden">ผมเอาตัวรอดจน AI ล้มละลายไปก่อนในเกม Cashflow Matrix! 🏆\n\n📌 อาชีพ: ${player.profName}\n⏱️ ใช้เวลา: ${yrs} ปี ${mos} เดือน\n💰 ความมั่งคั่งสุทธิ: ${fmt(pNetWorth)} บาท\n\nวิกฤตเศรษฐกิจทำอะไรผมไม่ได้ มาทดสอบทักษะของคุณดูสิ!</div>
+            <div class="mt-3 pt-2 border-t border-slate-600 text-center text-[10px] text-slate-400 italic">"ผมวางแผนรับมือความเสี่ยงจน AI ล้มละลายไปก่อนได้สำเร็จ! มาทดสอบกันหน่อยไหม?"</div>
+            <div id="post-game-report-text" class="hidden">ผมเอาตัวรอดจน AI ล้มละลายไปก่อนในเกม Cashflow Matrix! 🏆\n\n📌 อาชีพ: ${player.profName}\n⏱️ ใช้เวลา: ${yrs} ปี ${mos} เดือน\n💰 ความมั่งคั่งสุทธิ: ${fmt(pNetWorth)} บาท\n\nมาทดสอบทักษะการบริหารความเสี่ยงของคุณดูสิ!</div>
         `;
         document.getElementById('submit-score-section').classList.remove('hidden'); 
     }
@@ -387,7 +457,26 @@ function rollDiceWithAnimation() {
 
     setTimeout(() => {
         try { 
-            const pInc = player.salary + player.passive - player.getExpenses(); player.cash += pInc; spawnFloatingText('player-cash', pInc); logActivity(`คุณรับกระแสเงินสดสุทธิ ${fmt(pInc)}`, 'income', 'player');
+            // 🌟 คำนวณเงินเดือนแบบใหม่ โดยหักลบถ้ามีการตกงาน
+            if (player.layoffMonths > 0) {
+                player.layoffMonths--;
+                if (player.layoffMonths === 0) {
+                    logActivity(`สิ้นสุดระยะเวลาตกงาน คุณได้งานใหม่แล้ว!`, 'info', 'player');
+                    showAlert('ได้งานใหม่!', 'ระยะเวลาตกงานสิ้นสุดลง คุณกลับมามีรายได้ตามปกติแล้ว', '💼');
+                }
+            }
+
+            let pEffSalary = player.salary;
+            if (player.layoffMonths > 0) {
+                let hasSS = player.insurances.some(i => i.id === 'ins_social');
+                pEffSalary = hasSS ? Math.floor(player.salary * 0.5) : 0;
+            }
+
+            const pInc = pEffSalary + player.passive - player.getExpenses(); 
+            player.cash += pInc; 
+            spawnFloatingText('player-cash', pInc); 
+            if(pInc < 0) logActivity(`กระแสเงินสดติดลบ ${fmt(pInc)}`, 'expense', 'player');
+            else logActivity(`รับกระแสเงินสดสุทธิ ${fmt(pInc)}`, 'income', 'player');
             
             const timeAssetsResult = player.processTimeBasedAssets();
             if (timeAssetsResult.maturedCash > 0) {
@@ -400,7 +489,15 @@ function rollDiceWithAnimation() {
                 showAlert('🎉 ผ่อนหมดแล้ว!', `ยินดีด้วย!\nคุณผ่อน ${timeAssetsResult.finishedInstallments.join(', ')} หมดแล้ว\nภาระรายจ่ายลดลง และสามารถนำไปขายเป็นของมือสองได้!`, '🥳');
             }
 
-            const bInc = bot.salary + bot.passive - bot.getExpenses(); bot.cash += bInc; logActivity(`บอทรับกระแสเงินสดสุทธิ ${fmt(bInc)}`, 'income', 'bot');
+            if (bot.layoffMonths > 0) bot.layoffMonths--;
+            let bEffSalary = bot.salary;
+            if (bot.layoffMonths > 0) {
+                let hasSSBot = bot.insurances.some(i => i.id === 'ins_social');
+                bEffSalary = hasSSBot ? Math.floor(bot.salary * 0.5) : 0;
+            }
+            const bInc = bEffSalary + bot.passive - bot.getExpenses(); 
+            bot.cash += bInc; 
+            logActivity(`บอทรับกระแสเงินสดสุทธิ ${fmt(bInc)}`, 'income', 'bot');
             player.creditGrace = 0; bot.creditGrace = 0;
 
             const prob = gameEngine.probabilities;
@@ -419,8 +516,23 @@ function rollDiceWithAnimation() {
                 if (gameEngine.gameMonth <= 3 || gameEngine.badCooldown > 0) {
                     gameEngine.currentSharedEvent = { type: 'nothing' }; 
                 } else {
-                    gameEngine.currentSharedEvent = gameEngine.generateDynamicBadEvent();
-                    gameEngine.badCooldown = 2; 
+                    let ev = gameEngine.generateDynamicBadEvent();
+                    
+                    let isInstalling = player.assets.some(a => a.type === 'installment' && a.monthsLeft > 0) || 
+                                       bot.assets.some(a => a.type === 'installment' && a.monthsLeft > 0);
+                    
+                    let attempts = 0;
+                    while (ev.type === 'installment' && isInstalling && attempts < 10) {
+                        ev = gameEngine.generateDynamicBadEvent();
+                        attempts++;
+                    }
+                    
+                    if (ev.type === 'installment' && isInstalling) {
+                        ev = { type: 'nothing' }; 
+                    }
+
+                    gameEngine.currentSharedEvent = ev;
+                    if (ev.type !== 'nothing') gameEngine.badCooldown = 2; 
                 }
             }
             else if (r < rGamble) gameEngine.currentSharedEvent = gameEngine.generateGambleEvent();
@@ -437,15 +549,14 @@ function rollDiceWithAnimation() {
             }
 
             if (ev.type === 'crisis') { 
-                // 🌟 ทันทีที่เกิดวิกฤต ตลาดหุ้นและคริปโตพังทลายทันที (Panic Sell)
                 if (ev.id !== 'cr_crypto_crash') {
-                    market.spState = 'bear'; market.invPrice = Math.max(10, market.invPrice * 0.6); // ร่วง 40%
-                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.5); // ร่วง 50%
-                    market.goldPrice = Math.max(1000, market.goldPrice * 0.9); // ร่วง 10%
+                    market.spState = 'bear'; market.invPrice = Math.max(10, market.invPrice * 0.6); 
+                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.5); 
+                    market.goldPrice = Math.max(1000, market.goldPrice * 0.9); 
                 } else {
-                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.3); // ร่วง 70%
+                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.3); 
                 }
-                updateUI(); // ทำให้ราคาในพอร์ตอัปเดตทันที
+                updateUI(); 
 
                 let dynamicDesc = ev.desc;
                 if (ev.id === 'cr_crypto_crash') {
@@ -471,10 +582,25 @@ function rollDiceWithAnimation() {
             } 
             else if (ev.type === 'gamble') { setEventCard(`🎰 โอกาสเสี่ยงโชค!`, ev.desc, '🃏', false); uiManager.showGambleDecisions(); gameEngine.isAnimating = false; } 
             else if (['realestate','business','land'].includes(ev.type)) { setEventCard(`โอกาสลงทุน: ${ev.name}`, 'วิเคราะห์กระแสเงินสดให้ดีก่อนตัดสินใจ!', '🏢', true); uiManager.showDealDecisions(ev, player.isEducated); logActivity(`พบดีลร่วมกัน: ${ev.name}`, 'system', 'global'); gameEngine.isAnimating = false; } 
-            else if (isCovered) {
+            else if (isCovered && ev.id !== 'layoff') {
                 setEventCard('🛡️ ประกันภัยคุ้มครอง!', `เกิดเหตุการณ์: ${ev.name}\nแต่โชคดีที่คุณซื้อประกันไว้!\n\nบริษัทประกันรับผิดชอบค่าใช้จ่าย/ภาระหนี้ทั้งหมดให้คุณ!`, '✅', true);
                 logActivity(`ใช้สิทธิ์ประกันคุ้มครองเคลม: ${ev.name}`, 'income', 'player');
                 setTimeout(() => botEngine.processTurn(), 2000);
+            }
+            else if (ev.type === 'bad_life' && ev.id === 'layoff') {
+                // 🌟 ระบบแจกการ์ด Layoff
+                let duration = Math.floor(Math.random() * 4) + 3; 
+                player.layoffMonths = duration;
+                bot.layoffMonths = duration; 
+                let hasSS = player.insurances.some(i => i.id === 'ins_social');
+                
+                let desc = `เศรษฐกิจซบเซา! คุณถูกเลิกจ้างกะทันหัน\n\nจะสูญเสียรายได้หลักเป็นเวลา ${duration} เดือนเต็ม`;
+                if(hasSS) desc += `\n✅ โชคดีที่คุณทำประกันสังคมไว้! จะได้รับเงินชดเชย 50% ตลอดช่วงว่างงาน`;
+                else desc += `\n❌ คุณไม่ได้ทำประกันสังคมไว้! ระวังกระแสเงินสดช็อต!`;
+
+                setEventCard('📉 วิกฤตคนว่างงาน!', desc, '⚠️', true);
+                logActivity(`โดนเลิกจ้างเป็นเวลา ${duration} เดือน!`, 'system', 'global');
+                ap.classList.add('shake'); setTimeout(() => ap.classList.remove('shake'), 500); setTimeout(() => botEngine.processTurn(), 2500);
             }
             else if (ev.type === 'bad_doodad') {
                 if (player.isEducated && Math.random() < 0.5) { setEventCard('🛡️ รอดตัว!', `ทักษะการเงินขั้นสูงทำให้คุณมีสติ! ไม่ซื้อ "${ev.name}"`, '🎓', true); logActivity(`ใช้ภูมิคุ้มกันการเงินปฏิเสธรายจ่ายฟุ่มเฟือย`, 'income', 'player'); setTimeout(() => botEngine.processTurn(), 1800); } 
@@ -496,9 +622,9 @@ function rollDiceWithAnimation() {
                 ap.classList.add('shake'); setTimeout(() => ap.classList.remove('shake'), 500); 
                 setTimeout(() => botEngine.processTurn(), 2500);
             }
-            else { setEventCard('☕ ชีวิตเรียบง่าย', `เดือนนี้ไม่มีเหตุการณ์พิเศษ\nรับเงินเดือนแล้วใช้ชีวิตต่อไปอย่างสงบสุข!`, '☀️', true); setTimeout(() => botEngine.processTurn(), 1800); }
+            else { setEventCard('☕ ชีวิตเรียบง่าย', `เดือนนี้ไม่มีเหตุการณ์พิเศษ\nคุณใช้ชีวิตต่อไปอย่างสงบสุข!`, '☀️', true); setTimeout(() => botEngine.processTurn(), 1800); }
             
-            gameEngine.enforceBankruptcyRule(player); updateUI(); document.getElementById('card-flipper').classList.add('flipped');
+            updateUI(); document.getElementById('card-flipper').classList.add('flipped');
         } catch(err) { console.error(err); restorePlayerTurn(); }
     }, 400);
 }

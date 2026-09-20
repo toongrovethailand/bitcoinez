@@ -21,7 +21,6 @@ const CONTENT = {
         smallRE: [{id:"sre_1", name:"คอนโดปล่อยเช่าย่านออฟฟิศ", limit:null}, {id:"sre_2", name:"ทาวน์โฮมชานเมือง", limit:null}, {id:"sre_3", name:"บ้านเดี่ยวหลังเล็ก", limit:null}, {id:"sre_4", name:"คอนโดมือสองใกล้มหาวิทยาลัย", limit:3}, {id:"sre_5", name:"บ้านพักตากอากาศปล่อยเช่ารายวัน", limit:2}],
         largeRE: [{id:"lre_1", name:"อพาร์ตเมนต์ 8 ยูนิต", limit:null}, {id:"lre_2", name:"อาคารพาณิชย์ทำเลทอง", limit:2}, {id:"lre_3", name:"ลานจอดรถให้เช่ารายเดือน", limit:2}, {id:"lre_4", name:"อพาร์ตเมนต์ 20 ยูนิต", limit:2}, {id:"lre_5", name:"โฮสเทลขนาดเล็ก (Boutique)", limit:1}, {id:"lre_6", name:"มินิมอลล์ (Community Mall)", limit:1}]
     },
-    // 🌟 เปลี่ยนลิมิตเป็น null และอัปเดตบทลงโทษให้โหดขึ้น
     crisis: [
         { id: "cr_pandemic", name: "🦠 วิกฤตโรคระบาดระดับโลก!", desc: "เศรษฐกิจหยุดชะงัก มูลค่าสินทรัพย์ทุกอย่างดิ่งเหว!\n\nหากไม่มีเงินสำรอง (6 เท่าของรายจ่าย) คุณจะล้มละลายและแพ้เกมทันที!", limit: null },
         { id: "cr_war", name: "⚔️ วิกฤตสงครามและซัพพลายเชน!", desc: "เกิดความตื่นตระหนกทั่วโลก ตลาดทุนพังทลาย!\n\nหากไม่มีเงินสำรอง (6 เท่าของรายจ่าย) คุณจะล้มละลายและแพ้เกมทันที!", limit: null },
@@ -30,6 +29,7 @@ const CONTENT = {
     ],
     badEvents: {
         life: [
+            { id: "layoff", name: "💼 บริษัทเลิกจ้าง (Layoff)!", baseExp: 0, salaryMult: 0, limit: null }, // 🌟 การ์ดตกงาน 🌟
             { id: "baby", name: "👶 ยินดีด้วย! คุณมีลูกเพิ่ม", baseExp: 2000, salaryMult: 0.08, limit: 2 },
             { id: "insurance", name: "🏥 ประกันสุขภาพปรับเบี้ยขึ้น", baseExp: 1000, salaryMult: 0.02, limit: 3 },
             { id: "family", name: "👴👵 ต้องส่งเสียดูแลญาติผู้ใหญ่", baseExp: 2500, salaryMult: 0.05, limit: 1 }, 

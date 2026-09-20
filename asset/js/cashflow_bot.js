@@ -30,8 +30,12 @@ class BotEngine {
 
                 if (bot.cash >= 20000 && typeof INSURANCE_CONTENT !== 'undefined') {
                     INSURANCE_CONTENT.forEach(ins => {
+                        let premiumAmt = ins.premium;
+                        if (ins.id === 'ins_social') premiumAmt = Math.max(500, Math.min(2500, Math.floor(bot.salary * 0.05)));
+
                         if (!bot.insurances.some(i => i.id === ins.id) && bot.cash >= 20000) {
                             bot.insurances.push(ins);
+                            bot.cash -= premiumAmt; // หักเบี้ยล่วงหน้า 1 เดือน
                             this.log(`บอทตัดสินใจซื้อ ${ins.name} เพื่อป้องกันความเสี่ยง`, 'expense');
                         }
                     });
@@ -66,11 +70,6 @@ class BotEngine {
                     } else { 
                         if (bot.cash >= (bot.getExpenses() * 6)) {
                             this.log(`บอทเอาตัวรอดจากวิกฤตได้เพราะมีเงินสำรอง!`, 'income');
-                        } else {
-                            // 🌟 ลงโทษหนัก: บอทก็ล้มละลายได้เช่นกัน หากเงินไม่พอ!
-                            this.log(`บอทล้มละลาย! เงินสำรองไม่พอรับวิกฤต`, 'expense');
-                            if(window.endGame) window.endGame('player_survive'); // ผู้เล่นรอดชีวิตและชนะไปเลย
-                            return; 
                         }
                     }
                 } else if (ev.type === 'gamble') {
@@ -92,8 +91,10 @@ class BotEngine {
                         } 
                         else this.log(`เงินไม่พอจ่ายดาวน์และกู้เต็มวงเงินแล้ว จึงต้องปล่อยผ่านดีลนี้`, 'info');
                     } else this.log(`วิเคราะห์แล้วดีลนี้ไม่คุ้ม จึงปล่อยผ่าน`, 'info');
-                } else if (isCovered) {
+                } else if (isCovered && ev.id !== 'layoff') {
                     this.log(`บอทรอดพ้นรายจ่าย ${ev.name} เพราะเคลมบริษัทประกันได้!`, 'income');
+                } else if (ev.type === 'bad_life' && ev.id === 'layoff') {
+                    this.log(`บอทถูกเลิกจ้างเช่นกัน! ${bot.insurances.some(i=>i.id==='ins_social') ? 'แต่มีประกันสังคมช่วยพยุง' : 'แถมไม่มีประกันสังคม!'}`, 'expense');
                 } else if (ev.type === 'bad_doodad') { 
                     if (bot.isEducated && Math.random() < 0.5) this.log(`บอทใช้ภูมิคุ้มกันปฏิเสธรายจ่ายฟุ่มเฟือย`, 'income');
                     else if (bot.cash > ev.cost + 5000) { bot.cash -= ev.cost; this.log(`บอทกัดฟันจ่ายเงินสด: ${ev.name}`, 'expense'); } 
@@ -104,6 +105,46 @@ class BotEngine {
                     this.log(`บอทสร้างหนี้ผ่อน: ${ev.name}`, 'expense');
                 } 
                 
+                // 🌟 ระบบหนีตายของบอท (เมื่อเงินช็อต)
+                while (bot.cash < 0) {
+                    let maxLoan = bot.salary * 5;
+                    let availableLoan = Math.max(0, maxLoan - bot.bankDebt);
+                    if (availableLoan > 0) {
+                        let takeAmt = Math.min(availableLoan, Math.ceil(Math.abs(bot.cash)/1000)*1000 + 5000);
+                        bot.cash += takeAmt; bot.bankDebt += takeAmt;
+                        this.log(`บอทเงินช็อต! ต้องกู้ฉุกเฉินเพิ่ม ${GameUtils.fmt(takeAmt)}`, 'expense');
+                    } else {
+                        let paper = bot.assets.find(a => ['bank','inv','gold','btc'].includes(a.type));
+                        if (paper) {
+                            let val = paper.type==='bank'?paper.buyPrice:(paper.type==='inv'?Math.round(this.engine.market.invPrice*paper.units):(paper.type==='gold'?Math.round(this.engine.market.goldPrice*paper.units):Math.round(this.engine.market.btcPrice*paper.units)));
+                            bot.cash += val;
+                            bot.passive -= paper.grossCashflow || 0;
+                            bot.assets = bot.assets.filter(a => a !== paper);
+                            this.log(`บอทขาย ${paper.name} หนีตายเงินช็อต!`, 'income');
+                        } else {
+                            let re = bot.assets.find(a => ['realestate','business'].includes(a.type));
+                            if (re) {
+                                 let val = Math.floor(re.buyPrice * 0.6);
+                                 let net = val - (re.mortgage||0);
+                                 bot.cash += net;
+                                 bot.passive -= re.grossCashflow || 0;
+                                 bot.assets = bot.assets.filter(a => a !== re);
+                                 this.log(`บอทเทขายอสังหาฯ ${re.name} หนีตาย!`, 'income');
+                            } else {
+                                break; 
+                            }
+                        }
+                    }
+                }
+
+                // 🌟 ตรวจสอบบอทล้มละลาย
+                let botBkr = this.engine.checkBankruptcy(bot);
+                if (botBkr) {
+                    this.log(`บอทล้มละลาย! (${botBkr})`, 'expense');
+                    if(window.endGame) window.endGame('player_survive'); 
+                    return;
+                }
+
                 this.engine.enforceBankruptcyRule(bot); 
                 if(window.updateUI) window.updateUI(); 
                 setTimeout(() => { if(window.restorePlayerTurn) window.restorePlayerTurn(); }, 1500);

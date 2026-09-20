@@ -66,10 +66,55 @@ function showTutorialSlide(n) {
 }
 
 function updateUI() {
-    uiManager.safeSetText('player-cash', fmt(player.cash)); uiManager.safeSetText('player-salary', fmt(player.salary)); uiManager.safeSetText('player-prof-debt', fmt(player.profDebt)); uiManager.safeSetText('player-bank-debt', fmt(player.bankDebt)); uiManager.safeSetText('player-credit-debt', fmt(player.creditDebt || 0)); uiManager.safeSetText('player-expenses', fmt(player.getExpenses())); uiManager.safeSetText('player-passive', fmt(player.passive));
-    
+    // 🌟 1. ตรวจสอบสถานะล้มละลายทันทีที่ UpdateUI
+    let pBkr = gameEngine.checkBankruptcy(player);
+    if (pBkr) {
+        if(pBkr === 'liquidity_crash') return window.endGame('bankrupt_liquidity');
+        if(pBkr === 'over_leveraged') return window.endGame('bankrupt_dsr');
+    }
+
+    uiManager.safeSetText('player-cash', fmt(player.cash)); 
     document.getElementById('player-cash').className = player.cash >= 0 ? "text-2xl font-mono font-bold text-emerald-400 transition-colors duration-300" : "text-2xl font-mono font-bold text-rose-500 transition-colors duration-300";
 
+    // 🌟 2. อัปเดตเงินเดือน (กรณี Layoff) และโชว์คำเตือนบนหน้าปัด Player
+    let pEffSalary = player.salary;
+    if (player.layoffMonths > 0) {
+        let hasSS = player.insurances.some(i => i.id === 'ins_social');
+        pEffSalary = hasSS ? Math.floor(player.salary * 0.5) : 0;
+        uiManager.safeSetText('player-salary', `฿${fmt(pEffSalary)} (ชดเชย)`);
+    } else {
+        uiManager.safeSetText('player-salary', fmt(player.salary));
+    }
+
+    // 🌟 3. แสดง Badge แจ้งเตือน DSR/Layoff
+    let warningHtml = '';
+    if (player.dsrMonths > 0) warningHtml += `<div class="text-[10px] text-white bg-rose-600 px-2 py-1 rounded animate-pulse text-center mb-2">⚠️ ภาระหนี้ NPL เกิน 150% (เดือนที่ ${player.dsrMonths}/3)</div>`;
+    if (player.layoffMonths > 0) warningHtml += `<div class="text-[10px] text-white bg-orange-600 px-2 py-1 rounded animate-pulse text-center mb-2">💼 ว่างงาน! (เหลืออีก ${player.layoffMonths} เดือน)</div>`;
+    
+    let warnContainer = document.getElementById('player-warnings');
+    if (!warnContainer) {
+        warnContainer = document.createElement('div');
+        warnContainer.id = 'player-warnings';
+        document.getElementById('cash-display').parentNode.insertBefore(warnContainer, document.getElementById('cash-display'));
+    }
+    warnContainer.innerHTML = warningHtml;
+
+    // 🌟 4. ล็อกปุ่มทอยเต๋า ถ้าเงินช็อต
+    const btnRoll = document.getElementById('btn-roll');
+    if (btnRoll && !gameEngine.gameOver) {
+        if (player.cash < 0) {
+            btnRoll.disabled = true;
+            btnRoll.innerText = '❌ เงินสดช็อต! กู้เงินหรือขายสินทรัพย์ด่วน';
+            btnRoll.className = 'w-full py-4 rounded-lg font-bold text-sm tracking-widest shadow-lg bg-rose-600 text-white cursor-not-allowed';
+        } else {
+            btnRoll.disabled = false;
+            btnRoll.innerText = '🎴 จั่วการ์ด (1 เดือน)';
+            btnRoll.className = 'btn-gold-outline w-full py-4 rounded-lg font-bold text-sm tracking-widest shadow-lg';
+        }
+    }
+
+    uiManager.safeSetText('player-prof-debt', fmt(player.profDebt)); uiManager.safeSetText('player-bank-debt', fmt(player.bankDebt)); uiManager.safeSetText('player-credit-debt', fmt(player.creditDebt || 0)); uiManager.safeSetText('player-expenses', fmt(player.getExpenses())); uiManager.safeSetText('player-passive', fmt(player.passive));
+    
     if (player.isEducated) document.getElementById('player-education-badge').classList.remove('hidden'); 
     if (player.hasSelfCustody) document.getElementById('player-custody-badge').classList.remove('hidden');
     
@@ -82,7 +127,7 @@ function updateUI() {
     let insCost = player.insurances.reduce((s, i) => s + i.premium, 0);
     uiManager.safeSetText('stmt-insurance-exp', fmt(insCost));
 
-    const pNet = (player.salary + player.passive) - player.getExpenses(); const pNetEl = document.getElementById('player-net-cashflow'); if(pNetEl) { pNetEl.innerText = fmt(pNet); pNetEl.className = pNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
+    const pNet = (pEffSalary + player.passive) - player.getExpenses(); const pNetEl = document.getElementById('player-net-cashflow'); if(pNetEl) { pNetEl.innerText = fmt(pNet); pNetEl.className = pNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
     let pProg = Math.min((player.passive / (player.getExpenses() || 1)) * 100, 100) || 0; const pProgEl = document.getElementById('player-progress'); if(pProgEl) pProgEl.style.width = pProg + '%'; uiManager.safeSetText('player-progress-text', pProg.toFixed(1) + '%'); 
     
     const isPlayerWinReady = (player.passive > player.getExpenses() && pNet > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
@@ -95,7 +140,8 @@ function updateUI() {
     if (bot.isEducated) document.getElementById('bot-education-badge').classList.remove('hidden');
     if (bot.hasSelfCustody) document.getElementById('bot-custody-badge').classList.remove('hidden');
 
-    const bNet = (bot.salary + bot.passive) - bot.getExpenses(); const bNetEl = document.getElementById('bot-net-cashflow'); if(bNetEl) { bNetEl.innerText = fmt(bNet); bNetEl.className = bNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
+    let bEffSalary = bot.layoffMonths > 0 ? (bot.insurances.some(i=>i.id==='ins_social') ? Math.floor(bot.salary*0.5) : 0) : bot.salary;
+    const bNet = (bEffSalary + bot.passive) - bot.getExpenses(); const bNetEl = document.getElementById('bot-net-cashflow'); if(bNetEl) { bNetEl.innerText = fmt(bNet); bNetEl.className = bNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
     let bProg = Math.min((bot.passive / (bot.getExpenses() || 1)) * 100, 100) || 0; const bProgEl = document.getElementById('bot-progress'); if(bProgEl) bProgEl.style.width = bProg + '%'; uiManager.safeSetText('bot-progress-text', bProg.toFixed(1) + '%');
 
     uiManager.safeSetText('game-month', `เดือนที่ ${gameEngine.gameMonth} (ปีที่ ${Math.ceil(gameEngine.gameMonth/12)})`);
@@ -129,6 +175,13 @@ function openInsuranceModal() {
     list.innerHTML = '';
     
     INSURANCE_CONTENT.forEach(ins => {
+        let premiumAmt = ins.premium;
+        // 🌟 คำนวณเบี้ยประกันสังคม 5% อัตโนมัติตามเงินเดือนอาชีพ (Max 2500, Min 500)
+        if (ins.id === 'ins_social') {
+            premiumAmt = Math.max(500, Math.min(2500, Math.floor(player.salary * 0.05)));
+            ins.premium = premiumAmt; 
+        }
+
         const hasIns = player.insurances.some(i => i.id === ins.id);
         list.innerHTML += `
             <div class="bg-slate-800 border border-slate-600 rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -137,7 +190,7 @@ function openInsuranceModal() {
                     <p class="text-[11px] text-slate-400">${ins.desc}</p>
                 </div>
                 <div class="flex flex-col items-end w-full md:w-auto mt-2 md:mt-0">
-                    <span class="text-rose-400 font-bold font-mono text-sm mb-2">-${fmt(ins.premium)}/ด</span>
+                    <span class="text-rose-400 font-bold font-mono text-sm mb-2">-${fmt(premiumAmt)}/ด</span>
                     ${hasIns 
                         ? `<button onclick="cancelInsurance('${ins.id}')" class="w-full md:w-auto bg-slate-700 hover:bg-slate-600 text-white py-1 px-3 rounded text-xs font-bold transition-colors">ยกเลิกกรมธรรม์</button>`
                         : `<button onclick="buyInsurance('${ins.id}')" class="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white py-1 px-4 rounded text-xs font-bold shadow-md transition-colors">ซื้อประกัน</button>`
@@ -162,10 +215,12 @@ function openStatementModal(t) {
     if(gameEngine.gameOver || gameEngine.isAnimating) return; 
     const act = t === 'player' ? player : bot; 
     document.getElementById('stmt-title').innerHTML = t === 'player' ? '📊 งบการเงินของคุณ (Player)' : '🤖 งบการเงินของบอท (AI)'; 
-    const totalInc = act.salary + act.passive; 
+    
+    let effSalary = act.layoffMonths > 0 ? (act.insurances.some(i=>i.id==='ins_social') ? Math.floor(act.salary*0.5) : 0) : act.salary;
+    const totalInc = effSalary + act.passive; 
     const totalExp = act.getExpenses(); 
     
-    uiManager.safeSetText('stmt-salary', fmt(act.salary)); 
+    uiManager.safeSetText('stmt-salary', fmt(effSalary)); 
     uiManager.safeSetText('stmt-passive', fmt(act.passive)); 
     uiManager.safeSetText('stmt-total-inc', fmt(totalInc)); 
     uiManager.safeSetText('stmt-base-exp', fmt(act.baseExpenses)); 
@@ -327,7 +382,6 @@ function renderPortfolioList() {
         }
     }); 
     
-    // 🌟 1. สร้าง HTML ปุ่มเทขายเหมาเข่ง ตรงนี้ครับ! 🌟
     let sellAllHtml = '';
     if (portfolioTarget === 'player' && mHTML !== '') {
         let hasBank = player.assets.some(a => a.type === 'bank');
@@ -372,8 +426,6 @@ function renderPortfolioList() {
 
     if (currentPortfolioTab === 'all' || currentPortfolioTab === 'escrow') list.innerHTML += escrowHTML;
     if (reHTML) list.innerHTML+=`<h4 class="text-amber-400 font-bold mb-2 border-b border-slate-700 pb-1 ${escrowHTML?'mt-4':'mt-1'}">🏢 สินทรัพย์จับต้องได้ (และผ่อนชำระ)</h4>${reHTML}`; 
-    
-    // 🌟 2. แทรกปุ่มเทขายเหมาเข่งเข้าไปในหมวดหมู่สภาพคล่อง 🌟
     if (mHTML) list.innerHTML+=`<h4 class="text-indigo-400 font-bold mb-2 border-b border-slate-700 pb-1 ${reHTML?'mt-4':'mt-1'}">📈 สภาพคล่อง</h4>${sellAllHtml}${mHTML}`; 
 
     if (!escrowHTML && !reHTML && !mHTML) list.innerHTML += '<div class="text-center text-slate-500 py-6">ไม่มีข้อมูลที่ตรงกับการค้นหา</div>';
