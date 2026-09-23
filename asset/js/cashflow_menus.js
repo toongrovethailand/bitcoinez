@@ -136,7 +136,11 @@ function updateUI() {
         }
     }
 
-    uiManager.safeSetText('player-prof-debt', fmt(player.profDebt)); uiManager.safeSetText('player-bank-debt', fmt(player.bankDebt)); uiManager.safeSetText('player-credit-debt', fmt(player.creditDebt || 0)); uiManager.safeSetText('player-expenses', fmt(player.getExpenses())); uiManager.safeSetText('player-passive', fmt(player.passive));
+    uiManager.safeSetText('player-prof-debt', fmt(player.profDebt)); 
+    uiManager.safeSetText('player-bank-debt', fmt(player.bankDebt)); 
+    uiManager.safeSetText('player-credit-debt', fmt(player.creditDebt || 0)); 
+    uiManager.safeSetText('player-expenses', fmt(player.getExpenses())); 
+    uiManager.safeSetText('player-passive', fmt(player.passive));
     
     if (player.isEducated) document.getElementById('player-education-badge').classList.remove('hidden'); 
     if (player.hasSelfCustody) document.getElementById('player-custody-badge').classList.remove('hidden');
@@ -149,13 +153,31 @@ function updateUI() {
     let insCost = player.insurances.reduce((s, i) => s + i.premium, 0);
     uiManager.safeSetText('stmt-insurance-exp', fmt(insCost));
 
-    const pNet = (pEffSalary + player.passive) - player.getExpenses(); const pNetEl = document.getElementById('player-net-cashflow'); if(pNetEl) { pNetEl.innerText = fmt(pNet); pNetEl.className = pNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
-    let pProg = Math.min((player.passive / (player.getExpenses() || 1)) * 100, 100) || 0; const pProgEl = document.getElementById('player-progress'); if(pProgEl) pProgEl.style.width = pProg + '%'; uiManager.safeSetText('player-progress-text', pProg.toFixed(1) + '%'); 
+    const pNet = (pEffSalary + player.passive) - player.getExpenses(); 
+    const pNetEl = document.getElementById('player-net-cashflow'); 
+    if(pNetEl) { 
+        pNetEl.innerText = fmt(pNet); 
+        pNetEl.className = pNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; 
+    }
+    
+    let pProg = Math.min((player.passive / (player.getExpenses() || 1)) * 100, 100) || 0; 
+    const pProgEl = document.getElementById('player-progress'); 
+    if(pProgEl) pProgEl.style.width = pProg + '%'; 
+    uiManager.safeSetText('player-progress-text', pProg.toFixed(1) + '%'); 
     
     const isPlayerWinReady = (player.passive > player.getExpenses() && pNet > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
     if(isPlayerWinReady && pProgEl) pProgEl.classList.add('glow-pulse');
 
-    uiManager.safeSetText('bot-cash', fmt(bot.cash)); uiManager.safeSetText('bot-salary', fmt(bot.salary)); uiManager.safeSetText('bot-prof-debt', fmt(bot.bot-prof-debt)); uiManager.safeSetText('bot-bank-debt', fmt(bot.bankDebt)); uiManager.safeSetText('bot-credit-debt', fmt(bot.creditDebt || 0)); uiManager.safeSetText('bot-expenses', fmt(bot.getExpenses())); uiManager.safeSetText('bot-passive', fmt(bot.passive));
+    uiManager.safeSetText('bot-cash', fmt(bot.cash)); 
+    uiManager.safeSetText('bot-salary', fmt(bot.salary)); 
+    
+    // 🌟 แก้ไขบั๊กที่ทำให้ระบบแครชตรงนี้ครับ (จาก bot.bot-prof-debt เป็น bot.profDebt)
+    uiManager.safeSetText('bot-prof-debt', fmt(bot.profDebt)); 
+    
+    uiManager.safeSetText('bot-bank-debt', fmt(bot.bankDebt)); 
+    uiManager.safeSetText('bot-credit-debt', fmt(bot.creditDebt || 0)); 
+    uiManager.safeSetText('bot-expenses', fmt(bot.getExpenses())); 
+    uiManager.safeSetText('bot-passive', fmt(bot.passive));
     
     document.getElementById('bot-cash').className = bot.cash >= 0 ? "text-2xl font-mono font-bold text-emerald-400 transition-colors duration-300" : "text-2xl font-mono font-bold text-rose-500 transition-colors duration-300";
 
@@ -163,8 +185,17 @@ function updateUI() {
     if (bot.hasSelfCustody) document.getElementById('bot-custody-badge').classList.remove('hidden');
 
     let bEffSalary = bot.layoffMonths > 0 ? (bot.insurances.some(i=>i.id==='ins_social') ? Math.floor(bot.salary*0.5) : 0) : bot.salary;
-    const bNet = (bEffSalary + bot.passive) - bot.getExpenses(); const bNetEl = document.getElementById('bot-net-cashflow'); if(bNetEl) { bNetEl.innerText = fmt(bNet); bNetEl.className = bNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; }
-    let bProg = Math.min((bot.passive / (bot.getExpenses() || 1)) * 100, 100) || 0; const bProgEl = document.getElementById('bot-progress'); if(bProgEl) bProgEl.style.width = bProg + '%'; uiManager.safeSetText('bot-progress-text', bProg.toFixed(1) + '%');
+    const bNet = (bEffSalary + bot.passive) - bot.getExpenses(); 
+    const bNetEl = document.getElementById('bot-net-cashflow'); 
+    if(bNetEl) { 
+        bNetEl.innerText = fmt(bNet); 
+        bNetEl.className = bNet >= 0 ? "text-blue-400 font-bold" : "text-rose-400 font-bold"; 
+    }
+    
+    let bProg = Math.min((bot.passive / (bot.getExpenses() || 1)) * 100, 100) || 0; 
+    const bProgEl = document.getElementById('bot-progress'); 
+    if(bProgEl) bProgEl.style.width = bProg + '%'; 
+    uiManager.safeSetText('bot-progress-text', bProg.toFixed(1) + '%');
 
     uiManager.safeSetText('game-month', `เดือนที่ ${gameEngine.gameMonth} (ปีที่ ${Math.ceil(gameEngine.gameMonth/12)})`);
     
@@ -213,12 +244,14 @@ function openSkillsModal() {
     const btn1 = document.getElementById('btn-buy-skill-1');
     if (player.isEducated) {
         btn1.disabled = true;
+        btn1.innerText = 'เรียนรู้แล้ว'; // 🌟 ดึงข้อความ "เรียนรู้แล้ว" กลับมาให้ปุ่มใน Modal
         btn1.className = 'w-full sm:w-auto bg-slate-700 text-slate-400 py-1.5 px-4 rounded text-xs font-bold shadow-md cursor-not-allowed';
     }
     
     const btn2 = document.getElementById('btn-buy-skill-selfcustody');
     if (player.hasSelfCustody && btn2) {
         btn2.disabled = true;
+        btn2.innerText = 'เรียนรู้แล้ว'; // 🌟 ดึงข้อความ "เรียนรู้แล้ว" กลับมาให้ปุ่มใน Modal
         btn2.className = 'w-full sm:w-auto bg-slate-700 text-slate-400 py-1.5 px-4 rounded text-xs font-bold shadow-md cursor-not-allowed';
     }
     document.getElementById('skills-modal').classList.remove('hidden');
@@ -292,7 +325,6 @@ function openStatementModal(t) {
         `;
     }
 
-    // 🌟 ดึงเรทดอกเบี้ยบัตรเครดิตลอยตัวมาแสดง
     let currentCreditRate = gameEngine.creditInterestRate || 0.023;
     let crTxt = document.getElementById('stmt-credit-rate-txt');
     if(crTxt) crTxt.innerText = (currentCreditRate * 100).toFixed(1) + '%';
@@ -446,7 +478,7 @@ function renderPortfolioList() {
                     let actualDpView = a.downPayment || a.buyPrice;
                     let roiView = actualDpView > 0 ? ((a.cashflow * 12) / actualDpView) * 100 : 0;
                     
-                    reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)} <span class="text-amber-400 ml-1">(ROI: ${roiView.toFixed(2)}%)</span></div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หหนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
+                    reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)} <span class="text-amber-400 ml-1">(ROI: ${roiView.toFixed(2)}%)</span></div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
                 } else { 
                     let pPowerHtml = '';
                     if (a.type === 'bank') {
@@ -649,8 +681,13 @@ async function submitToLeaderboard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 🌟 เพิ่มระบบป้องกันการกดปุ่มยืนยันซ้ำๆ (Anti-spam)
     document.getElementById('custom-confirm-yes').addEventListener('click', () => {
-        if (uiManager.confirmCallback) uiManager.confirmCallback();
+        if (uiManager.confirmCallback) {
+            let cb = uiManager.confirmCallback;
+            uiManager.confirmCallback = null; 
+            cb();
+        }
         uiManager.closeCustomConfirm();
     });
     document.getElementById('qp-btn-submit').addEventListener('click', submitQuickPay);
