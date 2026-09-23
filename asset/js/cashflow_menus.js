@@ -65,8 +65,34 @@ function showTutorialSlide(n) {
     }
 }
 
+function openChecklistModal() {
+    if (gameEngine.gameOver || gameEngine.isAnimating) return;
+    const cl = document.getElementById('checklist-content');
+    
+    let isProfDebtClear = player.profDebt === 0;
+    let isBankDebtClear = player.bankDebt === 0;
+    let isPassiveWin = player.passive > player.getExpenses() && player.getExpenses() > 0;
+    
+    const makeItem = (text, isDone) => {
+        return `<div class="flex items-center gap-3 p-3 rounded-lg bg-slate-800 border ${isDone ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-700'}">
+            <div class="text-2xl">${isDone ? '✅' : '❌'}</div>
+            <div class="text-sm font-bold ${isDone ? 'text-emerald-400' : 'text-slate-400'}">${text}</div>
+        </div>`;
+    };
+    
+    cl.innerHTML = `
+        ${makeItem(`ปลดหนี้อาชีพหมดสิ้น<br><span class="text-[10px] font-normal text-slate-500">(คงเหลือ ฿${fmt(player.profDebt)})</span>`, isProfDebtClear)}
+        ${makeItem(`ปลดหนี้ฉุกเฉินหมดสิ้น<br><span class="text-[10px] font-normal text-slate-500">(คงเหลือ ฿${fmt(player.bankDebt)})</span>`, isBankDebtClear)}
+        ${makeItem(`Passive Income แซงรายจ่าย<br><span class="text-[10px] font-normal text-slate-500">(${fmt(player.passive)} /${fmt(player.getExpenses())})</span>`, isPassiveWin)}
+    `;
+    document.getElementById('checklist-modal').classList.remove('hidden');
+}
+
+function closeChecklistModal() { 
+    document.getElementById('checklist-modal').classList.add('hidden'); 
+}
+
 function updateUI() {
-    // 🌟 1. ตรวจสอบสถานะล้มละลายทันทีที่ UpdateUI
     let pBkr = gameEngine.checkBankruptcy(player);
     if (pBkr) {
         if(pBkr === 'liquidity_crash') return window.endGame('bankrupt_liquidity');
@@ -76,7 +102,6 @@ function updateUI() {
     uiManager.safeSetText('player-cash', fmt(player.cash)); 
     document.getElementById('player-cash').className = player.cash >= 0 ? "text-2xl font-mono font-bold text-emerald-400 transition-colors duration-300" : "text-2xl font-mono font-bold text-rose-500 transition-colors duration-300";
 
-    // 🌟 2. อัปเดตเงินเดือน (กรณี Layoff) และโชว์คำเตือนบนหน้าปัด Player
     let pEffSalary = player.salary;
     if (player.layoffMonths > 0) {
         let hasSS = player.insurances.some(i => i.id === 'ins_social');
@@ -86,9 +111,8 @@ function updateUI() {
         uiManager.safeSetText('player-salary', fmt(player.salary));
     }
 
-    // 🌟 3. แสดง Badge แจ้งเตือน DSR/Layoff
     let warningHtml = '';
-    if (player.dsrMonths > 0) warningHtml += `<div class="text-[10px] text-white bg-rose-600 px-2 py-1 rounded animate-pulse text-center mb-2">⚠️ ภาระหนี้ NPL เกิน 150% (เดือนที่ ${player.dsrMonths}/3)</div>`;
+    if (player.dsrMonths > 0) warningHtml += `<div class="text-[10px] text-white bg-rose-600 px-2 py-1 rounded animate-pulse text-center mb-2">⚠️ ภาระหนี้ NPL เกิน 150% (เดือนที่ ${player.dsrMonths}/6)</div>`;
     if (player.layoffMonths > 0) warningHtml += `<div class="text-[10px] text-white bg-orange-600 px-2 py-1 rounded animate-pulse text-center mb-2">💼 ว่างงาน! (เหลืออีก ${player.layoffMonths} เดือน)</div>`;
     
     let warnContainer = document.getElementById('player-warnings');
@@ -99,14 +123,13 @@ function updateUI() {
     }
     warnContainer.innerHTML = warningHtml;
 
-    // 🌟 4. ล็อกปุ่มทอยเต๋า ถ้าเงินช็อต
     const btnRoll = document.getElementById('btn-roll');
     if (btnRoll && !gameEngine.gameOver) {
         if (player.cash < 0) {
             btnRoll.disabled = true;
             btnRoll.innerText = '❌ เงินสดช็อต! กู้เงินหรือขายสินทรัพย์ด่วน';
             btnRoll.className = 'w-full py-4 rounded-lg font-bold text-sm tracking-widest shadow-lg bg-rose-600 text-white cursor-not-allowed';
-        } else {
+        } else if (gameEngine.currentTurn === 'player' && !gameEngine.isAnimating) {
             btnRoll.disabled = false;
             btnRoll.innerText = '🎴 จั่วการ์ด (1 เดือน)';
             btnRoll.className = 'btn-gold-outline w-full py-4 rounded-lg font-bold text-sm tracking-widest shadow-lg';
@@ -121,7 +144,6 @@ function updateUI() {
     const btnEd = document.getElementById('btn-educate-main'); 
     if(btnEd && (player.isEducated || player.hasSelfCustody)) { 
         btnEd.className = "bg-emerald-900/40 hover:bg-emerald-800 border border-emerald-500/50 text-emerald-300 text-xs py-2 rounded font-bold transition-colors shadow-md"; 
-        btnEd.innerText = "🎓 ดูสกิลของคุณ"; 
     } 
     
     let insCost = player.insurances.reduce((s, i) => s + i.premium, 0);
@@ -133,7 +155,7 @@ function updateUI() {
     const isPlayerWinReady = (player.passive > player.getExpenses() && pNet > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
     if(isPlayerWinReady && pProgEl) pProgEl.classList.add('glow-pulse');
 
-    uiManager.safeSetText('bot-cash', fmt(bot.cash)); uiManager.safeSetText('bot-salary', fmt(bot.salary)); uiManager.safeSetText('bot-prof-debt', fmt(bot.profDebt)); uiManager.safeSetText('bot-bank-debt', fmt(bot.bankDebt)); uiManager.safeSetText('bot-credit-debt', fmt(bot.creditDebt || 0)); uiManager.safeSetText('bot-expenses', fmt(bot.getExpenses())); uiManager.safeSetText('bot-passive', fmt(bot.passive));
+    uiManager.safeSetText('bot-cash', fmt(bot.cash)); uiManager.safeSetText('bot-salary', fmt(bot.salary)); uiManager.safeSetText('bot-prof-debt', fmt(bot.bot-prof-debt)); uiManager.safeSetText('bot-bank-debt', fmt(bot.bankDebt)); uiManager.safeSetText('bot-credit-debt', fmt(bot.creditDebt || 0)); uiManager.safeSetText('bot-expenses', fmt(bot.getExpenses())); uiManager.safeSetText('bot-passive', fmt(bot.passive));
     
     document.getElementById('bot-cash').className = bot.cash >= 0 ? "text-2xl font-mono font-bold text-emerald-400 transition-colors duration-300" : "text-2xl font-mono font-bold text-rose-500 transition-colors duration-300";
 
@@ -145,6 +167,42 @@ function updateUI() {
     let bProg = Math.min((bot.passive / (bot.getExpenses() || 1)) * 100, 100) || 0; const bProgEl = document.getElementById('bot-progress'); if(bProgEl) bProgEl.style.width = bProg + '%'; uiManager.safeSetText('bot-progress-text', bProg.toFixed(1) + '%');
 
     uiManager.safeSetText('game-month', `เดือนที่ ${gameEngine.gameMonth} (ปีที่ ${Math.ceil(gameEngine.gameMonth/12)})`);
+    
+    const ecoProgEl = document.getElementById('eco-progress');
+    const ecoTxtEl = document.getElementById('eco-state-text');
+    if (ecoProgEl && ecoTxtEl && gameEngine.ecoGauge !== undefined) {
+        ecoProgEl.style.width = gameEngine.ecoGauge + '%';
+        if (gameEngine.ecoGauge < 25) {
+            ecoProgEl.style.backgroundColor = '#34D399'; 
+            ecoTxtEl.innerHTML = '🟢 ฟื้นฟู (Recovery)';
+            ecoTxtEl.className = 'text-emerald-400 font-bold';
+        } else if (gameEngine.ecoGauge < 50) {
+            ecoProgEl.style.backgroundColor = '#FBBF24'; 
+            ecoTxtEl.innerHTML = '🟡 ปกติ (Normal)';
+            ecoTxtEl.className = 'text-amber-400 font-bold';
+        } else if (gameEngine.ecoGauge < 75) {
+            ecoProgEl.style.backgroundColor = '#F97316'; 
+            ecoTxtEl.innerHTML = '🟠 ตึงตัว (Warning)';
+            ecoTxtEl.className = 'text-orange-500 font-bold';
+        } else {
+            ecoProgEl.style.backgroundColor = '#F43F5E'; 
+            ecoTxtEl.innerHTML = '🔴 วิกฤต (Crisis)';
+            ecoTxtEl.className = 'text-rose-500 font-bold animate-pulse';
+        }
+    }
+
+    if (bot.isBankrupt) {
+        const botProfEl = document.getElementById('bot-profession');
+        if (botProfEl) {
+            botProfEl.innerText = '🔴 ล้มละลาย!';
+            botProfEl.className = 'text-xs text-white bg-rose-600 px-2 py-1 rounded font-bold animate-pulse';
+        }
+        const botPanel = document.getElementById('bot-panel');
+        if (botPanel) {
+            botPanel.classList.add('opacity-50', 'grayscale');
+        }
+    }
+
     checkWinCondition();
 }
 
@@ -155,14 +213,12 @@ function openSkillsModal() {
     const btn1 = document.getElementById('btn-buy-skill-1');
     if (player.isEducated) {
         btn1.disabled = true;
-        btn1.innerText = 'เรียนรู้แล้ว';
         btn1.className = 'w-full sm:w-auto bg-slate-700 text-slate-400 py-1.5 px-4 rounded text-xs font-bold shadow-md cursor-not-allowed';
     }
     
     const btn2 = document.getElementById('btn-buy-skill-selfcustody');
     if (player.hasSelfCustody && btn2) {
         btn2.disabled = true;
-        btn2.innerText = 'เรียนรู้แล้ว';
         btn2.className = 'w-full sm:w-auto bg-slate-700 text-slate-400 py-1.5 px-4 rounded text-xs font-bold shadow-md cursor-not-allowed';
     }
     document.getElementById('skills-modal').classList.remove('hidden');
@@ -176,7 +232,6 @@ function openInsuranceModal() {
     
     INSURANCE_CONTENT.forEach(ins => {
         let premiumAmt = ins.premium;
-        // 🌟 คำนวณเบี้ยประกันสังคม 5% อัตโนมัติตามเงินเดือนอาชีพ (Max 2500, Min 500)
         if (ins.id === 'ins_social') {
             premiumAmt = Math.max(500, Math.min(2500, Math.floor(player.salary * 0.05)));
             ins.premium = premiumAmt; 
@@ -237,9 +292,14 @@ function openStatementModal(t) {
         `;
     }
 
+    // 🌟 ดึงเรทดอกเบี้ยบัตรเครดิตลอยตัวมาแสดง
+    let currentCreditRate = gameEngine.creditInterestRate || 0.023;
+    let crTxt = document.getElementById('stmt-credit-rate-txt');
+    if(crTxt) crTxt.innerText = (currentCreditRate * 100).toFixed(1) + '%';
+
     uiManager.safeSetText('stmt-prof-int', fmt(Math.floor((act.profDebt*0.025)/12))); 
     uiManager.safeSetText('stmt-bank-int', fmt(Math.floor(act.bankDebt*gameEngine.bankInterestRate))); 
-    uiManager.safeSetText('stmt-credit-int', fmt(Math.floor(Math.max(0, (act.creditDebt||0)-(act.creditGrace||0))*0.023))); 
+    uiManager.safeSetText('stmt-credit-int', fmt(Math.floor(Math.max(0, (act.creditDebt||0)-(act.creditGrace||0))*currentCreditRate))); 
     uiManager.safeSetText('stmt-mortgage-exp', fmt(act.assets?act.assets.reduce((s,a)=>s+(a.mortgagePayment||0),0):0)); 
     uiManager.safeSetText('stmt-tax-exp', fmt(act.currentTax)); 
     uiManager.safeSetText('stmt-total-exp', fmt(totalExp)); 
@@ -252,7 +312,24 @@ function openStatementModal(t) {
 }
 function closeStatementModal() { document.getElementById('statement-modal').classList.add('hidden'); }
 
-function openQuickPayModal(t) { if(gameEngine.gameOver || gameEngine.isAnimating) return; let debt = t==='bank'?player.bankDebt:(t==='prof'?player.profDebt:player.creditDebt||0); if (debt <= 0) return showAlert('ข้อมูล', 'คุณไม่มีหนี้ประเภทนี้คงค้าง', '✅'); gameEngine.currentQuickPayType = t; uiManager.safeSetText('qp-title', t==='bank'?'💸 โปะหนี้ฉุกเฉิน (Bank)':(t==='prof'?'🎓 โปะหนี้อาชีพ (Prof.)':'💳 โปะหนี้บัตรเครดิต')); uiManager.safeSetText('qp-desc', t==='bank'?`ลดภาระดอกเบี้ยมหาโหด ${(gameEngine.bankInterestRate*100).toFixed(2)}% ต่อเดือน`:(t==='prof'?'เคลียร์ให้เป็น 0 เพื่อเอาชนะเกม!':'โปะก่อนจบเดือน จะไม่โดนดอกเบี้ย 2.3%')); uiManager.safeSetText('qp-debt-amount', fmt(debt)); uiManager.safeSetText('qp-cash-amount', fmt(player.cash)); document.getElementById('qp-input').value = ''; closeBankModal(); document.getElementById('quickpay-modal').classList.remove('hidden'); }
+function openQuickPayModal(t) { 
+    if(gameEngine.gameOver || gameEngine.isAnimating) return; 
+    let debt = t==='bank'?player.bankDebt:(t==='prof'?player.profDebt:player.creditDebt||0); 
+    if (debt <= 0) return showAlert('ข้อมูล', 'คุณไม่มีหนี้ประเภทนี้คงค้าง', '✅'); 
+    gameEngine.currentQuickPayType = t; 
+    
+    let currentCreditRate = gameEngine.creditInterestRate || 0.023;
+    let creditDesc = `โปะก่อนจบเดือน จะไม่โดนดอกเบี้ย ${(currentCreditRate * 100).toFixed(1)}%`;
+    
+    uiManager.safeSetText('qp-title', t==='bank'?'💸 โปะหนี้ฉุกเฉิน (Bank)':(t==='prof'?'🎓 โปะหนี้อาชีพ (Prof.)':'💳 โปะหนี้บัตรเครดิต')); 
+    uiManager.safeSetText('qp-desc', t==='bank'?`ลดภาระดอกเบี้ยมหาโหด ${(gameEngine.bankInterestRate*100).toFixed(2)}% ต่อเดือน`:(t==='prof'?'เคลียร์ให้เป็น 0 เพื่อเอาชนะเกม!':creditDesc)); 
+    uiManager.safeSetText('qp-debt-amount', fmt(debt)); 
+    uiManager.safeSetText('qp-cash-amount', fmt(player.cash)); 
+    
+    document.getElementById('qp-input').value = ''; 
+    closeBankModal(); 
+    document.getElementById('quickpay-modal').classList.remove('hidden'); 
+}
 function closeQuickPayModal() { document.getElementById('quickpay-modal').classList.add('hidden'); gameEngine.currentQuickPayType = ''; }
 
 function openMarketModal() { 
@@ -353,8 +430,11 @@ function renderPortfolioList() {
                 let sellBtnHTML = '';
                 
                 if (portfolioTarget === 'player') {
-                    if (isPaidOff) sellBtnHTML = `<button onclick="sellAsset(${originalIndex}, ${val})" class="w-full md:w-auto bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow mt-2 md:mt-0">ขายเป็นของมือสอง</button>`;
-                    else sellBtnHTML = `<button class="w-full md:w-auto bg-slate-700 text-slate-500 px-3 py-1.5 rounded text-xs font-bold mt-2 md:mt-0 cursor-not-allowed" disabled>ยังผ่อนไม่หมด</button>`;
+                    if (isPaidOff) {
+                        sellBtnHTML = `<button onclick="sellAsset(${originalIndex}, ${val})" class="w-full md:w-auto bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors shadow mt-2 md:mt-0">ขายเป็นของมือสอง</button>`;
+                    } else {
+                        sellBtnHTML = `<button onclick="cancelInstallment(${originalIndex})" class="w-full md:w-auto bg-rose-700 hover:bg-rose-600 text-white px-3 py-1.5 rounded text-xs font-bold mt-2 md:mt-0 transition-colors shadow">คืนสัญญา (ทิ้งดาวน์)</button>`;
+                    }
                 }
                 reHTML += `<div class="bg-slate-800 p-3 rounded border border-rose-500/30 flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name}</div><div class="text-[11px] mt-1">${statusText}</div>${!isPaidOff ? `<div class="text-[11px] text-rose-400">ภาระผ่อน: ${fmt(a.monthly)}/เดือน</div>` : ''}<div class="text-[11px] text-amber-400 mt-1">ราคาประเมินมือสอง: ${fmt(val)}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${sellBtnHTML}</div></div></div>`;
             } else {
@@ -363,7 +443,10 @@ function renderPortfolioList() {
                 let buff = a.buff!=='none' ? `<div class="text-[10px] text-fuchsia-400 mt-1"> ${a.buffDesc}</div>` : ''; 
 
                 if(isPhysical) { 
-                    reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)}</div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
+                    let actualDpView = a.downPayment || a.buyPrice;
+                    let roiView = actualDpView > 0 ? ((a.cashflow * 12) / actualDpView) * 100 : 0;
+                    
+                    reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)} <span class="text-amber-400 ml-1">(ROI: ${roiView.toFixed(2)}%)</span></div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หหนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
                 } else { 
                     let pPowerHtml = '';
                     if (a.type === 'bank') {
@@ -447,7 +530,19 @@ function openDeckModal() {
             let limitStr = item.limit ? item.limit : '∞';
             let count = gameEngine.getEventCount(item.id || item.name);
             let disabled = item.limit && count >= item.limit ? 'opacity-40 grayscale' : '';
-            html += `<div class="bg-slate-800 p-2 rounded flex justify-between items-center text-xs border border-slate-700 ${disabled}"><span class="text-slate-300 truncate pr-2">${item.name}</span><span class="text-${color}-400 font-bold whitespace-nowrap bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700/50">${count}/${limitStr}</span></div>`;
+            
+            let detailText = item.desc || "";
+            if (!detailText) {
+                if (item.cost !== undefined) detailText += `ราคา: ${fmt(item.cost)}\n`;
+                if (item.baseCost !== undefined) detailText += `ราคาพื้นฐาน: ${fmt(item.baseCost)}\n`;
+                if (item.baseExp !== undefined) detailText += `เพิ่มรายจ่าย: ${fmt(item.baseExp)}/เดือน\n`;
+                if (item.monthly !== undefined) detailText += `ผ่อนชำระ: ${fmt(item.monthly)}/เดือน\n`;
+                if (item.prob !== undefined) detailText += `โอกาสชนะ: ${(item.prob * 100)}%\n`;
+            }
+            detailText = detailText.replace(/'/g, "\\'").replace(/\n/g, "\\n").trim() || "ไม่มีข้อมูลเพิ่มเติม";
+            let safeName = item.name.replace(/'/g, "\\'");
+            
+            html += `<div onclick="showAlert('${safeName}', '${detailText}', '🎴')" class="bg-slate-800 p-2 rounded flex justify-between items-center text-xs border border-slate-700 cursor-pointer hover:bg-slate-700 transition-colors shadow-sm ${disabled}"><span class="text-slate-300 truncate pr-2">${item.name}</span><span class="text-${color}-400 font-bold whitespace-nowrap bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700/50">${count}/${limitStr}</span></div>`;
         });
         html += `</div>`;
         return html;
@@ -559,4 +654,35 @@ document.addEventListener('DOMContentLoaded', () => {
         uiManager.closeCustomConfirm();
     });
     document.getElementById('qp-btn-submit').addEventListener('click', submitQuickPay);
+});
+
+function openMinigameModal() {
+    const iframe = document.getElementById('minigame-iframe');
+    const modal = document.getElementById('minigame-modal');
+    if (iframe && modal) {
+        iframe.src = "./self-custody-cashflow.html";
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    } else {
+        alert('ไม่พบ HTML ของมินิเกม โปรดตรวจสอบไฟล์ cashflow.html');
+    }
+}
+
+function closeMinigameModal() {
+    const iframe = document.getElementById('minigame-iframe');
+    const modal = document.getElementById('minigame-modal');
+    if (iframe && modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        iframe.src = ""; 
+    }
+}
+
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'SELF_CUSTODY_SUCCESS') {
+        closeMinigameModal();
+        if (typeof processSelfCustodySuccess === 'function') {
+            processSelfCustodySuccess();
+        }
+    }
 });

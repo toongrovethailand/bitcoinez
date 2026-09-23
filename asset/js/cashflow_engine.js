@@ -14,7 +14,15 @@ class GameEngine {
         this.eventCounts = {};
         this.badCooldown = 0; 
         
+        this.lastPandemicResetMonth = 1;
+        this.cryptoCrashExtraWeight = 0;
+        this.cryptoCrashCooldown = 0; 
+        
         this.bankInterestRate = 0.0125; 
+        this.creditInterestRate = 0.023; // 🌟 เพิ่มตัวแปรดอกเบี้ยบัตรเครดิตเริ่มต้น
+
+        this.ecoGauge = 25; 
+        this.ecoState = 'normal';
 
         this.probabilities = {
             crisis: 1,
@@ -34,7 +42,6 @@ class GameEngine {
             nextBias: 'normal',
             btcState: 'sideways', 
             btcMonthsLeft: 0,
-            // 🌟 เพิ่มระบบจดจำวัฏจักร S&P500 และ Gold
             spState: 'sideways',
             spMonthsLeft: 0,
             goldState: 'sideways',
@@ -46,17 +53,67 @@ class GameEngine {
     incrementEventCount(id) { this.eventCounts[id] = (this.eventCounts[id] || 0) + 1; }
     resetEventCounts() { this.eventCounts = {}; }
 
+    increaseCryptoRisk() {
+        if (this.cryptoCrashCooldown > 0) return; 
+        let increase = Math.floor(Math.random() * 31) + 10; 
+        this.cryptoCrashExtraWeight = (this.cryptoCrashExtraWeight || 0) + increase;
+    }
+
     generateCrisisEvent() {
-        let available = CONTENT.crisis.filter(e => this.getEventCount(e.id) < e.limit);
-        if(available.length === 0) available = CONTENT.crisis; 
-        let selected = available[Math.floor(Math.random() * available.length)];
+        let available = CONTENT.crisis.filter(e => {
+            if (e.id === 'cr_crypto_crash' && this.cryptoCrashCooldown > 0) return false;
+            return this.getEventCount(e.id) < e.limit || e.limit === null;
+        });
+        if(available.length === 0) available = CONTENT.crisis.filter(e => e.id !== 'cr_crypto_crash' || this.cryptoCrashCooldown <= 0); 
+        
+        if (this.ecoGauge >= 100 && Math.random() < 0.5) {
+            let bs = CONTENT.crisis.find(c => c.id === 'cr_blackswan');
+            if (bs) {
+                this.lastPandemicResetMonth = this.gameMonth; 
+                this.incrementEventCount(bs.id);
+                return { type: 'crisis', id: bs.id, name: bs.name, desc: bs.desc, cost: 0 };
+            }
+        }
+
+        let weights = available.map(c => {
+            let baseWeight = 100;
+            if (c.id === 'cr_pandemic') {
+                let monthsSinceReset = this.gameMonth - (this.lastPandemicResetMonth || 1);
+                let extra = Math.max(0, monthsSinceReset - 60); 
+                return baseWeight + (extra * 5); 
+            } else if (c.id === 'cr_crypto_crash') {
+                return baseWeight + (this.cryptoCrashExtraWeight || 0); 
+            } else if (c.id === 'cr_blackswan') {
+                return 10; 
+            } else {
+                return baseWeight; 
+            }
+        });
+
+        let totalWeight = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * totalWeight;
+        let sum = 0;
+        let selected = available[0];
+        
+        for (let i = 0; i < available.length; i++) {
+            sum += weights[i];
+            if (r <= sum) {
+                selected = available[i];
+                break;
+            }
+        }
+
+        if (selected.id === 'cr_pandemic' || selected.id === 'cr_blackswan') {
+            this.lastPandemicResetMonth = this.gameMonth;
+        }
+
         this.incrementEventCount(selected.id);
         return { type: 'crisis', id: selected.id, name: selected.name, desc: selected.desc, cost: 0 };
     }
 
     generateDynamicDeal() {
         const rand = Math.random(); 
-        let typeName, cost, roiPercent, downPaymentPercent; 
+        let typeName, cost, targetRoi, downPaymentPercent; 
         let isBusiness = false, isLand = false; let buff = 'none', buffDesc = '', taxDeduct = 0;
         
         const getAvailableName = (pool) => {
@@ -71,28 +128,30 @@ class GameEngine {
         if (rand < 0.2) { 
             typeName = getAvailableName(CONTENT.deals.land); cost = Math.floor(Math.random() * 50 + 10) * 10000; downPaymentPercent = 1.0; isLand = true;
         } else if (rand < 0.5) { 
-            typeName = getAvailableName(CONTENT.deals.business); cost = Math.floor(Math.random() * 30 + 5) * 10000; downPaymentPercent = Math.random() * 0.3 + 0.3; roiPercent = Math.floor(Math.random() * 40) + 20; isBusiness = true;
+            typeName = getAvailableName(CONTENT.deals.business); cost = Math.floor(Math.random() * 30 + 5) * 10000; downPaymentPercent = Math.random() * 0.3 + 0.3; targetRoi = Math.floor(Math.random() * 51) + 10; isBusiness = true;
             buff = 'business'; buffDesc = '✨ นิติบุคคล: ภาษีเงินเดือนลด 50%';
         } else if (rand < 0.8) { 
-            typeName = getAvailableName(CONTENT.deals.smallRE); cost = Math.floor(Math.random() * 30 + 10) * 10000; downPaymentPercent = Math.random() * 0.1 + 0.1; roiPercent = Math.floor(Math.random() * 15) + 8; 
+            typeName = getAvailableName(CONTENT.deals.smallRE); cost = Math.floor(Math.random() * 30 + 10) * 10000; downPaymentPercent = Math.random() * 0.1 + 0.1; targetRoi = Math.floor(Math.random() * 51) + 10; 
             buff = 'realestate'; taxDeduct = 1000; buffDesc = `✨ ค่าเสื่อมราคา: ลดหย่อนภาษี ฿${taxDeduct.toLocaleString()}/ด`;
         } else { 
-            typeName = getAvailableName(CONTENT.deals.largeRE); cost = Math.floor(Math.random() * 100 + 40) * 10000; downPaymentPercent = Math.random() * 0.15 + 0.1; roiPercent = Math.floor(Math.random() * 12) + 8; 
+            typeName = getAvailableName(CONTENT.deals.largeRE); cost = Math.floor(Math.random() * 100 + 40) * 10000; downPaymentPercent = Math.random() * 0.15 + 0.1; targetRoi = Math.floor(Math.random() * 51) + 10; 
             buff = 'realestate'; taxDeduct = 2500; buffDesc = `✨ ค่าเสื่อมราคา: ลดหย่อนภาษี ฿${taxDeduct.toLocaleString()}/ด`;
         }
         
         let downPayment = Math.ceil((cost * downPaymentPercent) / 1000) * 1000;
         let mortgage = cost - downPayment;
-        let grossCashflow = 0; let mortgagePayment = 0;
+        let grossCashflow = 0; let mortgagePayment = 0; let netCashflow = 0;
         
-        if (isLand) { mortgagePayment = Math.floor(cost * 0.01 / 12); } 
-        else {
-            grossCashflow = Math.floor((cost * (roiPercent / 100)) / 12 / 100) * 100;
+        if (isLand) { 
+            mortgagePayment = Math.floor(cost * 0.01 / 12); 
+            netCashflow = -mortgagePayment;
+        } else {
+            netCashflow = Math.floor((downPayment * (targetRoi / 100)) / 12 / 100) * 100;
+            if (netCashflow <= 0) netCashflow = 100; 
+            
             mortgagePayment = mortgage > 0 ? Math.floor((mortgage * 0.08) / 12 / 100) * 100 : 0; 
+            grossCashflow = netCashflow + mortgagePayment;
         }
-        
-        let netCashflow = grossCashflow - mortgagePayment;
-        if (!isLand && netCashflow <= 0) { grossCashflow += Math.abs(netCashflow) + 500; netCashflow = grossCashflow - mortgagePayment; }
         
         return { id: Date.now().toString(), name: typeName, cost: cost, downPayment: downPayment, mortgage: mortgage, mortgagePayment: mortgagePayment, grossCashflow: grossCashflow, cashflow: netCashflow, type: isLand ? 'land' : (isBusiness ? 'business' : 'realestate'), buyPrice: cost, buff: buff, taxDeduct: taxDeduct, buffDesc: buffDesc };
     }
@@ -166,5 +225,29 @@ class GameEngine {
                 window.uiManager.spawnFloatingText('player-cash', loanAmount);
             }
         }
+    }
+
+    updateEcoGauge(event) {
+        if (!event) return;
+        let change = 0;
+        if (['realestate', 'business', 'land'].includes(event.type)) change = Math.floor(Math.random() * 4) + 2; 
+        else if (event.type === 'installment' || event.type === 'bad_doodad') change = Math.floor(Math.random() * 3) + 1; 
+        else if (event.type === 'bad_life') change = -(Math.floor(Math.random() * 4) + 2); 
+        else if (event.type === 'gamble') change = Math.floor(Math.random() * 3) + 2; 
+        else if (event.type === 'nothing') change = -1;
+        else if (event.type === 'crisis') {
+            if (event.id === 'cr_crypto_crash') change = 0; 
+            else if (event.id === 'cr_blackswan') change = -100; // Reset
+            else change = -(Math.floor(Math.random() * 16) + 15); // -15 to -30
+        }
+
+        this.ecoGauge += change;
+        if (this.ecoGauge < 0) this.ecoGauge = 0;
+        if (this.ecoGauge > 100) this.ecoGauge = 100;
+
+        if (this.ecoGauge < 25) this.ecoState = 'recovery';
+        else if (this.ecoGauge < 50) this.ecoState = 'normal';
+        else if (this.ecoGauge < 75) this.ecoState = 'warning';
+        else this.ecoState = 'crisis';
     }
 }

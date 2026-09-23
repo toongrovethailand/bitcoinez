@@ -1,11 +1,59 @@
 // ./asset/js/cashflow_actions.js
 
-function buyDeal() { if (gameEngine.isAnimating) return; let actualDp = player.isEducated ? Math.floor(gameEngine.currentSharedEvent.downPayment * 0.8) : gameEngine.currentSharedEvent.downPayment; if (player.cash < actualDp) return showAlert('❌ ล้มเหลว', `เงินสดไม่พอจ่ายดาวน์ ${fmt(actualDp)}!`, '💸'); gameEngine.isAnimating = true; player.cash -= actualDp; player.passive += gameEngine.currentSharedEvent.grossCashflow; player.assets.push({...gameEngine.currentSharedEvent, downPayment: actualDp, mortgage: gameEngine.currentSharedEvent.cost - actualDp}); spawnFloatingText('player-cash', -actualDp); logActivity(`คุณลงทุน ${gameEngine.currentSharedEvent.name} จ่ายดาวน์ ${fmt(actualDp)}`, 'income', 'player'); hideDecisions(); updateUI(); setTimeout(() => botEngine.processTurn(), 1200); }
-function passDeal() { if (gameEngine.isAnimating) return; gameEngine.isAnimating = true; logActivity(`คุณปฏิเสธดีล`, 'info', 'player'); hideDecisions(); setTimeout(() => botEngine.processTurn(), 1000); }
-function payDoodadCash() { if (player.cash < gameEngine.currentSharedEvent.cost) return showAlert('❌ เงินสดไม่พอ', 'ต้องรูดบัตรเครดิต!', '💳'); gameEngine.isAnimating = true; player.cash -= gameEngine.currentSharedEvent.cost; spawnFloatingText('player-cash', -gameEngine.currentSharedEvent.cost); logActivity(`จ่ายเงินสดซื้อ: ${gameEngine.currentSharedEvent.name}`, 'expense', 'player'); hideDecisions(); updateUI(); setTimeout(() => botEngine.processTurn(), 1000); }
-function payDoodadCredit() { gameEngine.isAnimating = true; player.creditDebt = (player.creditDebt || 0) + gameEngine.currentSharedEvent.cost; player.creditGrace = (player.creditGrace || 0) + gameEngine.currentSharedEvent.cost; logActivity(`รูดบัตรเครดิต: ${gameEngine.currentSharedEvent.name}`, 'expense', 'player'); hideDecisions(); updateUI(); setTimeout(() => botEngine.processTurn(), 1000); }
-function playGamble() { if (player.cash < gameEngine.currentSharedEvent.cost) return showAlert('❌ เงินไม่พอ', 'เงินสดไม่พอ!', '💸'); gameEngine.isAnimating = true; player.cash -= gameEngine.currentSharedEvent.cost; spawnFloatingText('player-cash', -gameEngine.currentSharedEvent.cost); hideDecisions(); setTimeout(() => { if (Math.random() < gameEngine.currentSharedEvent.prob) { player.cash += gameEngine.currentSharedEvent.win; spawnFloatingText('player-cash', gameEngine.currentSharedEvent.win); logActivity(`🃏 ถูกรางวัล!`, 'income', 'player'); showAlert('🎉 แจ็คพอตแตก!', `ชนะการเดิมพัน ${fmt(gameEngine.currentSharedEvent.win)}`, '🎰'); } else { logActivity(`🃏 เสียพนัน`, 'expense', 'player'); showAlert('😭 เสียใจด้วย', `เสียเงินเดิมพัน บ่อนกินเรียบ!`, '💸'); } updateUI(); setTimeout(()=>botEngine.processTurn(), 1000); }, 600); }
-function passGamble() { if (gameEngine.isAnimating) return; gameEngine.isAnimating = true; logActivity(`ปฏิเสธการพนัน`, 'info', 'player'); hideDecisions(); setTimeout(() => botEngine.processTurn(), 1000); }
+function buyDeal() { 
+    if (gameEngine.isAnimating) return; 
+    let actualDp = player.isEducated ? Math.floor(gameEngine.currentSharedEvent.downPayment * 0.8) : gameEngine.currentSharedEvent.downPayment; 
+    if (player.cash < actualDp) return showAlert('❌ ล้มเหลว', `เงินสดไม่พอจ่ายดาวน์ ${fmt(actualDp)}!`, '💸'); 
+    gameEngine.isAnimating = true; 
+    player.cash -= actualDp; player.passive += gameEngine.currentSharedEvent.grossCashflow; player.assets.push({...gameEngine.currentSharedEvent, downPayment: actualDp, mortgage: gameEngine.currentSharedEvent.cost - actualDp}); 
+    spawnFloatingText('player-cash', -actualDp); logActivity(`คุณลงทุน ${gameEngine.currentSharedEvent.name} จ่ายดาวน์ ${fmt(actualDp)}`, 'income', 'player'); 
+    hideDecisions(); updateUI(); setBotThinking(); 
+    setTimeout(() => botEngine.processTurn(), 1200); 
+}
+
+function passDeal() { 
+    if (gameEngine.isAnimating) return; 
+    gameEngine.isAnimating = true; logActivity(`คุณปฏิเสธดีล`, 'info', 'player'); 
+    hideDecisions(); setBotThinking(); 
+    setTimeout(() => botEngine.processTurn(), 1000); 
+}
+
+function payDoodadCash() { 
+    if (player.cash < gameEngine.currentSharedEvent.cost) return showAlert('❌ เงินสดไม่พอ', 'ต้องรูดบัตรเครดิต!', '💳'); 
+    gameEngine.isAnimating = true; player.cash -= gameEngine.currentSharedEvent.cost; spawnFloatingText('player-cash', -gameEngine.currentSharedEvent.cost); 
+    logActivity(`จ่ายเงินสด: ${gameEngine.currentSharedEvent.name}`, 'expense', 'player'); 
+    hideDecisions(); updateUI(); setBotThinking(); 
+    setTimeout(() => botEngine.processTurn(), 1000); 
+}
+
+function payDoodadCredit() { 
+    gameEngine.isAnimating = true; player.creditDebt = (player.creditDebt || 0) + gameEngine.currentSharedEvent.cost; player.creditGrace = (player.creditGrace || 0) + gameEngine.currentSharedEvent.cost; 
+    logActivity(`รูดบัตรเครดิต: ${gameEngine.currentSharedEvent.name}`, 'expense', 'player'); 
+    hideDecisions(); updateUI(); setBotThinking(); 
+    setTimeout(() => botEngine.processTurn(), 1000); 
+}
+
+function playGamble() { 
+    if (player.cash < gameEngine.currentSharedEvent.cost) return showAlert('❌ เงินไม่พอ', 'เงินสดไม่พอ!', '💸'); 
+    gameEngine.isAnimating = true; player.cash -= gameEngine.currentSharedEvent.cost; spawnFloatingText('player-cash', -gameEngine.currentSharedEvent.cost); 
+    hideDecisions(); 
+    setTimeout(() => { 
+        if (Math.random() < gameEngine.currentSharedEvent.prob) { 
+            player.cash += gameEngine.currentSharedEvent.win; spawnFloatingText('player-cash', gameEngine.currentSharedEvent.win); 
+            logActivity(`🃏 ถูกรางวัล!`, 'income', 'player'); showAlert('🎉 แจ็คพอตแตก!', `ชนะการเดิมพัน ${fmt(gameEngine.currentSharedEvent.win)}`, '🎰'); 
+        } else { 
+            logActivity(`🃏 เสียพนัน`, 'expense', 'player'); showAlert('😭 เสียใจด้วย', `เสียเงินเดิมพัน บ่อนกินเรียบ!`, '💸'); 
+        } 
+        updateUI(); setBotThinking(); 
+        setTimeout(()=>botEngine.processTurn(), 1000); 
+    }, 600); 
+}
+
+function passGamble() { 
+    if (gameEngine.isAnimating) return; gameEngine.isAnimating = true; logActivity(`ปฏิเสธการพนัน`, 'info', 'player'); 
+    hideDecisions(); setBotThinking(); 
+    setTimeout(() => botEngine.processTurn(), 1000); 
+}
 
 function processCrisisPlayer() { 
     gameEngine.isAnimating = true; 
@@ -32,15 +80,17 @@ function processCrisisPlayer() {
             logActivity(`รอดพ้นวิกฤตเพราะมีเงินสำรอง`, 'income', 'player'); 
             showAlert('✅ รอดพ้นวิกฤต', `คุณเตรียมเงินสำรองไว้เพียงพอ!`, '🛡️'); 
         } else { 
-            // 🌟 ลงโทษหนัก: เงินสำรองไม่พอ ล้มละลายและแพ้เกมทันที!
             logActivity(`ล้มละลาย! เงินสำรองไม่พอรับวิกฤต`, 'expense', 'player'); 
             endGame('bankrupt');
             return; 
         } 
     }
     
-    hideDecisions(); updateUI(); setTimeout(() => botEngine.processTurn(), 1200); 
+    hideDecisions(); updateUI(); setBotThinking(); 
+    setTimeout(() => botEngine.processTurn(), 1200); 
 }
+
+let tempSelfCustodyCost = 0;
 
 function investInSkill(skillType) { 
     if (gameEngine.gameOver || gameEngine.isAnimating) return; 
@@ -61,13 +111,21 @@ function investInSkill(skillType) {
         const cost = 10000; 
         showConfirm('🔐 ยืนยันการเรียนรู้', `ต้องการจ่าย ${fmt(cost)} เพื่อเรียนรู้ทักษะ Self Custody (ซื้อ Hardware Wallet) ใช่หรือไม่?`, '🧠', () => { 
             if (player.cash < cost) return showAlert('❌ ยอดเงินไม่พอ', `คุณต้องมีเงินสดอย่างน้อย ${fmt(cost)}`, '💸'); 
-            player.cash -= cost; player.hasSelfCustody = true; 
+            
+            player.cash -= cost; 
+            player.hasSelfCustody = true; 
             spawnFloatingText('player-cash', -cost); 
             logActivity(`ซื้อ Hardware Wallet (Self Custody) ${fmt(cost)}`, 'expense', 'player'); 
-            showAlert('✅ อัปสกิลสำเร็จ!', 'บิตคอยน์ของคุณปลอดภัยจากการล้มละลายของกระดานเทรดแล้ว!', '🔐'); 
-            updateUI(); closeSkillsModal();
+            showAlert('✅ อัปสกิลสำเร็จ!', 'บิตคอยน์ของคุณปลอดภัยจากการล้มละลายของกระดานเทรด 100%!', '🔐'); 
+            updateUI(); 
+            closeSkillsModal();
         }); 
     }
+}
+
+function processSelfCustodySuccess() {
+    // ปัจจุบันระบบใช้กดปุ่มเรียนรู้แยก ฟังก์ชันนี้จึงไม่ได้หักเงินอีกรอบ (เอาไว้สำหรับการต่อยอดในอนาคต)
+    updateUI();
 }
 
 function buyInsurance(id) {
@@ -89,6 +147,7 @@ function takeCustomLoan() {
     takeLoan(amt); 
     document.getElementById('custom-loan-input').value = ''; 
 }
+
 function takeLoan(amt) { 
     let maxLoan = player.salary * 5;
     let availableLoan = Math.max(0, maxLoan - player.bankDebt);
@@ -96,6 +155,7 @@ function takeLoan(amt) {
     if (amt <= 0) return showAlert('❌ ยอดกู้ไม่ถูกต้อง', 'ยอดเงินไม่ถูกต้อง', '🏦'); 
     player.cash += amt; player.bankDebt += amt; spawnFloatingText('player-cash', amt); logActivity(`กู้ฉุกเฉิน +${fmt(amt)}`, 'income', 'player'); updateUI(); closeBankModal(); 
 }
+
 function setLoanAmount(percent) {
     let maxLoan = player.salary * 5;
     let availableLoan = Math.max(0, maxLoan - player.bankDebt);
@@ -118,7 +178,6 @@ function submitQuickPay() { const amount = parseInt(document.getElementById('qp-
 
 function payOffMortgage(i) { let asset = player.assets[i]; if (player.cash < asset.mortgage) return showAlert('❌ ยอดเงินไม่พอ', `ต้องมีเงินสด ${fmt(asset.mortgage)}`, '💸'); showConfirm('โปะหนี้พิเศษ', `จ่ายก้อน ${fmt(asset.mortgage)} เพื่อล้างหนี้สินทรัพย์นี้?`, '🏠', () => { player.cash -= asset.mortgage; spawnFloatingText('player-cash', -asset.mortgage); logActivity(`โปะหนี้ ${asset.name} สำเร็จ`, 'income', 'player'); asset.mortgage = 0; asset.mortgagePayment = 0; updateUI(); openPortfolioModal('player'); }); }
 
-// 🌟 ระบบเทขายแบบเหมาเข่ง
 function sellAllAssetType(type) {
     if (gameEngine.gameOver || gameEngine.isAnimating) return;
 
@@ -205,6 +264,25 @@ function sellAsset(i, val) {
     }); 
 }
 
+// 🌟 ฟังก์ชันจัดการการคืนสัญญา หรือปล่อยยึดของที่กำลังผ่อน
+function cancelInstallment(i) {
+    if (gameEngine.gameOver || gameEngine.isAnimating) return;
+    let asset = player.assets[i];
+    
+    showConfirm('คืนสัญญา/ปล่อยยึด', `คุณแน่ใจหรือไม่ที่จะคืนสัญญา "${asset.name}" ให้กับไฟแนนซ์?\n\nคำเตือน:\n• คุณจะไม่ได้รับเงินที่ผ่อนไปแล้วคืนเลยแม้แต่บาทเดียว\n• แต่ภาระรายจ่าย ${fmt(asset.monthly)}/เดือน จะหายไปทันที`, '🗑️', () => {
+        const assetName = asset.name;
+        const monthlyRelief = asset.monthly;
+        
+        player.assets.splice(i, 1);
+        
+        logActivity(`คืนสัญญา ${assetName} (ลดภาระ ${fmt(monthlyRelief)}/ด)`, 'info', 'player');
+        showAlert('✅ คืนสัญญาสำเร็จ', `คุณได้ปล่อยยึด ${assetName} เรียบร้อยแล้ว\nภาระรายจ่ายต่อเดือนของคุณลดลง ${fmt(monthlyRelief)}`, '📝');
+        
+        updateUI();
+        openPortfolioModal('player');
+    });
+}
+
 function tradeMarket(type) { 
     if (gameEngine.gameOver || gameEngine.isAnimating) return; 
     let cost = 0; let assetObj = null; 
@@ -231,7 +309,9 @@ function tradeMarket(type) {
         cost = Math.round(market.btcPrice * 0.01); 
         if (player.cash >= cost) { 
             assetObj = { id: Date.now(), type: 'btc', name: 'บิตคอยน์ (0.01 BTC)', units: 0.01, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' }; 
-            showAlert('✅ สำเร็จ!', `ช้อนบิตคอยน์`, '₿'); logActivity(`ซื้อบิตคอยน์ -${fmt(cost)}`, 'expense', 'player'); 
+            showAlert('✅ สำเร็จ!', `ช้อนบิตคอยน์`, '₿'); 
+            logActivity(`ซื้อบิตคอยน์ -${fmt(cost)}`, 'expense', 'player'); 
+            gameEngine.increaseCryptoRisk();
         } 
     } 
     

@@ -15,7 +15,7 @@ class Character {
         this.assets = [];
         this.isEducated = false;
         this.hasSelfCustody = false; 
-        this.insurances = []; // 🌟 เพิ่มอาร์เรย์เก็บข้อมูลประกัน
+        this.insurances = []; 
         this.currentTax = 0;
         this.escrows = []; 
     }
@@ -29,17 +29,16 @@ class Character {
     }
 
     getExpenses() {
-        // 🌟 คำนวณดอกเบี้ยหนี้ฉุกเฉินแบบลอยตัว (ดึงค่าจาก gameEngine)
         let currentBankRate = window.gameEngine ? window.gameEngine.bankInterestRate : 0.0125;
+        let currentCreditRate = window.gameEngine ? window.gameEngine.creditInterestRate : 0.023;
         
         let profInt = Math.floor((this.profDebt * 0.025) / 12);
         let bankInt = Math.floor(this.bankDebt * currentBankRate); 
         let subjectToCreditInt = Math.max(0, (this.creditDebt || 0) - (this.creditGrace || 0));
-        let creditInt = Math.floor(subjectToCreditInt * 0.023); 
+        let creditInt = Math.floor(subjectToCreditInt * currentCreditRate); 
         let mortgageExp = this.assets.reduce((sum, asset) => sum + (asset.mortgagePayment || 0), 0);
         let installmentExp = this.assets.filter(a => a.type === 'installment' && a.monthsLeft > 0).reduce((sum, a) => sum + (a.monthly || 0), 0);
         
-        // 🌟 นำค่าเบี้ยประกันรายเดือนมาบวกเป็นรายจ่าย
         let insuranceExp = this.insurances.reduce((sum, ins) => sum + ins.premium, 0);
         
         let activeTaxYearly = GameUtils.calculateThaiTax(this.salary * 12);

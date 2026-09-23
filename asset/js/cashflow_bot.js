@@ -8,24 +8,32 @@ class BotEngine {
 
     processTurn() {
         if (this.engine.gameOver) return;
+        const bot = this.engine.bot;
+
+        if (bot.isBankrupt) {
+            if(window.restorePlayerTurn) window.restorePlayerTurn();
+            return;
+        }
+
         const ind = document.getElementById('turn-indicator');
         if(ind) { ind.innerText = 'บอทกำลังประมวลผลเหตุการณ์...'; ind.classList.remove('bg-amber-900/30', 'text-amber-400'); ind.classList.add('bg-slate-700', 'text-slate-300'); }
         
         setTimeout(() => {
             try { 
-                const bot = this.engine.bot;
-
                 const timeAssetsResult = bot.processTimeBasedAssets();
                 if (timeAssetsResult.maturedCash > 0) this.log(`ครบกำหนดสัญญา ได้รับเงินก้อน ${GameUtils.fmt(timeAssetsResult.maturedCash)}`, 'income');
-                if (timeAssetsResult.finishedInstallments.length > 0) this.log(`ผ่อน ${timeAssetsResult.finishedInstallments.join(', ')} หมดแล้ว!`, 'system');
+                if (timeAssetsResult.finishedInstallments.length > 0) this.log(`ผ่อน ${timeAssetsResult.finishedInstallments.join(', ')} หมดแล้ว กลายเป็นสินทรัพย์ปลอดภาระ!`, 'system');
+
+                let requiredReserve = bot.getExpenses() * 6;
+                let safeCash = bot.cash - requiredReserve;
 
                 this.managePortfolio();
                 this.tradeMarket();
                 
-                if (!bot.isEducated && bot.cash >= 60000) { bot.cash -= 50000; bot.isEducated = true; this.log(`บอททุ่มเงินอัปสกิลการเงินขั้นเทพ!`, 'system'); }
+                if (!bot.isEducated && safeCash >= 50000) { bot.cash -= 50000; bot.isEducated = true; this.log(`บอทเจียดเงินเย็นไปอัปสกิลการเงินขั้นเทพ!`, 'system'); }
                 
-                if (!bot.hasSelfCustody && bot.cash >= 25000 && bot.assets.some(a => a.type === 'btc')) {
-                    bot.cash -= 10000; bot.hasSelfCustody = true; this.log(`บอทซื้อ Hardware Wallet ป้องกันบิตคอยน์!`, 'system');
+                if (!bot.hasSelfCustody && safeCash >= 10000 && bot.assets.some(a => a.type === 'btc')) {
+                    bot.cash -= 10000; bot.hasSelfCustody = true; this.log(`บอทนำเงินเย็นซื้อ Hardware Wallet ป้องกันบิตคอยน์!`, 'system');
                 }
 
                 if (bot.cash >= 20000 && typeof INSURANCE_CONTENT !== 'undefined') {
@@ -35,15 +43,29 @@ class BotEngine {
 
                         if (!bot.insurances.some(i => i.id === ins.id) && bot.cash >= 20000) {
                             bot.insurances.push(ins);
-                            bot.cash -= premiumAmt; // หักเบี้ยล่วงหน้า 1 เดือน
+                            bot.cash -= premiumAmt;
                             this.log(`บอทตัดสินใจซื้อ ${ins.name} เพื่อป้องกันความเสี่ยง`, 'expense');
                         }
                     });
                 }
 
-                if ((bot.creditDebt || 0) > 0 && bot.cash > 5000) { let payAmt = Math.min(bot.cash - 2000, bot.creditDebt); bot.cash -= payAmt; bot.creditDebt -= payAmt; bot.creditGrace = 0; this.log(`บอทโปะหนี้บัตรเครดิต ${GameUtils.fmt(payAmt)}`, 'system'); } 
-                else if (bot.bankDebt > 0 && bot.cash > 10000) { let payAmt = Math.min(bot.cash - 5000, bot.bankDebt); bot.cash -= payAmt; bot.bankDebt -= payAmt; this.log(`บอทโปะหนี้ฉุกเฉิน ${GameUtils.fmt(payAmt)}`, 'system'); } 
-                else if (bot.bankDebt === 0 && bot.profDebt > 0 && bot.cash > 25000) { let payAmt = Math.min(bot.cash - 10000, bot.profDebt); bot.cash -= payAmt; bot.profDebt -= payAmt; this.log(`บอททยอยโปะหนี้อาชีพ ${GameUtils.fmt(payAmt)}`, 'system'); }
+                if ((bot.creditDebt || 0) > 0 && bot.cash > bot.getExpenses() * 3) { 
+                    let payAmt = Math.min(bot.cash - (bot.getExpenses() * 3), bot.creditDebt); 
+                    if(payAmt > 0) {
+                        bot.cash -= payAmt; bot.creditDebt -= payAmt; bot.creditGrace = 0; 
+                        this.log(`บอทเจียดเงินก้อนไปโปะหนี้บัตรเครดิต ${GameUtils.fmt(payAmt)}`, 'system'); 
+                    }
+                } 
+                else if (bot.bankDebt > 0 && safeCash > 10000) { 
+                    let payAmt = Math.min(safeCash, bot.bankDebt); 
+                    bot.cash -= payAmt; bot.bankDebt -= payAmt; 
+                    this.log(`บอทนำเงินเย็นโปะหนี้ฉุกเฉิน ${GameUtils.fmt(payAmt)}`, 'system'); 
+                } 
+                else if (bot.bankDebt === 0 && bot.profDebt > 0 && safeCash > 25000) { 
+                    let payAmt = Math.min(safeCash - 10000, bot.profDebt); 
+                    bot.cash -= payAmt; bot.profDebt -= payAmt; 
+                    this.log(`บอทนำเงินเย็นทยอยโปะหนี้อาชีพ ${GameUtils.fmt(payAmt)}`, 'system'); 
+                }
 
                 const ev = this.engine.currentSharedEvent;
                 
@@ -68,29 +90,67 @@ class BotEngine {
                             }
                         }
                     } else { 
-                        if (bot.cash >= (bot.getExpenses() * 6)) {
-                            this.log(`บอทเอาตัวรอดจากวิกฤตได้เพราะมีเงินสำรอง!`, 'income');
+                        if (bot.cash >= requiredReserve) {
+                            this.log(`บอทเอาตัวรอดจากวิกฤตได้ชิลๆ เพราะมีเงินสำรอง!`, 'income');
                         }
                     }
                 } else if (ev.type === 'gamble') {
-                    if (bot.cash > ev.cost * 5 && Math.random() < 0.3) { bot.cash -= ev.cost; if (Math.random() < ev.prob) { bot.cash += ev.win; this.log(`บอทเสี่ยงโชคและถูกแจ็คพอต! ได้เงิน ${GameUtils.fmt(ev.win)}`, 'income'); } else this.log(`บอทเสียเงินฟรี ${GameUtils.fmt(-ev.cost)}`, 'expense'); } 
-                    else this.log(`บอทปฏิเสธการเล่นพนัน`, 'info');
+                    if (safeCash > ev.cost * 5 && Math.random() < 0.3) { bot.cash -= ev.cost; if (Math.random() < ev.prob) { bot.cash += ev.win; this.log(`บอทเสี่ยงโชคและถูกแจ็คพอต! ได้เงิน ${GameUtils.fmt(ev.win)}`, 'income'); } else this.log(`บอทเสียเงินฟรี ${GameUtils.fmt(-ev.cost)}`, 'expense'); } 
+                    else this.log(`บอทเงินไม่พอเสี่ยง หรือปฏิเสธการเล่นพนัน`, 'info');
                 } else if (ev.type === 'realestate' || ev.type === 'business' || ev.type === 'land') { 
+                    
                     let actualDpB = bot.isEducated ? Math.floor(ev.downPayment * 0.8) : ev.downPayment;
-                    if (ev.cashflow > 1000 || (ev.cashflow > 0 && actualDpB < 50000)) { 
+                    let roi = actualDpB > 0 ? (ev.cashflow * 12 * 100) / actualDpB : 0;
+                    
+                    let isHighDebt = bot.bankDebt > bot.salary * 3;
+                    let isCloseToFT = bot.passive > bot.getExpenses() * 0.8;
+                    
+                    let willBuy = false;
+                    let reason = "";
+
+                    if (ev.type === 'land') {
+                        if (safeCash >= actualDpB) {
+                            willBuy = true; reason = "เงินสดเหลือเฟือ ซื้อเก็งกำไรที่ดิน";
+                        } else {
+                            reason = "ไม่ยอมเสี่ยงนำเงินสำรองฉุกเฉินมาจมกับสินทรัพย์ไม่มี Cashflow";
+                        }
+                    } else {
+                        if (isHighDebt) {
+                            reason = "หนี้ฉุกเฉินสูงเกินไป ต้องรักษาสภาพคล่องไว้ก่อน";
+                        } else if (isCloseToFT && roi >= 15 && ev.cashflow > 1000) {
+                            willBuy = true; reason = `ใกล้หลุด Rat Race เต็มที ยอมทุบกระปุกซื้อเพื่อเร่ง Cashflow (ROI ${roi.toFixed(1)}%)`;
+                        } else if (safeCash >= actualDpB && roi >= 15) {
+                            willBuy = true; reason = `มีเงินเย็นเหลือเฟือ ลงทุนด้วยเงินสดสบายๆ (ROI ${roi.toFixed(1)}%)`;
+                        } else if (roi >= 35) { 
+                            willBuy = true; reason = `ดีลทองคำหาตัวจับยาก! ยอมกู้เงินฉุกเฉินมาซื้อ (ROI ${roi.toFixed(1)}%)`;
+                        } else {
+                            reason = `วิเคราะห์แล้วเงินเย็นไม่พอ หรือ ROI (${roi.toFixed(1)}%) ต่ำเกินไปที่จะเสี่ยง`;
+                        }
+                    }
+
+                    if (willBuy) {
                         let needed = actualDpB - bot.cash;
-                        if (needed > 0 && ev.cashflow > (needed * 0.10) + 200) { 
+                        if (needed > 0) { 
                             let maxLoan = bot.salary * 5;
-                            if (bot.bankDebt + needed <= maxLoan) {
+                            let loanCost = Math.floor(needed * 0.0125); 
+                            if (ev.cashflow > loanCost + 500 && bot.bankDebt + needed <= maxLoan) {
                                 bot.cash += needed; bot.bankDebt += needed; 
+                                this.log(`บอทคำนวณแล้วคุ้มชัวร์! ยอมกู้เงินฉุกเฉิน ${GameUtils.fmt(needed)} เพื่อลงทุน`, 'expense');
+                            } else {
+                                willBuy = false; reason = "ต้องกู้เงินแต่หักดอกเบี้ยแล้วไม่คุ้มค่า หรือวงเงินแบงก์เต็ม";
                             }
-                        } 
-                        if (bot.cash >= actualDpB) { 
+                        }
+
+                        if (willBuy && bot.cash >= actualDpB) { 
                             bot.cash -= actualDpB; bot.passive += ev.grossCashflow; bot.assets.push({...ev, downPayment: actualDpB, mortgage: ev.cost - actualDpB}); 
-                            this.log(`พิจารณาการ์ดใบเดียวกัน แล้วตัดสินใจคว้าโอกาสลงทุนใน ${ev.name}`, 'income'); 
-                        } 
-                        else this.log(`เงินไม่พอจ่ายดาวน์และกู้เต็มวงเงินแล้ว จึงต้องปล่อยผ่านดีลนี้`, 'info');
-                    } else this.log(`วิเคราะห์แล้วดีลนี้ไม่คุ้ม จึงปล่อยผ่าน`, 'info');
+                            this.log(`พิจารณาดีล: ${reason} -> บอทตัดสินใจลงทุน ${ev.name}`, 'income'); 
+                        } else {
+                            this.log(`พิจารณาดีล: ${reason} -> ปล่อยผ่านดีกว่า`, 'info');
+                        }
+                    } else {
+                        this.log(`พิจารณาดีล: ${reason} -> ปล่อยผ่าน`, 'info');
+                    }
+
                 } else if (isCovered && ev.id !== 'layoff') {
                     this.log(`บอทรอดพ้นรายจ่าย ${ev.name} เพราะเคลมบริษัทประกันได้!`, 'income');
                 } else if (ev.type === 'bad_life' && ev.id === 'layoff') {
@@ -105,14 +165,13 @@ class BotEngine {
                     this.log(`บอทสร้างหนี้ผ่อน: ${ev.name}`, 'expense');
                 } 
                 
-                // 🌟 ระบบหนีตายของบอท (เมื่อเงินช็อต)
                 while (bot.cash < 0) {
                     let maxLoan = bot.salary * 5;
                     let availableLoan = Math.max(0, maxLoan - bot.bankDebt);
                     if (availableLoan > 0) {
                         let takeAmt = Math.min(availableLoan, Math.ceil(Math.abs(bot.cash)/1000)*1000 + 5000);
                         bot.cash += takeAmt; bot.bankDebt += takeAmt;
-                        this.log(`บอทเงินช็อต! ต้องกู้ฉุกเฉินเพิ่ม ${GameUtils.fmt(takeAmt)}`, 'expense');
+                        this.log(`บอทหมุนเงินไม่ทัน! ต้องกู้ฉุกเฉินเพิ่ม ${GameUtils.fmt(takeAmt)}`, 'expense');
                     } else {
                         let paper = bot.assets.find(a => ['bank','inv','gold','btc'].includes(a.type));
                         if (paper) {
@@ -120,7 +179,7 @@ class BotEngine {
                             bot.cash += val;
                             bot.passive -= paper.grossCashflow || 0;
                             bot.assets = bot.assets.filter(a => a !== paper);
-                            this.log(`บอทขาย ${paper.name} หนีตายเงินช็อต!`, 'income');
+                            this.log(`บอทเทขาย ${paper.name} หนีตายเงินช็อต!`, 'income');
                         } else {
                             let re = bot.assets.find(a => ['realestate','business'].includes(a.type));
                             if (re) {
@@ -137,11 +196,26 @@ class BotEngine {
                     }
                 }
 
-                // 🌟 ตรวจสอบบอทล้มละลาย
+                // 🌟 ดิ้นรนเฮือกสุดท้ายก่อนตรวจล้มละลาย NPL: ถ้ารายจ่ายสูงเกินไป บอทจะยอมทิ้งดาวน์
+                let preBkrCheckExp = bot.getExpenses();
+                let preBkrCheckInc = (bot.layoffMonths > 0 ? (bot.insurances.some(i=>i.id==='ins_social') ? Math.floor(bot.salary*0.5) : 0) : bot.salary) + bot.passive;
+                
+                if (preBkrCheckInc > 0 && preBkrCheckExp > preBkrCheckInc * 1.5) {
+                    let actInst = bot.assets.filter(a => a.type === 'installment' && a.monthsLeft > 0);
+                    if (actInst.length > 0) {
+                        actInst.sort((a, b) => b.monthly - a.monthly);
+                        let dropIt = actInst[0];
+                        bot.assets = bot.assets.filter(a => a !== dropIt);
+                        this.log(`🚨 บอทหนี้ท่วม NPL! ดิ้นรนทิ้งดาวน์คืนสัญญา "${dropIt.name}" เพื่อหนีตายจากการล้มละลาย`, 'info');
+                    }
+                }
+
                 let botBkr = this.engine.checkBankruptcy(bot);
                 if (botBkr) {
-                    this.log(`บอทล้มละลาย! (${botBkr})`, 'expense');
-                    if(window.endGame) window.endGame('player_survive'); 
+                    bot.isBankrupt = true; 
+                    this.log(`บอทล้มละลาย! ออกจากการแข่งขันแล้ว (${botBkr})`, 'expense');
+                    if(window.updateUI) window.updateUI(); 
+                    if(window.restorePlayerTurn) window.restorePlayerTurn(); 
                     return;
                 }
 
@@ -161,29 +235,32 @@ class BotEngine {
 
         let spProb = market.spState !== 'bull' ? 0.6 : 0.4;
         
-        if (bot.cash >= Math.round(market.invPrice * 100) + 15000 && Math.random() < spProb) {
+        let safeCash = bot.cash - (bot.getExpenses() * 6);
+        
+        if (safeCash >= Math.round(market.invPrice * 100) + 15000 && Math.random() < spProb) {
             cost = Math.round(market.invPrice * 100); const cf = Math.round((cost * 0.05) / 12);
             assetObj = { id: Date.now(), type: 'inv', name: 'S&P500', units: 100, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf, buff: 'none' }; 
-            this.log(`DCA ซื้อหุ้น S&P500 สะสมช่วงตลาดซึม`, 'expense');
+            this.log(`DCA นำเงินเย็นซื้อหุ้น S&P500 สะสมช่วงตลาดซึม`, 'expense');
         } 
-        else if (bot.cash >= Math.round(market.btcPrice * 0.01) + 30000 && Math.random() < 0.15) {
+        else if (safeCash >= Math.round(market.btcPrice * 0.01) + 30000 && Math.random() < 0.15) {
             if (market.btcState !== 'bull') {
                 cost = Math.round(market.btcPrice * 0.01);
                 assetObj = { id: Date.now(), type: 'btc', name: 'บิตคอยน์', units: 0.01, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' }; 
-                this.log(`เก็งกำไรบิตคอยน์เก็บไว้`, 'expense');
+                this.log(`นำเงินเย็นเก็งกำไรบิตคอยน์เก็บไว้`, 'expense');
+                this.engine.increaseCryptoRisk();
             }
         } 
         else {
             let goldProb = (isHighInflation || market.spState === 'bear') ? 0.50 : 0.25;
 
-            if (bot.cash >= Math.round(market.goldPrice) + 15000 && Math.random() < goldProb) {
+            if (safeCash >= Math.round(market.goldPrice) + 15000 && Math.random() < goldProb) {
                 cost = Math.round(market.goldPrice);
                 assetObj = { id: Date.now(), type: 'gold', name: 'ทองคำ 1 บาท', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: 0, cashflow: 0, buff: 'none' }; 
-                this.log(`ซื้อทองคำเก็บเป็น Safe Haven โยกย้ายความเสี่ยง`, 'expense');
-            } else if (bot.cash >= 15000 && Math.random() < 0.3) {
+                this.log(`นำเงินเย็นซื้อทองคำเก็บเป็น Safe Haven โยกย้ายความเสี่ยง`, 'expense');
+            } else if (safeCash >= 15000 && Math.random() < 0.3) {
                 cost = 10000; const cf = Math.round((cost * 0.02) / 12);
                 assetObj = { id: Date.now(), type: 'bank', name: 'เงินฝากประจำ', units: 1, buyPrice: cost, mortgage: 0, grossCashflow: cf, cashflow: cf, buff: 'none' }; 
-                this.log(`ฝากเงินในแบงก์กินดอกเบี้ย`, 'expense');
+                this.log(`นำเงินเย็นฝากในแบงก์กินดอกเบี้ย`, 'expense');
             }
         }
 
@@ -193,6 +270,33 @@ class BotEngine {
     managePortfolio() {
         const bot = this.engine.bot; 
         const market = this.engine.market;
+
+        let requiredReserve = bot.getExpenses() * 6;
+        let bEffSalary = bot.layoffMonths > 0 ? (bot.insurances.some(i=>i.id==='ins_social') ? Math.floor(bot.salary*0.5) : 0) : bot.salary;
+        let netCashflow = (bEffSalary + bot.passive) - bot.getExpenses();
+        let isOverLeveraged = bot.getExpenses() > (bEffSalary + bot.passive) * 1.5;
+
+        // 🌟 ตัดสินใจคืนสัญญา (Cancel Installment) ก่อนหมดตัว ถ้ากระแสเงินสดวิกฤต
+        let activeInst = bot.assets.filter(a => a.type === 'installment' && a.monthsLeft > 0);
+        if (activeInst.length > 0) {
+            if (netCashflow < 0 || isOverLeveraged || bot.cash < requiredReserve / 2) {
+                activeInst.sort((a, b) => b.monthly - a.monthly); // เลือกชิ้นที่ผ่อนแพงสุด
+                let toDrop = activeInst[0];
+                bot.assets = bot.assets.filter(a => a !== toDrop);
+                this.log(`บอททนแบกภาระไม่ไหว! ตัดสินใจคืนสัญญา/ทิ้งดาวน์ "${toDrop.name}" (ลดรายจ่าย ${GameUtils.fmt(toDrop.monthly)}/ด)`, 'info');
+                
+                netCashflow = (bEffSalary + bot.passive) - bot.getExpenses();
+            }
+        }
+
+        let paidOffInst = bot.assets.filter(a => a.type === 'installment' && a.monthsLeft <= 0);
+        paidOffInst.forEach(a => {
+            if (bot.cash < requiredReserve || Math.random() < 0.3) {
+                bot.cash += a.salvage;
+                bot.assets = bot.assets.filter(asset => asset !== a);
+                this.log(`บอทนำ ${a.name} ที่ผ่อนหมดแล้วไปขายเป็นของมือสอง ได้เงินกู้ชีพ ${GameUtils.fmt(a.salvage)}`, 'income');
+            }
+        });
 
         if (market.btcState === 'bull') {
             let btcAssets = bot.assets.filter(a => a.type === 'btc');
@@ -207,11 +311,13 @@ class BotEngine {
             }
         }
 
+        let safeCash = bot.cash - requiredReserve;
         for (let i = 0; i < bot.assets.length; i++) {
             let a = bot.assets[i];
-            if ((a.mortgage || 0) > 0 && bot.cash > a.mortgage * 1.5) {
+            if ((a.mortgage || 0) > 0 && safeCash > a.mortgage * 1.5) {
                 bot.cash -= a.mortgage;
-                this.log(`นำเงินสดก้อนใหญ่ไปโปะหนี้ ${a.name} จำนวน ${GameUtils.fmt(a.mortgage)} จนปลอดภาระ!`, 'income');
+                safeCash -= a.mortgage;
+                this.log(`นำเงินเย็นก้อนใหญ่ไปโปะหนี้ ${a.name} จำนวน ${GameUtils.fmt(a.mortgage)} จนปลอดภาระ!`, 'income');
                 a.mortgage = 0;
                 a.mortgagePayment = 0;
             }

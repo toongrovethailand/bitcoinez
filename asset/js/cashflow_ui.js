@@ -3,6 +3,7 @@
 class UIManager {
     constructor() {
         this.confirmCallback = null;
+        this.activityLogs = []; // 🌟 เก็บ Log ไว้สำหรับ Export
     }
 
     safeSetText(id, val) {
@@ -33,6 +34,9 @@ class UIManager {
     }
 
     logActivity(message, timeStr, type = 'info', context = 'global') {
+        // บันทึกลง Array สำหรับ Export TXT
+        this.activityLogs.push({ time: timeStr, msg: message, type: type, ctx: context });
+
         const targetId = context === 'player' ? 'player-log' : (context === 'bot' ? 'bot-log' : 'global-log');
         const logList = document.getElementById(targetId);
         if (!logList) return;
@@ -119,8 +123,6 @@ class UIManager {
     hideDecisions(gameOver) {
         if(!gameOver) {
             this.toggleDecisionPanels('action-buttons');
-            const btnRoll = document.getElementById('btn-roll');
-            if(btnRoll) { btnRoll.innerText = '🎴 ผ่านไป 1 เดือน'; btnRoll.disabled = false; }
         } else {
             this.toggleDecisionPanels(''); 
         }
