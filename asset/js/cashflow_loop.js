@@ -123,10 +123,21 @@ function checkWinCondition() {
     let bNetCashflow = (bEffSalary + bot.passive) - bot.getExpenses();
 
     const isPlayerWin = (
-        player.passive > player.getExpenses() && pNetCashflow > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0)
+        player.passive > player.getExpenses() && 
+        pNetCashflow > 0 && 
+        player.profDebt === 0 && 
+        player.bankDebt === 0 && 
+        (!player.creditDebt || player.creditDebt === 0) &&
+        player.cash >= (player.getExpenses() * 6)
     );
     const isBotWin = (
-        !bot.isBankrupt && bot.passive > bot.getExpenses() && bNetCashflow > 0 && bot.profDebt === 0 && bot.bankDebt === 0 && (!bot.creditDebt || bot.creditDebt === 0)
+        !bot.isBankrupt && 
+        bot.passive > bot.getExpenses() && 
+        bNetCashflow > 0 && 
+        bot.profDebt === 0 && 
+        bot.bankDebt === 0 && 
+        (!bot.creditDebt || bot.creditDebt === 0) &&
+        bot.cash >= (bot.getExpenses() * 6)
     );
 
     if (isPlayerWin) { 
@@ -160,7 +171,6 @@ function rollDiceWithAnimation() {
     if (player.bankDebt > 0) player.bankDebt = Math.floor(player.bankDebt * (1 + gameEngine.bankInterestRate));
     if (bot.bankDebt > 0) bot.bankDebt = Math.floor(bot.bankDebt * (1 + gameEngine.bankInterestRate));
     
-    // 🌟 ดึงค่าดอกเบี้ยบัตรเครดิตลอยตัว
     let currentCreditRate = gameEngine.creditInterestRate || 0.023;
     let pChargeableCredit = Math.max(0, (player.creditDebt || 0) - (player.creditGrace || 0));
     
@@ -176,6 +186,9 @@ function rollDiceWithAnimation() {
     }
 
     if (gameEngine.badCooldown > 0) gameEngine.badCooldown--;
+    
+    // 🌟 ระบบลด Cooldown กระดานเทรด ทุกๆ การผ่านเดือน
+    if (gameEngine.cryptoCrashCooldown > 0) gameEngine.cryptoCrashCooldown--;
 
     let infRateEl = document.getElementById('inflation-rate');
     let isDynamic = document.getElementById('inflation-dynamic-toggle')?.checked;
@@ -189,7 +202,6 @@ function rollDiceWithAnimation() {
             let intText = "1.25%";
             let credText = "2.3%";
 
-            // 🌟 ปรับเพิ่มดอกเบี้ยบัตรเครดิตตามระดับที่สมจริงขึ้น (2.3% -> 3.2% -> 4.0%)
             if (gameEngine.ecoState === 'recovery') {
                 newRate = (Math.random() * 1.0 + 1.0).toFixed(1); 
                 intRate = 0.0125; credRate = 0.023; stateName = "🟢 ฟื้นฟู (Recovery)"; intText = "1.25%"; credText = "2.3%";
@@ -311,7 +323,9 @@ function rollDiceWithAnimation() {
 
             const r = Math.random(); 
             
-            let cryptoCrashProb = (gameEngine.cryptoCrashExtraWeight || 0) / 100;
+            // 🌟 แก้สูตรความเสี่ยง: หารด้วย 1000 เพื่อให้แต้ม 10-40 กลายเป็นโอกาสแค่ 1-4%
+            // 🌟 เช็คว่าติด Cooldown อยู่หรือเปล่า ถ้าติดอยู่ ห้ามสุ่มกระดานล้ม!
+            let cryptoCrashProb = (gameEngine.cryptoCrashCooldown > 0) ? 0 : (gameEngine.cryptoCrashExtraWeight || 0) / 1000;
             let isCryptoCrashTriggered = false;
             
             if (cryptoCrashProb > 0 && Math.random() < cryptoCrashProb) {
@@ -321,7 +335,10 @@ function rollDiceWithAnimation() {
             if (isCryptoCrashTriggered) {
                 let ev = CONTENT.crisis.find(c => c.id === 'cr_crypto_crash');
                 gameEngine.currentSharedEvent = { type: 'crisis', id: ev.id, name: ev.name, desc: ev.desc, cost: 0 };
+                
                 gameEngine.cryptoCrashExtraWeight = 0; 
+                // 🌟 เมื่อระเบิดแล้ว สุ่ม Cooldown ห้ามเกิดซ้ำ 18-36 เดือน
+                gameEngine.cryptoCrashCooldown = Math.floor(Math.random() * 19) + 18; 
             } 
             else if (gameEngine.gameMonth >= gameEngine.nextCrisisMonth && r < rCrisis) { 
                 gameEngine.currentSharedEvent = gameEngine.generateCrisisEvent(); 
@@ -376,7 +393,7 @@ function rollDiceWithAnimation() {
                     market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.5); 
                     market.goldPrice = Math.max(1000, market.goldPrice * 0.9); 
                 } else {
-                    market.btcState = 'bear'; market.btcPrice = Math.max(100000, market.btcPrice * 0.85); 
+                    // 🌟 เหตุการณ์ Exchange ล้มละลาย จะไม่กระทบราคาบิตคอยน์เลย (ปล่อยให้ตลาดวิ่งไปตามปกติ)
                 }
                 updateUI(); 
 

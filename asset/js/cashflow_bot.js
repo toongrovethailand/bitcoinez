@@ -33,7 +33,15 @@ class BotEngine {
                 if (!bot.isEducated && safeCash >= 50000) { bot.cash -= 50000; bot.isEducated = true; this.log(`บอทเจียดเงินเย็นไปอัปสกิลการเงินขั้นเทพ!`, 'system'); }
                 
                 if (!bot.hasSelfCustody && safeCash >= 10000 && bot.assets.some(a => a.type === 'btc')) {
-                    bot.cash -= 10000; bot.hasSelfCustody = true; this.log(`บอทนำเงินเย็นซื้อ Hardware Wallet ป้องกันบิตคอยน์!`, 'system');
+                    bot.cash -= 10000; bot.hasSelfCustody = true; 
+                    
+                    // 🌟 เมื่อบอทเรียนสกิลแล้ว ลดความเสี่ยงลง 90% ด้วย
+                    if (this.engine.cryptoCrashExtraWeight > 0) {
+                        this.engine.cryptoCrashExtraWeight = Math.floor(this.engine.cryptoCrashExtraWeight * 0.1);
+                        this.log(`ความรู้ Self Custody ทำให้ความเสี่ยง Exchange ล้มละลายของระบบลดลง 90%!`, 'info');
+                    }
+
+                    this.log(`บอทนำเงินเย็นซื้อ Hardware Wallet ป้องกันบิตคอยน์!`, 'system');
                 }
 
                 if (bot.cash >= 20000 && typeof INSURANCE_CONTENT !== 'undefined') {
@@ -196,7 +204,6 @@ class BotEngine {
                     }
                 }
 
-                // 🌟 ดิ้นรนเฮือกสุดท้ายก่อนตรวจล้มละลาย NPL: ถ้ารายจ่ายสูงเกินไป บอทจะยอมทิ้งดาวน์
                 let preBkrCheckExp = bot.getExpenses();
                 let preBkrCheckInc = (bot.layoffMonths > 0 ? (bot.insurances.some(i=>i.id==='ins_social') ? Math.floor(bot.salary*0.5) : 0) : bot.salary) + bot.passive;
                 
@@ -276,11 +283,10 @@ class BotEngine {
         let netCashflow = (bEffSalary + bot.passive) - bot.getExpenses();
         let isOverLeveraged = bot.getExpenses() > (bEffSalary + bot.passive) * 1.5;
 
-        // 🌟 ตัดสินใจคืนสัญญา (Cancel Installment) ก่อนหมดตัว ถ้ากระแสเงินสดวิกฤต
         let activeInst = bot.assets.filter(a => a.type === 'installment' && a.monthsLeft > 0);
         if (activeInst.length > 0) {
             if (netCashflow < 0 || isOverLeveraged || bot.cash < requiredReserve / 2) {
-                activeInst.sort((a, b) => b.monthly - a.monthly); // เลือกชิ้นที่ผ่อนแพงสุด
+                activeInst.sort((a, b) => b.monthly - a.monthly); 
                 let toDrop = activeInst[0];
                 bot.assets = bot.assets.filter(a => a !== toDrop);
                 this.log(`บอททนแบกภาระไม่ไหว! ตัดสินใจคืนสัญญา/ทิ้งดาวน์ "${toDrop.name}" (ลดรายจ่าย ${GameUtils.fmt(toDrop.monthly)}/ด)`, 'info');

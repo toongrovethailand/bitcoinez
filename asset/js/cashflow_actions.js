@@ -115,6 +115,14 @@ function investInSkill(skillType) {
             player.cash -= cost; 
             player.hasSelfCustody = true; 
             spawnFloatingText('player-cash', -cost); 
+            
+            // 🌟 เมื่อเรียนสกิลแล้ว ลดความเสี่ยง Exchange ล้มละลายลง 90%
+            if (gameEngine.cryptoCrashExtraWeight > 0) {
+                let reducedWeight = Math.floor(gameEngine.cryptoCrashExtraWeight * 0.1);
+                gameEngine.cryptoCrashExtraWeight = reducedWeight;
+                logActivity(`เรียนรู้ Self Custody ส่งผลให้ความเสี่ยง Exchange ล้มละลายลดลง 90%!`, 'info', 'global');
+            }
+
             logActivity(`ซื้อ Hardware Wallet (Self Custody) ${fmt(cost)}`, 'expense', 'player'); 
             showAlert('✅ อัปสกิลสำเร็จ!', 'บิตคอยน์ของคุณปลอดภัยจากการล้มละลายของกระดานเทรด 100%!', '🔐'); 
             updateUI(); 
@@ -124,7 +132,6 @@ function investInSkill(skillType) {
 }
 
 function processSelfCustodySuccess() {
-    // ปัจจุบันระบบใช้กดปุ่มเรียนรู้แยก ฟังก์ชันนี้จึงไม่ได้หักเงินอีกรอบ (เอาไว้สำหรับการต่อยอดในอนาคต)
     updateUI();
 }
 
@@ -264,7 +271,6 @@ function sellAsset(i, val) {
     }); 
 }
 
-// 🌟 ฟังก์ชันจัดการการคืนสัญญา หรือปล่อยยึดของที่กำลังผ่อน
 function cancelInstallment(i) {
     if (gameEngine.gameOver || gameEngine.isAnimating) return;
     let asset = player.assets[i];

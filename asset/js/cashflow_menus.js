@@ -72,6 +72,8 @@ function openChecklistModal() {
     let isProfDebtClear = player.profDebt === 0;
     let isBankDebtClear = player.bankDebt === 0;
     let isPassiveWin = player.passive > player.getExpenses() && player.getExpenses() > 0;
+    // 🌟 เพิ่มการเช็คเงินสำรอง 6 เดือนใน UI
+    let isReserveReady = player.cash >= (player.getExpenses() * 6);
     
     const makeItem = (text, isDone) => {
         return `<div class="flex items-center gap-3 p-3 rounded-lg bg-slate-800 border ${isDone ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-700'}">
@@ -83,7 +85,8 @@ function openChecklistModal() {
     cl.innerHTML = `
         ${makeItem(`ปลดหนี้อาชีพหมดสิ้น<br><span class="text-[10px] font-normal text-slate-500">(คงเหลือ ฿${fmt(player.profDebt)})</span>`, isProfDebtClear)}
         ${makeItem(`ปลดหนี้ฉุกเฉินหมดสิ้น<br><span class="text-[10px] font-normal text-slate-500">(คงเหลือ ฿${fmt(player.bankDebt)})</span>`, isBankDebtClear)}
-        ${makeItem(`Passive Income แซงรายจ่าย<br><span class="text-[10px] font-normal text-slate-500">(${fmt(player.passive)} /${fmt(player.getExpenses())})</span>`, isPassiveWin)}
+        ${makeItem(`Passive Income แซงรายจ่าย<br><span class="text-[10px] font-normal text-slate-500">(${fmt(player.passive)} / ${fmt(player.getExpenses())})</span>`, isPassiveWin)}
+        ${makeItem(`เงินสดสำรอง 6 เดือน<br><span class="text-[10px] font-normal text-slate-500">(${fmt(player.cash)} / ${fmt(player.getExpenses() * 6)})</span>`, isReserveReady)}
     `;
     document.getElementById('checklist-modal').classList.remove('hidden');
 }
@@ -165,15 +168,14 @@ function updateUI() {
     if(pProgEl) pProgEl.style.width = pProg + '%'; 
     uiManager.safeSetText('player-progress-text', pProg.toFixed(1) + '%'); 
     
-    const isPlayerWinReady = (player.passive > player.getExpenses() && pNet > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0));
+    // 🌟 อัปเดตการแสดงผลแสงเรืองรอง (Glow) เมื่อบรรลุเงื่อนไขชนะทั้งหมด
+    const isPlayerWinReady = (player.passive > player.getExpenses() && pNet > 0 && player.profDebt === 0 && player.bankDebt === 0 && (!player.creditDebt || player.creditDebt === 0) && player.cash >= (player.getExpenses() * 6));
     if(isPlayerWinReady && pProgEl) pProgEl.classList.add('glow-pulse');
+    else if(pProgEl) pProgEl.classList.remove('glow-pulse');
 
     uiManager.safeSetText('bot-cash', fmt(bot.cash)); 
     uiManager.safeSetText('bot-salary', fmt(bot.salary)); 
-    
-    // 🌟 แก้ไขบั๊กที่ทำให้ระบบแครชตรงนี้ครับ (จาก bot.bot-prof-debt เป็น bot.profDebt)
     uiManager.safeSetText('bot-prof-debt', fmt(bot.profDebt)); 
-    
     uiManager.safeSetText('bot-bank-debt', fmt(bot.bankDebt)); 
     uiManager.safeSetText('bot-credit-debt', fmt(bot.creditDebt || 0)); 
     uiManager.safeSetText('bot-expenses', fmt(bot.getExpenses())); 
@@ -244,14 +246,14 @@ function openSkillsModal() {
     const btn1 = document.getElementById('btn-buy-skill-1');
     if (player.isEducated) {
         btn1.disabled = true;
-        btn1.innerText = 'เรียนรู้แล้ว'; // 🌟 ดึงข้อความ "เรียนรู้แล้ว" กลับมาให้ปุ่มใน Modal
+        btn1.innerText = 'เรียนรู้แล้ว'; 
         btn1.className = 'w-full sm:w-auto bg-slate-700 text-slate-400 py-1.5 px-4 rounded text-xs font-bold shadow-md cursor-not-allowed';
     }
     
     const btn2 = document.getElementById('btn-buy-skill-selfcustody');
     if (player.hasSelfCustody && btn2) {
         btn2.disabled = true;
-        btn2.innerText = 'เรียนรู้แล้ว'; // 🌟 ดึงข้อความ "เรียนรู้แล้ว" กลับมาให้ปุ่มใน Modal
+        btn2.innerText = 'เรียนรู้แล้ว'; 
         btn2.className = 'w-full sm:w-auto bg-slate-700 text-slate-400 py-1.5 px-4 rounded text-xs font-bold shadow-md cursor-not-allowed';
     }
     document.getElementById('skills-modal').classList.remove('hidden');
@@ -478,7 +480,7 @@ function renderPortfolioList() {
                     let actualDpView = a.downPayment || a.buyPrice;
                     let roiView = actualDpView > 0 ? ((a.cashflow * 12) / actualDpView) * 100 : 0;
                     
-                    reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)} <span class="text-amber-400 ml-1">(ROI: ${roiView.toFixed(2)}%)</span></div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
+                    reHTML+=`<div class="bg-slate-800 p-3 rounded border ${a.type==='land'?'border-amber-700':'border-amber-500/30'} flex flex-col gap-2"><div class="flex flex-col md:flex-row justify-between items-start"><div><div class="font-bold text-white text-sm">${a.name} <span class="text-emerald-400 text-[10px] font-normal border border-emerald-500/30 px-1 rounded ml-1">Gross CF: +${fmt(a.grossCashflow)}/ด</span></div>${buff}<div class="text-[11px] text-slate-400 mt-1">เงินดาวน์: ${fmt(a.downPayment)} <span class="text-amber-400 ml-1">(ROI: ${roiView.toFixed(2)}%)</span></div><div class="text-[11px] text-amber-400 cursor-help" title="หักลบหนี้ ภาษี และค่านายหน้าแล้ว">รับซื้อคืนสุทธิ: ${fmt(finalNet)} ${pfStr}</div></div><div class="mt-2 md:mt-0 w-full md:w-auto">${btn}</div></div>${(a.mortgage||0)>0?`<div class="bg-slate-900/80 p-2 rounded border border-rose-500/20 mt-1 flex flex-col md:flex-row justify-between items-center gap-2"><div class="w-full"><div class="text-[11px] text-rose-400">⚠️ หหนี้บ้าน/ธุรกิจ คงค้าง: ${fmt(a.mortgage)}</div><div class="text-[10px] text-slate-500">ยอดส่งแบงก์ต่อเดือน: ${fmt(a.mortgagePayment)}</div></div>${portfolioTarget==='player'?`<button onclick="payOffMortgage(${originalIndex})" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-[10px] font-bold shadow transition-colors whitespace-nowrap">โปะหนี้แบงก์</button>`:''}</div>`:`<div class="bg-slate-900/80 p-2 rounded border border-emerald-500/20 mt-1"><span class="text-xs text-emerald-400 font-bold">✅ ปลอดหนี้ (Free & Clear)!</span></div>`}</div>`; 
                 } else { 
                     let pPowerHtml = '';
                     if (a.type === 'bank') {
@@ -681,7 +683,6 @@ async function submitToLeaderboard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 🌟 เพิ่มระบบป้องกันการกดปุ่มยืนยันซ้ำๆ (Anti-spam)
     document.getElementById('custom-confirm-yes').addEventListener('click', () => {
         if (uiManager.confirmCallback) {
             let cb = uiManager.confirmCallback;
